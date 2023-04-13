@@ -1,0 +1,16 @@
+[package]
+name = "ros"
+version = "0.1.0"
+edition = "2021"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+bootloader = "0.9.23"
+lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+spin = "0.9.5"
+volatile = "0.4.6"
