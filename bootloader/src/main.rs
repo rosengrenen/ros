@@ -1,6 +1,9 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+
+use alloc::vec::Vec;
 use uefi::{services::boot::MemoryDescriptor, string::CString16};
 
 #[no_mangle]
@@ -8,66 +11,23 @@ pub extern "efiapi" fn efi_main(
     image_handle: uefi::Handle,
     system_table: uefi::SystemTable,
 ) -> uefi::Status {
+    uefi::init(&system_table);
     let st = system_table.inner;
-    let text = "Hello world!\r\n";
 
     st.con_out.reset(false);
-    printstring(text, &system_table, 0);
-    printstring("getting memory map", &system_table, 1);
-    let (mut req_size, _, dsize, _, _) = st
-        .boot_services
-        .get_memory_map(0, core::ptr::null_mut())
-        .unwrap();
-    printstring("got memory map, requested size", &system_table, 2);
-    print10(req_size as _, &system_table, 3);
-    // req_size += 2 * dsize;
-    printstring("allocating pool", &system_table, 4);
-    let buf = st
-        .boot_services
-        .allocate_pool(uefi::services::boot::MemoryType::EfiLoaderData, req_size)
-        .unwrap();
-    printstring("allocated pool", &system_table, 5);
+    printstring("Hello world!\r\n", &system_table, 0);
 
-    printmem(buf as *const u8, &system_table, 7);
-
-    let mut i = 1;
-    loop {
-        printstring("getting memory map, attempt:", &system_table, 12);
-        print10(i, &system_table, 13);
-        let (map_size, map_key, dsize, dver, status) =
-            st.boot_services.get_memory_map(req_size, buf).unwrap();
-        // Rather, if it is 5, aka too small buffer
-        if status == 0 {
-            printstring("got memory map", &system_table, 14);
-            break;
-        }
-
-        req_size = map_size;
-        i += 1;
-    }
-
-    printmem(buf as *const u8, &system_table, 16);
-
-    let map_entries = req_size / dsize;
-    let len = map_entries;
+    let memory_map = st.boot_services.get_memory_map().unwrap();
+    let buffer_size = memory_map.buffer.len();
+    let descs = memory_map.iter().copied().collect::<Vec<_>>();
+    let descs_size = descs.len() * core::mem::size_of::<MemoryDescriptor>();
     let mut total_ram = 0;
-    st.con_out.reset(false);
-    for i in 0..len {
-        let k = buf as *const u8;
-        let l = unsafe { k.add(i * dsize) } as *const MemoryDescriptor;
-        let desc = unsafe { *l };
+    for (i, desc) in memory_map.iter().enumerate() {
         total_ram += desc.number_of_pages * 4096 / 1024;
-
-        printmemtype(desc.ty, &system_table, 2 + i);
     }
-
     print10(total_ram as _, &system_table, 0);
-
-    print10((len) as _, &system_table, 2);
-    print10((len * dsize) as _, &system_table, 3);
-    print10((req_size) as _, &system_table, 4);
-
-    st.boot_services.free_pool(buf);
+    print10(buffer_size as _, &system_table, 1);
+    print10(descs_size as _, &system_table, 2);
 
     st.con_in.reset(false);
     loop {

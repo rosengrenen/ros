@@ -3,33 +3,57 @@ use core::ffi::c_void;
 use crate::{Status, TableHeader};
 
 impl BootServices {
-    pub fn get_memory_map(
-        &self,
-        mut memory_map_size: usize,
-        memory_map: *mut c_void,
-    ) -> Result<(usize, usize, usize, u32, usize), usize> {
-        // let mut memory_map = MemoryDescriptor::default();
+    pub fn get_memory_map(&self) -> Result<MemoryMap, usize> {
+        let (mut memory_map_size, mut entry_size) = self.get_memory_map_size()?;
+        let mut buffer = vec![0u8; memory_map_size];
+        loop {
+            let mut map_key = 0;
+            let mut descriptor_version = 0;
+            let mut status = (self.get_memory_map)(
+                &mut memory_map_size,
+                buffer.as_mut_ptr() as _,
+                &mut map_key,
+                &mut entry_size,
+                &mut descriptor_version,
+            );
+            status &= 0xFFFFFFFF;
+
+            if status == 0 {
+                break;
+            }
+
+            if status != 5 {
+                return Err(status);
+            }
+
+            buffer = vec![0u8; memory_map_size];
+        }
+
+        Ok(MemoryMap {
+            buffer,
+            entry_size,
+            len: memory_map_size / entry_size,
+        })
+    }
+
+    pub fn get_memory_map_size(&self) -> Result<(usize, usize), usize> {
+        let mut memory_map_size = 0;
         let mut map_key = 0;
         let mut descriptor_size = 0;
         let mut descriptor_version = 0;
-        let status = (self.get_memory_map)(
+        let mut status = (self.get_memory_map)(
             &mut memory_map_size,
-            memory_map as _,
+            core::ptr::null_mut(),
             &mut map_key,
             &mut descriptor_size,
             &mut descriptor_version,
         );
-        // if status != 0 {
-        //     return Err(status);
-        // }
+        status &= 0xFFFFFFFF;
+        if status != 5 {
+            return Err(status);
+        }
 
-        Ok((
-            memory_map_size,
-            map_key,
-            descriptor_size,
-            descriptor_version,
-            status,
-        ))
+        Ok((memory_map_size, descriptor_size))
     }
 
     pub fn allocate_pool(&self, pool_type: MemoryType, size: usize) -> Result<*mut c_void, usize> {
@@ -49,6 +73,49 @@ impl BootServices {
         }
 
         Ok(())
+    }
+}
+
+#[repr(C)]
+pub struct MemoryMap {
+    pub buffer: alloc::vec::Vec<u8>,
+    pub entry_size: usize,
+    pub len: usize,
+}
+
+impl MemoryMap {
+    pub fn iter(&self) -> MemoryMapIter {
+        MemoryMapIter {
+            memory_map: self,
+            index: 0,
+        }
+    }
+}
+
+#[repr(C)]
+pub struct MemoryMapIter<'iter> {
+    memory_map: &'iter MemoryMap,
+    index: usize,
+}
+
+impl<'iter> Iterator for MemoryMapIter<'iter> {
+    type Item = &'iter MemoryDescriptor;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.memory_map.len {
+            return None;
+        }
+
+        let memory_descriptor = unsafe {
+            let ptr_with_offset = self
+                .memory_map
+                .buffer
+                .as_ptr()
+                .add(self.index * self.memory_map.entry_size);
+            &*(ptr_with_offset as *const MemoryDescriptor)
+        };
+        self.index += 1;
+        Some(memory_descriptor)
     }
 }
 
