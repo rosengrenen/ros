@@ -1,31 +1,195 @@
 #![no_std]
 #![no_main]
 
+use uefi::{services::boot::MemoryDescriptor, string::CString16};
+
 #[no_mangle]
 pub extern "efiapi" fn efi_main(
     image_handle: uefi::Handle,
-    system_table: *const uefi::SystemTable,
+    system_table: uefi::SystemTable,
 ) -> uefi::Status {
+    let st = system_table.inner;
     let text = "Hello world!\r\n";
-    let mut buffer = [0u16; 15];
-    for (i, b) in text.as_bytes().iter().enumerate() {
-        buffer[i] = *b as _;
-    }
-    buffer[14] = 0;
-    unsafe {
-        let out = (*system_table).con_out;
-        let res = ((*out).output_string)(out, buffer.as_ptr());
+
+    st.con_out.reset(false);
+    printstring(text, &system_table, 0);
+    printstring("getting memory map", &system_table, 1);
+    let (mut req_size, _, dsize, _, _) = st
+        .boot_services
+        .get_memory_map(0, core::ptr::null_mut())
+        .unwrap();
+    printstring("got memory map, requested size", &system_table, 2);
+    print10(req_size as _, &system_table, 3);
+    // req_size += 2 * dsize;
+    printstring("allocating pool", &system_table, 4);
+    let buf = st
+        .boot_services
+        .allocate_pool(uefi::services::boot::MemoryType::EfiLoaderData, req_size)
+        .unwrap();
+    printstring("allocated pool", &system_table, 5);
+
+    printmem(buf as *const u8, &system_table, 7);
+
+    let mut i = 1;
+    loop {
+        printstring("getting memory map, attempt:", &system_table, 12);
+        print10(i, &system_table, 13);
+        let (map_size, map_key, dsize, dver, status) =
+            st.boot_services.get_memory_map(req_size, buf).unwrap();
+        // Rather, if it is 5, aka too small buffer
+        if status == 0 {
+            printstring("got memory map", &system_table, 14);
+            break;
+        }
+
+        req_size = map_size;
+        i += 1;
     }
 
-    unsafe {
-        let conin = (*system_table).con_in;
-        ((*conin).reset)(conin, false);
-        let not_ready = 0x8000000000000000 | 6;
-        let mut key = uefi::InputKey::default();
-        while ((*conin).read_key_stroke)(conin, &mut key as *mut _) == not_ready {}
+    printmem(buf as *const u8, &system_table, 16);
+
+    let map_entries = req_size / dsize;
+    let len = map_entries;
+    let mut total_ram = 0;
+    st.con_out.reset(false);
+    for i in 0..len {
+        let k = buf as *const u8;
+        let l = unsafe { k.add(i * dsize) } as *const MemoryDescriptor;
+        let desc = unsafe { *l };
+        total_ram += desc.number_of_pages * 4096 / 1024;
+
+        printmemtype(desc.ty, &system_table, 2 + i);
+    }
+
+    print10(total_ram as _, &system_table, 0);
+
+    print10((len) as _, &system_table, 2);
+    print10((len * dsize) as _, &system_table, 3);
+    print10((req_size) as _, &system_table, 4);
+
+    st.boot_services.free_pool(buf);
+
+    st.con_in.reset(false);
+    loop {
+        match st.con_in.read_key() {
+            Ok(_key) => break,
+            Err(_status) => continue,
+        }
     }
 
     return 0;
+}
+
+fn printmem(mut mem: *const u8, st: &uefi::SystemTable, row: usize) {
+    st.inner.con_out.set_cursor_position(0, row);
+
+    let buf = [0; 1];
+    for i in 0..100 {
+        printchar(b' ' as _, st);
+
+        let c = unsafe { *mem.offset(i) };
+        printhexdigit((c >> 4) as _, st);
+        printhexdigit((c & 0xF) as _, st);
+    }
+}
+
+fn printhexdigit(digit: u8, st: &uefi::SystemTable) {
+    if digit < 10 {
+        printchar((digit + b'0') as _, st);
+    } else if digit < 16 {
+        printchar((digit + b'a' - 10) as _, st);
+    }
+}
+
+fn printchar(c: u16, st: &uefi::SystemTable) {
+    let buffer = [c, 0x0];
+    let string = CString16(buffer.as_ptr() as _);
+    st.inner.con_out.output_string(string);
+}
+
+fn printstring(string: &str, system_table: &uefi::SystemTable, row: usize) {
+    let st = system_table.inner;
+    st.con_out.set_cursor_position(0, row);
+
+    let mut buffer = [0u16; 128];
+    for (i, u) in string.encode_utf16().enumerate() {
+        buffer[i] = u;
+    }
+
+    let string = CString16(buffer.as_ptr() as *const _);
+    st.con_out.output_string(string);
+}
+
+fn print10(value: u64, st: &uefi::SystemTable, row: usize) {
+    let st = st.inner;
+    st.con_out.set_cursor_position(0, row);
+    let mut buffer = [0u16; 32];
+    itoa(&mut buffer, value as _, 10);
+    let string = CString16(buffer.as_ptr() as *const _);
+    st.con_out.output_string(string);
+}
+
+fn printmemtype(ty: u32, st: &uefi::SystemTable, row: usize) {
+    match ty {
+        0 => (),  //printstring("EfiReservedMemoryType", st, row),
+        1 => (),  //printstring("EfiLoaderCode", st, row),
+        2 => (),  //printstring("EfiLoaderData", st, row),
+        3 => (),  //printstring("EfiBootServicesCode", st, row),
+        4 => (),  //printstring("EfiBootServicesData", st, row),
+        5 => (),  //printstring("EfiRuntimeServicesCode", st, row),
+        6 => (),  //printstring("EfiRuntimeServicesData", st, row),
+        7 => (),  //printstring("EfiConventionalMemory", st, row),
+        8 => (),  //printstring("EfiUnusableMemory", st, row),
+        9 => (),  //printstring("EfiACPIReclaimMemory", st, row),
+        10 => (), //printstring("EfiACPIMemoryNVS", st, row),
+        11 => (), //printstring("EfiMemoryMappedIO", st, row),
+        12 => (), //printstring("EfiMemoryMappedIOPortSpace", st, row),
+        13 => (), //printstring("EfiPalCode", st, row),
+        14 => (), //printstring("EfiPersistentMemory", st, row),
+        15 => (), //printstring("EfiUnacceptedMemoryType", st, row),
+        16 => (), //printstring("EfiMaxMemoryType", st, row),
+        _ => printstring("Unknown", st, row),
+    }
+}
+
+fn itoa(buffer: &mut [u16], mut value: i64, radix: i64) -> usize {
+    let mut tmp = [0u8; 16];
+    // char tmp[16];// be careful with the length of the buffer
+    // char *tp = tmp;
+    // int i;
+    // unsigned v;
+
+    let sign = radix == 10 && value < 0;
+    if sign {
+        value = -value;
+    }
+
+    let mut len = 0;
+    loop {
+        if len != 0 && value == 0 {
+            break;
+        }
+        let digit = (value % radix) as u8;
+        value /= radix;
+        if digit < 10 {
+            tmp[len] = digit + b'0';
+        } else {
+            tmp[len] = digit + b'a' - 10;
+        }
+
+        len += 1;
+    }
+
+    if sign {
+        tmp[len] = b'-';
+        len += 1;
+    }
+
+    for (i, b) in tmp[..len].into_iter().rev().enumerate() {
+        buffer[i] = *b as _;
+    }
+
+    return len;
 }
 
 #[panic_handler]
@@ -33,147 +197,172 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-mod uefi {
-    use core::ffi::c_void;
+// mod uefi2 {
 
-    #[repr(C)]
-    pub struct TableHeader {
-        pub signature: u64,
-        pub revision: u32,
-        pub header_size: u32,
-        pub crc32: u32,
-        _reserved: u32,
-    }
+//     use core::ffi::c_void;
 
-    pub type Handle = *const c_void;
+//     #[repr(C)]
+//     pub struct TableHeader {
+//         pub(crate) signature: u64,
+//         pub(crate) revision: u32,
+//         pub(crate) header_size: u32,
+//         pub(crate) crc32: u32,
+//         _reserved: u32,
+//     }
 
-    pub type Status = usize;
+//     pub type Handle = *const c_void;
 
-    #[repr(C)]
-    pub struct SystemTable {
-        pub hdr: TableHeader,
-        pub firmware_vendor: *const u16,
-        pub firmware_revision: u32,
-        pub console_in_handle: Handle,
-        pub con_in: *const SimpleTextInputProtocol,
-        pub console_out_handle: Handle,
-        pub con_out: *const SimpleTextOutputProtocol,
-        pub standard_error_handle: Handle,
-        pub std_err: *const SimpleTextOutputProtocol,
-        // pub runtime_services: *mut efi_runtime_services,
-        pub runtime_services: *const c_void,
-        pub boot_services: BootServices,
-        pub number_of_table_entries: usize,
-        // pub configuration_table: *mut efi_configuration_table,
-        pub configuration_table: *const c_void,
-    }
+//     pub type Status = usize;
 
-    #[repr(C)]
-    pub struct BootServices(u8);
-    // struct BootServices {
-    //     hdr: TableHeader,
+//     #[repr(C)]
+//     pub struct SystemTable {
+//         pub inner: &'static SystemTableImpl,
+//     }
 
-    //     // Task Priority Services
-    //     raise_tpl: EFI_RAISE_TPL,     // EFI 1.0+
-    //     restore_tpl: EFI_RESTORE_TPL, // EFI 1.0+
+//     #[repr(C)]
+//     pub struct SystemTableImpl {
+//         pub hdr: TableHeader,
+//         pub firmware_vendor: *const u16,
+//         pub firmware_revision: u32,
+//         pub console_in_handle: Handle,
+//         pub con_in: &'static ConsoleInput,
+//         pub console_out_handle: Handle,
+//         pub con_out: ConsoleOutput,
+//         pub standard_error_handle: Handle,
+//         pub std_err: ConsoleOutput,
+//         // pub runtime_services: *mut efi_runtime_services,
+//         pub runtime_services: *const c_void,
+//         pub boot_services: BootServices,
+//         pub number_of_table_entries: usize,
+//         // pub configuration_table: *mut efi_configuration_table,
+//         pub configuration_table: *const c_void,
+//     }
 
-    //     // Memory Services
-    //     allocate_pages: EFI_ALLOCATE_PAGES, // EFI 1.0+
-    //     free_pages: EFI_FREE_PAGES,         // EFI 1.0+
-    //     get_memory_map: EFI_GET_MEMORY_MAP, // EFI 1.0+
-    //     allocate_pool: EFI_ALLOCATE_POOL,   // EFI 1.0+
-    //     free_pool: EFI_FREE_POOL,           // EFI 1.0+
+//     #[repr(C)]
+//     pub struct ConsoleOutput {
+//         pub inner: &'static ConsoleOutputImpl,
+//     }
 
-    //     // Event & Timer Services
-    //     create_event: EFI_CREATE_EVENT,     // EFI 1.0+
-    //     set_timer: EFI_SET_TIMER,           // EFI 1.0+
-    //     wait_for_event: EFI_WAIT_FOR_EVENT, // EFI 1.0+
-    //     signal_event: EFI_SIGNAL_EVENT,     // EFI 1.0+
-    //     close_event: EFI_CLOSE_EVENT,       // EFI 1.0+
-    //     check_event: EFI_CHECK_EVENT,       // EFI 1.0+
+//     impl ConsoleOutput {
+//         pub fn reset(&self, extended_verification: bool) -> Result<(), usize> {
+//             let status = (self.inner.reset)(self.inner, extended_verification);
+//             if status != 0 {
+//                 return Err(status);
+//             }
 
-    //     // Protocol Handler Services
-    //     install_protocol_interface: EFI_INSTALL_PROTOCOL_INTERFACE, // EFI 1.0+
-    //     reinstall_protocol_interface: EFI_REINSTALL_PROTOCOL_INTERFACE, // EFI 1.0+
-    //     uninstall_protocol_interface: EFI_UNINSTALL_PROTOCOL_INTERFACE, // EFI 1.0+
-    //     handle_protocol: EFI_HANDLE_PROTOCOL,                       // EFI 1.0+
-    //     reserved: *mut void,                                        // EFI 1.0+
-    //     register_protocol_notify: EFI_REGISTER_PROTOCOL_NOTIFY,     // EFI  1.0+
-    //     locate_handle: EFI_LOCATE_HANDLE,                           // EFI 1.0+
-    //     locate_device_path: EFI_LOCATE_DEVICE_PATH,                 // EFI 1.0+
-    //     install_configuration_table: EFI_INSTALL_CONFIGURATION_TABLE, // EFI 1.0+
+//             Ok(())
+//         }
 
-    //     // Image Services
-    //     load_image: EFI_IMAGE_UNLOAD,               // EFI 1.0+
-    //     start_image: EFI_IMAGE_START,               // EFI 1.0+
-    //     exit: EFI_EXIT,                             // EFI 1.0+
-    //     unload_image: EFI_IMAGE_UNLOAD,             // EFI 1.0+
-    //     exit_boot_services: EFI_EXIT_BOOT_SERVICES, // EFI 1.0+
+//         pub fn output_string(&self, string: *const u16) -> Result<(), usize> {
+//             let status = (self.inner.output_string)(self.inner, string);
+//             if status != 0 {
+//                 return Err(status);
+//             }
 
-    //     // Miscellaneous Services
-    //     get_next_monotonic_count: EFI_GET_NEXT_MONOTONIC_COUNT, // EFI 1.0+
-    //     stall: EFI_STALL,                                       // EFI 1.0+
-    //     set_watchdog_timer: EFI_SET_WATCHDOG_TIMER,             // EFI 1.0+
+//             Ok(())
+//         }
+//     }
 
-    //     // DriverSupport Services
-    //     connect_controller: EFI_CONNECT_CONTROLLER, // EFI 1.1
-    //     disconnect_controller: EFI_DISCONNECT_CONTROLLER, // EFI 1.1+
+//     /// UEFI Spec 2.10 section 12.4.1
+//     #[repr(C)]
+//     pub struct ConsoleOutputImpl {
+//         /// UEFI Spec 2.10 section 12.4.2
+//         pub reset: extern "efiapi" fn(&Self, extended_verification: bool) -> Status,
+//         /// UEFI Spec 2.10 section 12.4.3
+//         pub output_string: extern "efiapi" fn(&Self, string: *const u16) -> Status,
+//     }
 
-    //     // Open and Close Protocol Services
-    //     open_protocol: EFI_OPEN_PROTOCOL,   // EFI 1.1+
-    //     close_protocol: EFI_CLOSE_PROTOCOL, // EFI 1.1+
-    //     open_protocol_information: EFI_OPEN_PROTOCOL_INFORMATION, // EFI 1.1+
+//     #[derive(Clone, Copy, Default)]
+//     #[repr(C)]
+//     pub struct Key {
+//         pub scan_code: u16,
+//         pub unicode_char: u16,
+//     }
 
-    //     // Library Services
-    //     protocols_per_handle: EFI_PROTOCOLS_PER_HANDLE, // EFI 1.1+
-    //     locate_handle_buffer: EFI_LOCATE_HANDLE_BUFFER, // EFI 1.1+
-    //     locate_protocol: EFI_LOCATE_PROTOCOL,           // EFI 1.1+
-    //     install_multiple_protocol_interfaces: EFI_UNINSTALL_MULTIPLE_PROTOCOL_INTERFACES, // EFI 1.1+
-    //     uninstall_multiple_protocol_interfaces: EFI_UNINSTALL_MULTIPLE_PROTOCOL_INTERFACES, // EFI 1.1+*
+//     #[repr(C)]
+//     pub struct ConsoleInput {
+//         /// UEFI Spec 2.10 section 12.3.2
+//         pub reset: extern "efiapi" fn(&Self, extended_verification: bool) -> Status,
+//         /// UEFI Spec 2.10 section 12.3.3
+//         pub read_key_stroke: extern "efiapi" fn(&Self, key: &mut Key) -> Status,
+//         /// UEFI Spec 2.10 section 12.3.1
+//         pub wait_for_key: *mut c_void,
+//     }
 
-    //     // 32-bit CRC Services
-    //     calculate_crc32: EFI_CALCULATE_CRC32, // EFI 1.1+
+//     #[repr(C)]
+//     pub struct BootServices(u8);
+//     // struct BootServices {
+//     //     hdr: TableHeader,
 
-    //     // Miscellaneous Services
-    //     copy_mem: EFI_COPY_MEM,               // EFI 1.1+
-    //     set_mem: EFI_SET_MEM,                 // EFI 1.1+
-    //     create_event_ex: EFI_CREATE_EVENT_EX, // UEFI 2.0+
-    // }
+//     //     // Task Priority Services
+//     //     raise_tpl: EFI_RAISE_TPL,     // EFI 1.0+
+//     //     restore_tpl: EFI_RESTORE_TPL, // EFI 1.0+
 
-    // struct ConfigurationTable {
-    //     vendor_guid: EFI_GUID,
-    //     vendor_table: *const void,
-    // }
+//     //     // Memory Services
+//     //     allocate_pages: EFI_ALLOCATE_PAGES, // EFI 1.0+
+//     //     free_pages: EFI_FREE_PAGES,         // EFI 1.0+
+//     //     get_memory_map: EFI_GET_MEMORY_MAP, // EFI 1.0+
+//     //     allocate_pool: EFI_ALLOCATE_POOL,   // EFI 1.0+
+//     //     free_pool: EFI_FREE_POOL,           // EFI 1.0+
 
-    #[derive(Clone, Copy, Default)]
-    #[repr(C)]
-    pub struct InputKey {
-        pub scan_code: u16,
-        pub unicode_char: u16,
-    }
+//     //     // Event & Timer Services
+//     //     create_event: EFI_CREATE_EVENT,     // EFI 1.0+
+//     //     set_timer: EFI_SET_TIMER,           // EFI 1.0+
+//     //     wait_for_event: EFI_WAIT_FOR_EVENT, // EFI 1.0+
+//     //     signal_event: EFI_SIGNAL_EVENT,     // EFI 1.0+
+//     //     close_event: EFI_CLOSE_EVENT,       // EFI 1.0+
+//     //     check_event: EFI_CHECK_EVENT,       // EFI 1.0+
 
-    #[repr(C)]
-    pub struct SimpleTextInputProtocol {
-        pub reset: extern "efiapi" fn(
-            this: *const SimpleTextInputProtocol,
-            extended_verification: bool,
-        ) -> Status,
-        pub read_key_stroke: fn(this: *const SimpleTextInputProtocol, key: *mut InputKey) -> Status,
-        pub wait_for_key: *const c_void,
-    }
+//     //     // Protocol Handler Services
+//     //     install_protocol_interface: EFI_INSTALL_PROTOCOL_INTERFACE, // EFI 1.0+
+//     //     reinstall_protocol_interface: EFI_REINSTALL_PROTOCOL_INTERFACE, // EFI 1.0+
+//     //     uninstall_protocol_interface: EFI_UNINSTALL_PROTOCOL_INTERFACE, // EFI 1.0+
+//     //     handle_protocol: EFI_HANDLE_PROTOCOL,                       // EFI 1.0+
+//     //     reserved: *mut void,                                        // EFI 1.0+
+//     //     register_protocol_notify: EFI_REGISTER_PROTOCOL_NOTIFY,     // EFI  1.0+
+//     //     locate_handle: EFI_LOCATE_HANDLE,                           // EFI 1.0+
+//     //     locate_device_path: EFI_LOCATE_DEVICE_PATH,                 // EFI 1.0+
+//     //     install_configuration_table: EFI_INSTALL_CONFIGURATION_TABLE, // EFI 1.0+
 
-    #[repr(C)]
-    pub struct SimpleTextOutputProtocol {
-        pub reset: *const c_void,
-        pub output_string:
-            extern "efiapi" fn(this: *const SimpleTextOutputProtocol, string: *const u16) -> Status,
-        pub test_string: *const c_void,
-        pub query_mode: *const c_void,
-        pub set_mode: *const c_void,
-        pub set_attribute: *const c_void,
-        pub clear_screen: *const c_void,
-        pub set_cursor_position: *const c_void,
-        pub enable_cursor: *const c_void,
-        pub mode: *const c_void,
-    }
-}
+//     //     // Image Services
+//     //     load_image: EFI_IMAGE_UNLOAD,               // EFI 1.0+
+//     //     start_image: EFI_IMAGE_START,               // EFI 1.0+
+//     //     exit: EFI_EXIT,                             // EFI 1.0+
+//     //     unload_image: EFI_IMAGE_UNLOAD,             // EFI 1.0+
+//     //     exit_boot_services: EFI_EXIT_BOOT_SERVICES, // EFI 1.0+
+
+//     //     // Miscellaneous Services
+//     //     get_next_monotonic_count: EFI_GET_NEXT_MONOTONIC_COUNT, // EFI 1.0+
+//     //     stall: EFI_STALL,                                       // EFI 1.0+
+//     //     set_watchdog_timer: EFI_SET_WATCHDOG_TIMER,             // EFI 1.0+
+
+//     //     // DriverSupport Services
+//     //     connect_controller: EFI_CONNECT_CONTROLLER, // EFI 1.1
+//     //     disconnect_controller: EFI_DISCONNECT_CONTROLLER, // EFI 1.1+
+
+//     //     // Open and Close Protocol Services
+//     //     open_protocol: EFI_OPEN_PROTOCOL,   // EFI 1.1+
+//     //     close_protocol: EFI_CLOSE_PROTOCOL, // EFI 1.1+
+//     //     open_protocol_information: EFI_OPEN_PROTOCOL_INFORMATION, // EFI 1.1+
+
+//     //     // Library Services
+//     //     protocols_per_handle: EFI_PROTOCOLS_PER_HANDLE, // EFI 1.1+
+//     //     locate_handle_buffer: EFI_LOCATE_HANDLE_BUFFER, // EFI 1.1+
+//     //     locate_protocol: EFI_LOCATE_PROTOCOL,           // EFI 1.1+
+//     //     install_multiple_protocol_interfaces: EFI_UNINSTALL_MULTIPLE_PROTOCOL_INTERFACES, // EFI 1.1+
+//     //     uninstall_multiple_protocol_interfaces: EFI_UNINSTALL_MULTIPLE_PROTOCOL_INTERFACES, // EFI 1.1+*
+
+//     //     // 32-bit CRC Services
+//     //     calculate_crc32: EFI_CALCULATE_CRC32, // EFI 1.1+
+
+//     //     // Miscellaneous Services
+//     //     copy_mem: EFI_COPY_MEM,               // EFI 1.1+
+//     //     set_mem: EFI_SET_MEM,                 // EFI 1.1+
+//     //     create_event_ex: EFI_CREATE_EVENT_EX, // UEFI 2.0+
+//     // }
+
+//     // struct ConfigurationTable {
+//     //     vendor_guid: EFI_GUID,
+//     //     vendor_table: *const void,
+//     // }
+// }
