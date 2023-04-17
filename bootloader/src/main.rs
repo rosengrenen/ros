@@ -65,52 +65,6 @@ pub extern "efiapi" fn efi_main(
     return 0;
 }
 
-// static efi_status_t load_elf_image(struct elf_app *elf)
-// {
-// 	uint64_t size = elf->page_size + (elf->image_end - elf->image_begin);
-// 	uint64_t addr;
-// 	uint16_t start_msg[] = u"Loading ELF image...\r\n";
-// 	uint16_t finish_msg[] = u"Loaded ELF image\r\n";
-// 	efi_status_t status;
-
-// 	// Allocate the required number of pages
-// 	status = elf->system->boot->allocate_pages(
-// 		EFI_ALLOCATE_ANY_PAGES, EFI_LOADER_DATA, size / elf->page_size, &addr);
-// 	if (status != EFI_SUCCESS)
-// 		return status;
-
-// 	// Save some bookkeeping information for cleanup in case of errors
-// 	elf->image_pages = size / elf->page_size;
-// 	elf->image_addr = addr;
-
-// 	// Entry point has to be adjusted, given that the ELF image might not
-// 	// be loaded at the addresses stored in program headers
-// 	elf->image_entry = elf->image_addr + elf->page_size
-// 		+ elf->header.e_entry - elf->image_begin;
-
-// 	// Fill in everything with zeros, whatever data is not read from the
-// 	// ELF file itself has to be zero-initialized.
-// 	memset((void *)elf->image_addr, 0, size);
-
-// 	// Go over all program headers and load their content in memory
-// 	for (size_t i = 0; i < elf->header.e_phnum; ++i) {
-// 		const struct elf64_phdr *phdr = &elf->program_headers[i];
-// 		uint64_t phdr_addr;
-
-// 		if (phdr->p_type != PT_LOAD)
-// 			continue;
-
-// 		phdr_addr = elf->image_addr + elf->page_size
-// 			+ phdr->p_vaddr - elf->image_begin;
-// 		status = efi_read_fixed(
-// 			elf->kernel, phdr->p_offset, phdr->p_filesz, (void *)phdr_addr);
-// 		if (status != EFI_SUCCESS)
-// 			return status;
-// 	}
-
-// 	return elf->system->out->output_string(elf->system->out, finish_msg);
-// }
-
 fn print_mem_map() {
     let st = system_table().inner;
     let memory_map = st.boot_services.get_memory_map().unwrap();
