@@ -4,8 +4,7 @@
 #[macro_use]
 extern crate alloc;
 
-use alloc::vec::Vec;
-use uefi::string::CString16;
+use uefi::string::String16;
 
 static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable> = None;
 
@@ -51,10 +50,8 @@ fn print_str(string: &str, pos: Option<(usize, usize)>) {
         st.con_out.set_cursor_position(col, row).unwrap();
     }
 
-    let mut buffer = string.encode_utf16().collect::<Vec<_>>();
-    buffer.push(0);
-    let string = CString16(buffer.as_ptr() as *const _);
-    st.con_out.output_string(string).unwrap();
+    let string: String16 = string.parse().unwrap();
+    st.con_out.output_string(&string).unwrap();
 }
 
 #[panic_handler]

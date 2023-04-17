@@ -1,4 +1,7 @@
-use crate::{string::CString16, Status};
+use crate::{
+    string::{Char16, RawString16},
+    Status,
+};
 
 impl ConsoleOutput {
     pub fn reset(&self, extended_verification: bool) -> Result<(), usize> {
@@ -10,8 +13,8 @@ impl ConsoleOutput {
         Ok(())
     }
 
-    pub fn output_string(&self, string: CString16) -> Result<(), usize> {
-        let status = (self.output_string)(self, string);
+    pub fn output_string(&self, string: &RawString16) -> Result<(), usize> {
+        let status = (self.output_string)(self, string.as_ptr());
         if status != 0 {
             return Err(status);
         }
@@ -50,9 +53,9 @@ pub struct ConsoleOutput {
     /// UEFI Spec 2.10 section 12.4.2
     reset: extern "efiapi" fn(&Self, extended_verification: bool) -> Status,
     /// UEFI Spec 2.10 section 12.4.3
-    output_string: extern "efiapi" fn(&Self, string: CString16) -> Status,
+    output_string: extern "efiapi" fn(&Self, string: *const Char16) -> Status,
     /// UEFI Spec 2.10 section 12.4.4
-    test_string: extern "efiapi" fn(&Self, string: CString16) -> Status,
+    test_string: extern "efiapi" fn(&Self, string: *const Char16) -> Status,
     /// UEFI Spec 2.10 section 12.4.5
     query_mode: extern "efiapi" fn(
         &Self,
