@@ -130,6 +130,12 @@ impl<'iter> Iterator for MemoryMapIter<'iter> {
     }
 }
 
+impl<'iter> ExactSizeIterator for MemoryMapIter<'iter> {
+    fn len(&self) -> usize {
+        self.memory_map.len
+    }
+}
+
 /// UEFI Spec 2.10 section 4.4.1
 #[repr(C)]
 pub struct BootServices {
