@@ -3,6 +3,30 @@ use core::ffi::c_void;
 use crate::{Handle, Status, TableHeader};
 
 impl BootServices {
+    pub fn allocate_pages(
+        &self,
+        allocate_type: AllocateType,
+        memory_type: MemoryType,
+        pages: usize,
+    ) -> Result<u64, usize> {
+        let mut memory_address = 0;
+        let status = (self.allocate_pages)(allocate_type, memory_type, pages, &mut memory_address);
+        if status != 0 {
+            return Err(status);
+        }
+
+        Ok(memory_address)
+    }
+
+    pub fn free_pages(&self, memory_address: u64, pages: usize) -> Result<(), usize> {
+        let status = (self.free_pages)(memory_address, pages);
+        if status != 0 {
+            return Err(status);
+        }
+
+        Ok(())
+    }
+
     pub fn get_memory_map(&self) -> Result<MemoryMap, usize> {
         let (mut memory_map_size, mut entry_size) = self.get_memory_map_size()?;
         let mut buffer = vec![0u8; memory_map_size];
@@ -146,8 +170,15 @@ pub struct BootServices {
     pub restore_tpl: extern "efiapi" fn() -> Status, // EFI 1.0+
 
     // Memory Services
-    pub allocate_pages: extern "efiapi" fn() -> Status, // EFI 1.0+
-    pub free_pages: extern "efiapi" fn() -> Status,     // EFI 1.0+
+    /// UEFI Spec 2.10 section 7.2.1
+    pub allocate_pages: extern "efiapi" fn(
+        allocate_type: AllocateType,
+        memory_type: MemoryType,
+        pages: usize,
+        physical_address: &mut u64,
+    ) -> Status, // EFI 1.0+
+    /// UEFI Spec 2.10 section 7.2.2
+    pub free_pages: extern "efiapi" fn(memory: u64, pages: usize) -> Status, // EFI 1.0+
     /// UEFI Spec 2.10 section 7.2.3
     pub get_memory_map: extern "efiapi" fn(
         memory_map_size: &mut usize,
