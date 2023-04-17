@@ -1,13 +1,14 @@
-use core::{ops::Deref, str::FromStr};
+use core::{fmt::Debug, ops::Deref, str::FromStr};
 
 use alloc::vec::Vec;
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct Char16(u16);
+pub struct Char16(pub u16);
 
+#[derive(Debug)]
 #[repr(C)]
-pub struct RawString16(*const Char16);
+pub struct RawString16(pub *const Char16);
 
 impl RawString16 {
     pub fn as_ptr(&self) -> *const Char16 {

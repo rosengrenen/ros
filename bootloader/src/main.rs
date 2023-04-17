@@ -4,7 +4,10 @@
 #[macro_use]
 extern crate alloc;
 
-use uefi::string::String16;
+use uefi::{
+    services::filesystem::{self, FileSystem},
+    string::String16,
+};
 
 static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable> = None;
 
@@ -32,6 +35,28 @@ pub extern "efiapi" fn efi_main(
     }
 
     print_str(&format!("Total ram: {}", total_ram), Some((0, 1)));
+
+    let fs = st
+        .boot_services
+        .locate_protocol::<FileSystem>(&filesystem::PROTOCOL_GUID)
+        .unwrap();
+    let root_fs = unsafe { &*fs.open_volume().unwrap() };
+    let file_name: String16 = "banner.txt".parse().unwrap();
+    let file = unsafe { &*root_fs.open(&file_name, 0x3, 0x0).unwrap() };
+    let info = file.get_info().unwrap();
+    let mut buffer = vec![0u8; info.file_size as usize];
+    let read_bytes = file.read(&mut buffer).unwrap();
+    let file_string = core::str::from_utf8(&buffer).unwrap();
+    // print_str(&format!("{:?}", info), None);
+    print_str(
+        &format!(
+            "buffer size: {}, read bytes: {}, contents: {:?}",
+            buffer.len(),
+            read_bytes,
+            file_string
+        ),
+        None,
+    );
 
     st.con_in.reset(false).unwrap();
     loop {

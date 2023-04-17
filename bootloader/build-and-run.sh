@@ -8,6 +8,7 @@ mformat -i fat.img -f 1440 ::
 mmd -i fat.img ::/EFI
 mmd -i fat.img ::/EFI/BOOT
 mcopy -i fat.img target/x86_64-unknown-uefi/debug/BOOTX64.EFI ::/EFI/BOOT
+mcopy -i fat.img banner.txt ::/
 
 mkgpt -o hdimage.bin --image-size 4096 --part fat.img --type system
 sudo qemu-system-x86_64 -m 128M -L /usr/share/ovmf/x64 -pflash /usr/share/ovmf/x64/OVMF.fd -hda hdimage.bin

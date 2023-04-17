@@ -216,7 +216,7 @@ pub struct BootServices {
 }
 
 #[repr(C)]
-pub struct Guid(u32, u16, u16, [u8; 8]);
+pub struct Guid(pub u32, pub u16, pub u16, pub [u8; 8]);
 
 /// UEFI Spec 2.10 section 7.3.2
 #[repr(C)]
