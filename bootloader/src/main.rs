@@ -1,35 +1,40 @@
 #![no_std]
 #![no_main]
 
+#[macro_use]
 extern crate alloc;
 
 use alloc::vec::Vec;
-use uefi::{services::boot::MemoryDescriptor, string::CString16};
+use uefi::string::CString16;
+
+static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable> = None;
+
+fn system_table() -> &'static uefi::SystemTable {
+    unsafe { SYSTEM_TABLE.expect("System table global variable not available") }
+}
 
 #[no_mangle]
 pub extern "efiapi" fn efi_main(
-    image_handle: uefi::Handle,
+    _image_handle: uefi::Handle,
     system_table: uefi::SystemTable,
 ) -> uefi::Status {
+    unsafe {
+        SYSTEM_TABLE = Some(core::mem::transmute(&system_table));
+    }
     uefi::init(&system_table);
     let st = system_table.inner;
 
-    st.con_out.reset(false);
-    printstring("Hello world!\r\n", &system_table, 0);
-
+    st.con_out.reset(false).unwrap();
+    print_str("Hello world!\r\n", None);
     let memory_map = st.boot_services.get_memory_map().unwrap();
-    let buffer_size = memory_map.buffer.len();
-    let descs = memory_map.iter().copied().collect::<Vec<_>>();
-    let descs_size = descs.len() * core::mem::size_of::<MemoryDescriptor>();
     let mut total_ram = 0;
-    for (i, desc) in memory_map.iter().enumerate() {
+    for desc in memory_map.iter() {
         total_ram += desc.number_of_pages * 4096 / 1024;
     }
-    print10(total_ram as _, &system_table, 0);
-    print10(buffer_size as _, &system_table, 1);
-    print10(descs_size as _, &system_table, 2);
 
-    st.con_in.reset(false);
+    print_str(&format!("Total ram: {}", total_ram), Some((0, 1)));
+
+    st.con_in.reset(false).unwrap();
     loop {
         match st.con_in.read_key() {
             Ok(_key) => break,
@@ -40,120 +45,21 @@ pub extern "efiapi" fn efi_main(
     return 0;
 }
 
-fn printmem(mut mem: *const u8, st: &uefi::SystemTable, row: usize) {
-    st.inner.con_out.set_cursor_position(0, row);
-
-    let buf = [0; 1];
-    for i in 0..100 {
-        printchar(b' ' as _, st);
-
-        let c = unsafe { *mem.offset(i) };
-        printhexdigit((c >> 4) as _, st);
-        printhexdigit((c & 0xF) as _, st);
-    }
-}
-
-fn printhexdigit(digit: u8, st: &uefi::SystemTable) {
-    if digit < 10 {
-        printchar((digit + b'0') as _, st);
-    } else if digit < 16 {
-        printchar((digit + b'a' - 10) as _, st);
-    }
-}
-
-fn printchar(c: u16, st: &uefi::SystemTable) {
-    let buffer = [c, 0x0];
-    let string = CString16(buffer.as_ptr() as _);
-    st.inner.con_out.output_string(string);
-}
-
-fn printstring(string: &str, system_table: &uefi::SystemTable, row: usize) {
-    let st = system_table.inner;
-    st.con_out.set_cursor_position(0, row);
-
-    let mut buffer = [0u16; 128];
-    for (i, u) in string.encode_utf16().enumerate() {
-        buffer[i] = u;
+fn print_str(string: &str, pos: Option<(usize, usize)>) {
+    let st = system_table().inner;
+    if let Some((col, row)) = pos {
+        st.con_out.set_cursor_position(col, row).unwrap();
     }
 
+    let mut buffer = string.encode_utf16().collect::<Vec<_>>();
+    buffer.push(0);
     let string = CString16(buffer.as_ptr() as *const _);
-    st.con_out.output_string(string);
-}
-
-fn print10(value: u64, st: &uefi::SystemTable, row: usize) {
-    let st = st.inner;
-    st.con_out.set_cursor_position(0, row);
-    let mut buffer = [0u16; 32];
-    itoa(&mut buffer, value as _, 10);
-    let string = CString16(buffer.as_ptr() as *const _);
-    st.con_out.output_string(string);
-}
-
-fn printmemtype(ty: u32, st: &uefi::SystemTable, row: usize) {
-    match ty {
-        0 => (),  //printstring("EfiReservedMemoryType", st, row),
-        1 => (),  //printstring("EfiLoaderCode", st, row),
-        2 => (),  //printstring("EfiLoaderData", st, row),
-        3 => (),  //printstring("EfiBootServicesCode", st, row),
-        4 => (),  //printstring("EfiBootServicesData", st, row),
-        5 => (),  //printstring("EfiRuntimeServicesCode", st, row),
-        6 => (),  //printstring("EfiRuntimeServicesData", st, row),
-        7 => (),  //printstring("EfiConventionalMemory", st, row),
-        8 => (),  //printstring("EfiUnusableMemory", st, row),
-        9 => (),  //printstring("EfiACPIReclaimMemory", st, row),
-        10 => (), //printstring("EfiACPIMemoryNVS", st, row),
-        11 => (), //printstring("EfiMemoryMappedIO", st, row),
-        12 => (), //printstring("EfiMemoryMappedIOPortSpace", st, row),
-        13 => (), //printstring("EfiPalCode", st, row),
-        14 => (), //printstring("EfiPersistentMemory", st, row),
-        15 => (), //printstring("EfiUnacceptedMemoryType", st, row),
-        16 => (), //printstring("EfiMaxMemoryType", st, row),
-        _ => printstring("Unknown", st, row),
-    }
-}
-
-fn itoa(buffer: &mut [u16], mut value: i64, radix: i64) -> usize {
-    let mut tmp = [0u8; 16];
-    // char tmp[16];// be careful with the length of the buffer
-    // char *tp = tmp;
-    // int i;
-    // unsigned v;
-
-    let sign = radix == 10 && value < 0;
-    if sign {
-        value = -value;
-    }
-
-    let mut len = 0;
-    loop {
-        if len != 0 && value == 0 {
-            break;
-        }
-        let digit = (value % radix) as u8;
-        value /= radix;
-        if digit < 10 {
-            tmp[len] = digit + b'0';
-        } else {
-            tmp[len] = digit + b'a' - 10;
-        }
-
-        len += 1;
-    }
-
-    if sign {
-        tmp[len] = b'-';
-        len += 1;
-    }
-
-    for (i, b) in tmp[..len].into_iter().rev().enumerate() {
-        buffer[i] = *b as _;
-    }
-
-    return len;
+    st.con_out.output_string(string).unwrap();
 }
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
+    print_str(&format!("{}", info), None);
     loop {}
 }
 

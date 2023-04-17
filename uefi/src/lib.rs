@@ -10,6 +10,7 @@ mod table;
 
 use core::ffi::c_void;
 
+/// UEFI Spec 2.10 section 4.2.1
 #[repr(C)]
 pub struct TableHeader {
     pub signature: u64,
@@ -28,6 +29,7 @@ pub struct SystemTable {
     pub inner: &'static SystemTableImpl,
 }
 
+/// UEFI Spec 2.10 section 4.3.1
 #[repr(C)]
 pub struct SystemTableImpl {
     pub header: TableHeader,

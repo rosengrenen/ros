@@ -1,6 +1,6 @@
 use core::ffi::c_void;
 
-use crate::{Status, TableHeader};
+use crate::{Handle, Status, TableHeader};
 
 impl BootServices {
     pub fn get_memory_map(&self) -> Result<MemoryMap, usize> {
@@ -74,6 +74,17 @@ impl BootServices {
 
         Ok(())
     }
+
+    pub fn locate_protocol<T>(&self, protocol: &Guid) -> Result<&'static T, usize> {
+        let mut interface = core::ptr::null();
+        let status = (self.locate_protocol)(protocol, core::ptr::null(), &mut interface as *mut _);
+        if status != 0 {
+            return Err(status);
+        }
+
+        let interface = unsafe { &*(interface as *const T) };
+        Ok(interface)
+    }
 }
 
 #[repr(C)]
@@ -119,6 +130,7 @@ impl<'iter> Iterator for MemoryMapIter<'iter> {
     }
 }
 
+/// UEFI Spec 2.10 section 4.4.1
 #[repr(C)]
 pub struct BootServices {
     pub header: TableHeader,
@@ -185,7 +197,12 @@ pub struct BootServices {
     // Library Services
     pub protocols_per_handle: extern "efiapi" fn() -> Status, // EFI 1.1+
     pub locate_handle_buffer: extern "efiapi" fn() -> Status, // EFI 1.1+
-    pub locate_protocol: extern "efiapi" fn() -> Status,      // EFI 1.1+
+    /// UEFI Spec 2.10 section 7.3.16
+    pub locate_protocol: extern "efiapi" fn(
+        protocol: &Guid,
+        registration: *const c_void,
+        interface: *mut *const c_void,
+    ) -> Status, // EFI 1.1+
     pub install_multiple_protocol_interfaces: extern "efiapi" fn() -> Status, // EFI 1.1+
     pub uninstall_multiple_protocol_interfaces: extern "efiapi" fn() -> Status, // EFI 1.1+*
 
@@ -196,6 +213,15 @@ pub struct BootServices {
     pub copy_mem: extern "efiapi" fn() -> Status, // EFI 1.1+
     pub set_mem: extern "efiapi" fn() -> Status,  // EFI 1.1+
     pub create_event_ex: extern "efiapi" fn() -> Status, // UEFI 2.0+
+}
+
+#[repr(C)]
+pub struct Guid(u32, u16, u16, [u8; 8]);
+
+/// UEFI Spec 2.10 section 7.3.2
+#[repr(C)]
+pub enum InterfaceType {
+    NativeInterface,
 }
 
 /// UEFI Spec 2.10 section 7.2.3
