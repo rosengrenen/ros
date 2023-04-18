@@ -24,7 +24,7 @@ pub extern "sysv64" fn _start(buffer: *mut BltPixel, width: usize, height: usize
 
 /// This function is called on panic.
 #[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
+fn panic(_info: &PanicInfo) -> ! {
     // println!("{}", info);
     loop {}
 }

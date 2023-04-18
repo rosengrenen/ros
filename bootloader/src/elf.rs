@@ -1,13 +1,10 @@
 use alloc::vec::Vec;
-use uefi::{
-    services::{
-        boot::{AllocateType, MemoryType},
-        graphics::BltPixel,
-    },
-    SystemTable,
+use uefi::services::{
+    boot::{AllocateType, MemoryType},
+    graphics::BltPixel,
 };
 
-use crate::{gfx, system_table};
+use crate::system_table;
 
 pub type KernelMainFn =
     extern "sysv64" fn(buffer: *mut BltPixel, width: usize, height: usize) -> usize;

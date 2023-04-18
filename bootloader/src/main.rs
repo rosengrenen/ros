@@ -7,16 +7,15 @@ extern crate alloc;
 mod elf;
 
 use alloc::vec::Vec;
+use elf::get_elf_entry_point_offset;
 use uefi::{
     allocator,
     services::{
         filesystem::{self, FileSystem},
-        graphics::{self, BltPixel, Graphics, PixelFormat},
+        graphics::{self, BltPixel, Graphics},
     },
     string::String16,
 };
-
-use crate::elf::get_elf_entry_point_offset;
 
 static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable> = None;
 
@@ -144,6 +143,7 @@ pub extern "efiapi" fn efi_main(
     loop {}
 }
 
+#[allow(dead_code)]
 fn print_mem_map() {
     let st = system_table().inner;
     let memory_map = st.boot_services.get_memory_map().unwrap();
@@ -269,7 +269,7 @@ fn wait_for_key() {
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     if allocator::allocator_enabled() {
-        // print_str(&format!("{}", info), None);
+        print_str(&format!("{}", info), None);
     } else {
         let g = gfx();
         for i in 0..g.width * g.height {
