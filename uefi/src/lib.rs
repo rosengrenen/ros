@@ -3,7 +3,7 @@
 #[macro_use]
 extern crate alloc;
 
-mod allocator;
+pub mod allocator;
 pub mod services;
 pub mod string;
 mod table;
@@ -11,6 +11,7 @@ mod table;
 use core::ffi::c_void;
 
 /// UEFI Spec 2.10 section 4.2.1
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct TableHeader {
     pub signature: u64,

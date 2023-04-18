@@ -8,10 +8,15 @@ pub fn enable(boot_services: &'static BootServices) {
     }
 }
 
+// TODO: maybe rename it to exit boot services, since that is when it's called
 pub fn disable() {
     unsafe {
         BOOT_SERVICES = None;
     }
+}
+
+pub fn allocator_enabled() -> bool {
+    unsafe { BOOT_SERVICES.is_some() }
 }
 
 struct EfiAllocator;

@@ -14,7 +14,8 @@ pub extern "sysv64" fn _start(st: &'static SystemTable) -> usize {
     let string = RawString16(text.as_ptr() as _);
     st.inner.con_out.reset(false);
     st.inner.con_out.output_string(&string);
-    loop {}
+    // loop {}
+    return 42;
 }
 
 /// This function is called on panic.

@@ -30,8 +30,8 @@ impl BootServices {
     pub fn get_memory_map(&self) -> Result<MemoryMap, usize> {
         let (mut memory_map_size, mut entry_size) = self.get_memory_map_size()?;
         let mut buffer = vec![0u8; memory_map_size];
+        let mut map_key = 0;
         loop {
-            let mut map_key = 0;
             let mut descriptor_version = 0;
             let mut status = (self.get_memory_map)(
                 &mut memory_map_size,
@@ -55,6 +55,7 @@ impl BootServices {
 
         Ok(MemoryMap {
             buffer,
+            key: map_key,
             entry_size,
             len: memory_map_size / entry_size,
         })
@@ -99,6 +100,17 @@ impl BootServices {
         Ok(())
     }
 
+    pub fn exit_boot_services(&self, image_handle: Handle, map_key: usize) -> Result<(), usize> {
+        let status = (self.exit_boot_services)(image_handle, map_key);
+        if status != 0 {
+            return Err(status);
+        }
+
+        crate::allocator::disable();
+
+        Ok(())
+    }
+
     pub fn locate_protocol<T>(&self, protocol: &Guid) -> Result<&'static T, usize> {
         let mut interface = core::ptr::null();
         let status = (self.locate_protocol)(protocol, core::ptr::null(), &mut interface as *mut _);
@@ -111,9 +123,11 @@ impl BootServices {
     }
 }
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct MemoryMap {
     pub buffer: alloc::vec::Vec<u8>,
+    pub key: usize,
     pub entry_size: usize,
     pub len: usize,
 }
@@ -215,7 +229,7 @@ pub struct BootServices {
     pub start_image: extern "efiapi" fn() -> Status, // EFI 1.0+
     pub exit: extern "efiapi" fn() -> Status,       // EFI 1.0+
     pub unload_image: extern "efiapi" fn() -> Status, // EFI 1.0+
-    pub exit_boot_services: extern "efiapi" fn() -> Status, // EFI 1.0+
+    pub exit_boot_services: extern "efiapi" fn(image_handle: Handle, map_key: usize) -> Status, // EFI 1.0+
 
     // Miscellaneous Services
     pub get_next_monotonic_count: extern "efiapi" fn() -> Status, // EFI 1.0+

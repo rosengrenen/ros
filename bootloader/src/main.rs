@@ -8,7 +8,11 @@ mod elf;
 
 use alloc::vec::Vec;
 use uefi::{
-    services::filesystem::{self, FileSystem},
+    allocator,
+    services::{
+        filesystem::{self, FileSystem},
+        graphics::{self, BltPixel, Graphics, PixelFormat},
+    },
     string::String16,
 };
 
@@ -20,16 +24,61 @@ pub fn system_table() -> &'static uefi::SystemTable {
     unsafe { SYSTEM_TABLE.expect("System table global variable not available") }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct GraphicsBuffer {
+    pub buffer: *mut BltPixel,
+    pub width: usize,
+    pub height: usize,
+}
+
+impl GraphicsBuffer {
+    pub fn buf(&self) -> &'static mut [BltPixel] {
+        unsafe { core::slice::from_raw_parts_mut(self.buffer, self.width * self.height) }
+    }
+}
+
+static mut GRAPHICS_BUFFER: Option<GraphicsBuffer> = None;
+
+pub fn gfx() -> GraphicsBuffer {
+    unsafe { GRAPHICS_BUFFER.unwrap() }
+}
+
 #[no_mangle]
 pub extern "efiapi" fn efi_main(
-    _image_handle: uefi::Handle,
+    image_handle: uefi::Handle,
     system_table: uefi::SystemTable,
 ) -> uefi::Status {
+    let st = system_table.inner;
     unsafe {
         SYSTEM_TABLE = Some(core::mem::transmute(&system_table));
     }
+    let gop = st
+        .boot_services
+        .locate_protocol::<Graphics>(&graphics::PROTOCOL_GUID)
+        .unwrap();
+    let gfx_buffer = gop.mode.frame_buffer_base as *mut BltPixel;
+    let buffer_w = gop.mode.info.horizontal_resolution as usize;
+    let buffer_h = gop.mode.info.vertical_resolution as usize;
+    unsafe {
+        GRAPHICS_BUFFER = Some(GraphicsBuffer {
+            buffer: gfx_buffer,
+            width: buffer_w,
+            height: buffer_h,
+        })
+    }
+    // core::mem::forget(&gfx_buffer);
+    // let mut buf = vec![0u8; core::mem::size_of::<GraphicsBuffer>()];
+    // core::mem::forget(&buf);
+    // let buf = buf.as_mut_ptr() as *mut GraphicsBuffer;
+    // unsafe {
+    //     *buf = GraphicsBuffer {
+    //         buffer: core::mem::transmute(gfx_buffer),
+    //         width: buffer_w,
+    //         height: buffer_h,
+    //     };
+    //     GRAPHICS_BUFFER = buf;
+    // }
     uefi::init(&system_table);
-    let st = system_table.inner;
 
     st.con_out.reset(false).unwrap();
     print_str("Hello world!\r\n", None);
@@ -48,19 +97,66 @@ pub extern "efiapi" fn efi_main(
     let read_bytes = file.read(&mut buffer).unwrap();
     buffer.truncate(read_bytes);
 
-    let entry_point_offset = get_elf_entry_point_offset(&buffer).unwrap();
-    print_str(
-        &format!("Entry point offset: {}", entry_point_offset),
-        Some((5, 5)),
-    );
-
-    // TODO
-    // * read executable file DONE
-    // * find the location of the main entry point
-    // * do some setup, idk what this is tho
-    // *
+    gop.blt(
+        BltPixel {
+            red: 100,
+            green: 0,
+            blue: 255,
+            reserved: 255,
+        },
+        0,
+        0,
+        200,
+        100,
+    )
+    .unwrap();
 
     wait_for_key();
+
+    let mem_map = st.boot_services.get_memory_map().unwrap();
+    match st
+        .boot_services
+        .exit_boot_services(image_handle, mem_map.key)
+    {
+        Ok(_) => {
+            for x in 250..300 {
+                for y in 300..600 {
+                    gfx().buf()[buffer_w * y + x] = BltPixel {
+                        blue: 0,
+                        green: 255,
+                        red: 0,
+                        reserved: 255,
+                    };
+                }
+            }
+        }
+        Err(_) => {
+            for x in 250..300 {
+                for y in 300..600 {
+                    gfx().buf()[buffer_w * y + x] = BltPixel {
+                        blue: 0,
+                        green: 0,
+                        red: 255,
+                        reserved: 255,
+                    };
+                }
+            }
+        }
+    }
+
+    // let entry_point_offset = get_elf_entry_point_offset(&buffer).unwrap();
+    // print_str(
+    //     &format!("Entry point offset: {}", entry_point_offset),
+    //     Some((5, 5)),
+    // );
+
+    // // TODO
+    // // * read executable file DONE
+    // // * find the location of the main entry point
+    // // * do some setup, idk what this is tho
+    // // *
+
+    // wait_for_key();
 
     return 0;
 }
@@ -148,6 +244,11 @@ fn print_str(string: &str, pos: Option<(usize, usize)>) {
     st.con_out.output_string(&string).unwrap();
 }
 
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::print_str(&format!("{}", format_args!($($arg)*)), None));
+}
+
 fn mem_type_str(mem_type: u32) -> &'static str {
     match mem_type {
         0 => "EfiReservedMemoryType",
@@ -184,6 +285,19 @@ fn wait_for_key() {
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
-    print_str(&format!("{}", info), None);
+    if allocator::allocator_enabled() {
+        // print_str(&format!("{}", info), None);
+    } else {
+        let g = gfx();
+        for i in 0..g.width * g.height {
+            g.buf()[i] = BltPixel {
+                blue: 0,
+                green: 0,
+                red: 255,
+                reserved: 255,
+            }
+        }
+    }
+
     loop {}
 }

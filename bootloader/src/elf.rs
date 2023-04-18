@@ -65,7 +65,7 @@ pub fn get_elf_entry_point_offset(elf: &[u8]) -> Result<usize, &'static str> {
     let entry_point_fn: extern "sysv64" fn(st: &'static SystemTable) -> usize =
         unsafe { core::mem::transmute(entry_point) };
     let result = entry_point_fn(&system_table());
-    panic!("{:0x}", result);
+    // panic!("{:0x}", result);
 
     Ok(header.entry as _)
 }
