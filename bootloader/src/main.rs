@@ -66,18 +66,6 @@ pub extern "efiapi" fn efi_main(
             height: buffer_h,
         })
     }
-    // core::mem::forget(&gfx_buffer);
-    // let mut buf = vec![0u8; core::mem::size_of::<GraphicsBuffer>()];
-    // core::mem::forget(&buf);
-    // let buf = buf.as_mut_ptr() as *mut GraphicsBuffer;
-    // unsafe {
-    //     *buf = GraphicsBuffer {
-    //         buffer: core::mem::transmute(gfx_buffer),
-    //         width: buffer_w,
-    //         height: buffer_h,
-    //     };
-    //     GRAPHICS_BUFFER = buf;
-    // }
     uefi::init(&system_table);
 
     st.con_out.reset(false).unwrap();
@@ -111,8 +99,7 @@ pub extern "efiapi" fn efi_main(
     )
     .unwrap();
 
-    wait_for_key();
-
+    let entry_point_fn = get_elf_entry_point_offset(&buffer).unwrap();
     let mem_map = st.boot_services.get_memory_map().unwrap();
     match st
         .boot_services
@@ -141,24 +128,20 @@ pub extern "efiapi" fn efi_main(
                     };
                 }
             }
+
+            return 0;
         }
     }
 
-    // let entry_point_offset = get_elf_entry_point_offset(&buffer).unwrap();
-    // print_str(
-    //     &format!("Entry point offset: {}", entry_point_offset),
-    //     Some((5, 5)),
-    // );
+    let g = gfx();
+    let _result = entry_point_fn(g.buffer, g.width, g.height);
 
     // // TODO
     // // * read executable file DONE
-    // // * find the location of the main entry point
+    // // * find the location of the main entry point DONE
     // // * do some setup, idk what this is tho
-    // // *
 
-    // wait_for_key();
-
-    return 0;
+    loop {}
 }
 
 fn print_mem_map() {

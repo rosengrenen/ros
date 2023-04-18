@@ -1,12 +1,18 @@
 use alloc::vec::Vec;
 use uefi::{
-    services::boot::{AllocateType, MemoryType},
+    services::{
+        boot::{AllocateType, MemoryType},
+        graphics::BltPixel,
+    },
     SystemTable,
 };
 
-use crate::system_table;
+use crate::{gfx, system_table};
 
-pub fn get_elf_entry_point_offset(elf: &[u8]) -> Result<usize, &'static str> {
+pub type KernelMainFn =
+    extern "sysv64" fn(buffer: *mut BltPixel, width: usize, height: usize) -> usize;
+
+pub fn get_elf_entry_point_offset(elf: &[u8]) -> Result<KernelMainFn, &'static str> {
     let header = ElfHeader::try_from(elf).unwrap();
     if header.magic != [0x7F, 0x45, 0x4C, 0x46] {
         return Err("Not an ELF file");
@@ -62,12 +68,8 @@ pub fn get_elf_entry_point_offset(elf: &[u8]) -> Result<usize, &'static str> {
 
     let entry_point_offset = header.entry - image_start;
     let entry_point = &page[entry_point_offset as usize];
-    let entry_point_fn: extern "sysv64" fn(st: &'static SystemTable) -> usize =
-        unsafe { core::mem::transmute(entry_point) };
-    let result = entry_point_fn(&system_table());
-    // panic!("{:0x}", result);
-
-    Ok(header.entry as _)
+    let entry_point_fn: KernelMainFn = unsafe { core::mem::transmute(entry_point) };
+    Ok(entry_point_fn)
 }
 
 #[derive(Clone, Copy, Debug)]

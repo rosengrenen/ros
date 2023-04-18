@@ -3,17 +3,21 @@
 
 use core::panic::PanicInfo;
 
-use uefi::{string::RawString16, SystemTable};
+use uefi::services::graphics::BltPixel;
 
 #[no_mangle]
-pub extern "sysv64" fn _start(st: &'static SystemTable) -> usize {
-    let text: [u16; 22] = [
-        0x0068, 0x0065, 0x006c, 0x006c, 0x006f, 0x0020, 0x0066, 0x0072, 0x006f, 0x006d, 0x0020,
-        0x0074, 0x0068, 0x0065, 0x0020, 0x006b, 0x0065, 0x0072, 0x006e, 0x0065, 0x006c, 0x0000,
-    ];
-    let string = RawString16(text.as_ptr() as _);
-    st.inner.con_out.reset(false);
-    st.inner.con_out.output_string(&string);
+pub extern "sysv64" fn _start(buffer: *mut BltPixel, width: usize, height: usize) -> usize {
+    let buffer = unsafe { core::slice::from_raw_parts_mut(buffer, width * height) };
+    for x in 200..800 {
+        for y in 400..600 {
+            buffer[y * width + x] = BltPixel {
+                blue: 0,
+                green: 255,
+                red: 255,
+                reserved: 255,
+            }
+        }
+    }
     // loop {}
     return 42;
 }
