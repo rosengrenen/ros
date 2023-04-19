@@ -6,20 +6,49 @@ use core::panic::PanicInfo;
 use uefi::services::graphics::BltPixel;
 
 #[no_mangle]
-pub extern "sysv64" fn _start(buffer: *mut BltPixel, width: usize, height: usize) -> usize {
+pub extern "sysv64" fn _start(buffer: *mut BltPixel, width: usize, height: usize) -> ! {
     let buffer = unsafe { core::slice::from_raw_parts_mut(buffer, width * height) };
-    for x in 200..800 {
-        for y in 400..600 {
-            buffer[y * width + x] = BltPixel {
-                blue: 0,
-                green: 255,
-                red: 255,
-                reserved: 255,
+    let mut red = 255;
+    let mut green = 0;
+    let mut blue = 0;
+    loop {
+        if red == 255 {
+            if blue > 0 {
+                blue -= 1;
+            } else if green == 255 {
+                red -= 1;
+            } else {
+                green += 1;
+            }
+        } else if green == 255 {
+            if red > 0 {
+                red -= 1;
+            } else if blue == 255 {
+                green -= 1;
+            } else {
+                blue += 1;
+            }
+        } else if blue == 255 {
+            if green > 0 {
+                green -= 1;
+            } else if red == 255 {
+                blue -= 1;
+            } else {
+                red += 1;
+            }
+        }
+
+        for x in 0..width {
+            for y in 0..height {
+                buffer[y * width + x] = BltPixel {
+                    blue,
+                    green,
+                    red,
+                    reserved: 255,
+                }
             }
         }
     }
-    // loop {}
-    return 42;
 }
 
 /// This function is called on panic.
