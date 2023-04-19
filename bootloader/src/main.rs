@@ -11,6 +11,7 @@ use elf::get_elf_entry_point_offset;
 use uefi::{
     allocator,
     services::{
+        boot::{AllocateType, MemoryType},
         filesystem::{self, FileSystem},
         graphics::{self, BltPixel, Graphics},
     },
@@ -99,6 +100,23 @@ pub extern "efiapi" fn efi_main(
     .unwrap();
 
     let entry_point_fn = get_elf_entry_point_offset(&buffer).unwrap();
+
+    // Allocate 128KiB for stack
+    let stack = st
+        .boot_services
+        .allocate_pages(
+            AllocateType::AllocateAnyPages,
+            MemoryType::EfiLoaderData,
+            32,
+        )
+        .unwrap();
+    let stack_start = stack;
+    let stack_end = stack_start + 128 * 1024;
+
+    print!("stack start {}", stack_start);
+    // wait_for_key();
+
+    // These two have to be called next to each other
     let mem_map = st.boot_services.get_memory_map().unwrap();
     match st
         .boot_services
@@ -132,8 +150,19 @@ pub extern "efiapi" fn efi_main(
         }
     }
 
+    // let stack_start: usize = 0x1337;
+    let stack_end = stack_end;
     let g = gfx();
-    let _result = entry_point_fn(g.buffer, g.width, g.height);
+    unsafe {
+        core::arch::asm!("mov rsp, {}; jmp {}",
+          in(reg) stack_end,
+          in(reg) entry_point_fn,
+          in("rdi") g.buffer,
+          in("rsi") g.width,
+          in("rdx") g.height
+        );
+    }
+    // let _result = entry_point_fn(g.buffer, g.width, g.height);
 
     // // TODO
     // // * read executable file DONE
