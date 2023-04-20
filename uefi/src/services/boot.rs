@@ -276,10 +276,10 @@ pub enum InterfaceType {
 }
 
 /// UEFI Spec 2.10 section 7.2.3
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct MemoryDescriptor {
-    pub ty: u32,
+    pub ty: MemoryType,
     pub physical_start: u64,
     pub virtual_start: u64,
     pub number_of_pages: u64,
@@ -296,7 +296,8 @@ pub enum AllocateType {
 }
 
 /// UEFI Spec 2.10 section 7.2.1
-#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+#[repr(u32)]
 pub enum MemoryType {
     EfiReservedMemoryType,
     EfiLoaderCode,

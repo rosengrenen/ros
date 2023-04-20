@@ -21,7 +21,10 @@ use uefi::{
     string::String16,
 };
 
-use crate::x86_64::{control, efer, flags, gdt};
+use crate::x86_64::{
+    control, efer, flags, gdt,
+    paging::{PageDirPointerTable, PageDirTable, PageMapLevel4Table, PageTable},
+};
 
 static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable> = None;
 
@@ -86,8 +89,15 @@ pub extern "efiapi" fn efi_main(
     st.con_out.set_mode(*best_mode_number as _).unwrap();
     clear_screen();
 
-    print_regs();
+    println!("gfx: {:#x?}", gfx_buffer);
+    println!("st: {:#x?}", system_table.inner as *const _);
+    println!("main: {:#x?}", efi_main as *const fn());
+    wait_for_key();
+
+    // print_regs();
     // print_mem_map();
+    // print_page_table();
+    wait_for_key();
 
     // Read kernel executable
     let fs = st
@@ -125,7 +135,6 @@ pub extern "efiapi" fn efi_main(
     st.boot_services
         .exit_boot_services(image_handle, mem_map.key)
         .unwrap();
-
     // Jump to kernel
     let g = gfx();
     let stack_end = stack_end;
@@ -140,6 +149,87 @@ pub extern "efiapi" fn efi_main(
     }
 
     unreachable!("should have jumped to kernel at this point")
+}
+
+#[allow(dead_code)]
+fn print_page_table() {
+    let mask = 0x000F_FFFF_FFFF_F000;
+    let pml4_table_addr = control::Cr3::read().pba_pml4;
+    println!("{:x?}", pml4_table_addr);
+    let pml4_table = unsafe { &*(pml4_table_addr as *const PageMapLevel4Table) };
+    let mut num_1gb_pages = 0;
+    let mut num_2mb_pages = 0;
+    let mut num_4kb_pages = 0;
+    for (i, entry) in pml4_table
+        .entries
+        .iter()
+        .filter(|e| e.0 & 0x1 != 0)
+        .enumerate()
+    {
+        // println!("{}: {:x?}", i, entry);
+        let table_addr = entry.0 & mask;
+        let table = unsafe { &*(table_addr as *const PageDirPointerTable) };
+        for (j, page_dir_pointer_entry) in table
+            .entries
+            .iter()
+            .filter(|e| (e.0 & 0x1) != 0)
+            .enumerate()
+        {
+            if page_dir_pointer_entry.0 & (1 << 7) != 0 {
+                num_1gb_pages += 1;
+                let virt_base_addr = (i << 39) | (j << 30);
+                let phys_base_addr = entry.0 & 0x000F_FFFF_C000_0000;
+                println!(
+                    "    {},{}: maps a 1gb page {:x} {:x}",
+                    i, j, virt_base_addr, phys_base_addr
+                );
+            } else {
+                let table_addr = page_dir_pointer_entry.0 & mask;
+                let table = unsafe { &*(table_addr as *const PageDirTable) };
+                for (k, page_dir_entry) in table
+                    .entries
+                    .iter()
+                    .filter(|e| (e.0 & 0x1) != 0)
+                    .enumerate()
+                {
+                    if page_dir_entry.0 & (1 << 7) != 0 {
+                        num_2mb_pages += 1;
+                        let virt_base_addr = (i << 39) | (j << 30) | (k << 21);
+                        let phys_base_addr = entry.0; // & 0x000F_FFFF_FFE0_0000;
+                        println!(
+                            "        {},{},{}: maps a 2mb page {:x} {:x}",
+                            i, j, k, virt_base_addr, phys_base_addr
+                        );
+                    } else {
+                        let table_addr = entry.0 & mask;
+                        let table = unsafe { &*(table_addr as *const PageTable) };
+                        for (l, entry) in table
+                            .entries
+                            .iter()
+                            .filter(|e| (e.0 & 0x1) != 0)
+                            .enumerate()
+                        {
+                            num_4kb_pages += 1;
+                            let virt_base_addr = (i << 39) | (j << 30) | (k << 21) | (l << 12);
+                            let phys_base_addr = (entry.0 & mask) as usize;
+                            println!(
+                                "            {},{},{},{} {:#x}",
+                                i,
+                                j,
+                                k,
+                                l,
+                                phys_base_addr - virt_base_addr
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+    println!(
+        "num page tables: {}, {}, {}",
+        num_1gb_pages, num_2mb_pages, num_4kb_pages
+    );
 }
 
 #[allow(dead_code)]
@@ -191,34 +281,30 @@ fn print_mem_map() {
     let mut memory_map: Vec<_> = memory_map.iter().copied().collect();
     memory_map.sort_by_key(|m| m.physical_start);
 
+    const ENTRIES_PER_PAGE: usize = 3;
+
     let memory_map_len = memory_map.len();
     clear_screen();
-    print_str(
-        &format!(
-            "Showing {}-{} / {}",
-            1,
-            20.min(memory_map_len),
-            memory_map_len
-        ),
-        Some((0, 0)),
+    println!(
+        "Showing {}-{} / {}",
+        1,
+        ENTRIES_PER_PAGE.min(memory_map_len),
+        memory_map_len
     );
-    let mut prev_end = 0;
+    st.con_out.set_cursor_position(0, 2).unwrap();
     for (i, desc) in memory_map.iter().enumerate() {
-        if i != 0 && i % 20 == 0 {
+        if i != 0 && i % ENTRIES_PER_PAGE == 0 {
             wait_for_key();
             clear_screen();
-            print_str(
-                &format!(
-                    "Showing {}-{} / {}",
-                    i + 1,
-                    (i + 20).min(memory_map_len),
-                    memory_map_len
-                ),
-                Some((0, 0)),
+            println!(
+                "Showing {}-{} / {}",
+                i + 1,
+                (i + ENTRIES_PER_PAGE).min(memory_map_len),
+                memory_map_len
             );
+            st.con_out.set_cursor_position(0, 2).unwrap();
         }
 
-        let end = desc.physical_start + desc.number_of_pages * EFI_PAGE_SIZE_BYTES;
         let mut size = desc.number_of_pages * EFI_PAGE_SIZE_BYTES / KB_IN_BYTES;
         let unit = if size < 1024 {
             "K"
@@ -229,22 +315,13 @@ fn print_mem_map() {
             size /= 1024 * 1024;
             "G !!!"
         };
-        print_str(
-            &format!(
-                "{:<30}: {:#010x} {:#010x} {:#010x} {:<6}{}",
-                mem_type_str(desc.ty),
-                desc.physical_start,
-                end,
-                desc.physical_start - prev_end,
-                size,
-                unit
-            ),
-            Some((0, 3 + i % 20)),
-        );
+        let i = desc.physical_start >> 39 & 0x1FF;
+        let j = desc.physical_start >> 30 & 0x1FF;
+        let k = desc.physical_start >> 21 & 0x1FF;
+        let l = desc.physical_start >> 12 & 0x1FF;
+        println!("{:#x?} ({:?})", desc, (i, j, k, l));
 
         total_ram_kb += desc.number_of_pages * EFI_PAGE_SIZE_BYTES / KB_IN_BYTES;
-
-        prev_end = end;
     }
 
     wait_for_key();

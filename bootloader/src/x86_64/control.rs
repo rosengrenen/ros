@@ -72,7 +72,7 @@ pub struct Cr3 {
     //  0-11 	PCID, when CR4.PCIDE = 1
     pcid: u16,
     // 12-63 	Physical Base Address of the PML4
-    pba_pml4: u64,
+    pub pba_pml4: u64,
 }
 
 impl Cr3 {
@@ -85,7 +85,7 @@ impl Cr3 {
             pwt: cr3 & (1 << 3) != 0,
             pcd: cr3 & (1 << 5) != 0,
             pcid: (cr3 & 0b111_1111_1111) as u16,
-            pba_pml4: (cr3 >> 12),
+            pba_pml4: (cr3 & !0xFFF),
         }
     }
 }
@@ -111,7 +111,7 @@ pub struct Cr4 {
     // 8 	PCE 	Performance Monitoring Counter Enable
     pce: bool,
     // 9 	OSFXSR 	OS support for fxsave and fxrstor instructions
-    dsfxsr: bool,
+    osfxsr: bool,
     // 10 	OSXMMEXCPT 	OS Support for unmasked simd floating point exceptions
     osxmmexcpt: bool,
     // 11 	UMIP 	User-Mode Instruction Prevention (SGDT, SIDT, SLDT, SMSW, and STR are disabled in user mode)
@@ -158,7 +158,7 @@ impl Cr4 {
             mce: cr4 & (1 << 6) != 0,
             pge: cr4 & (1 << 7) != 0,
             pce: cr4 & (1 << 8) != 0,
-            dsfxsr: cr4 & (1 << 9) != 0,
+            osfxsr: cr4 & (1 << 9) != 0,
             osxmmexcpt: cr4 & (1 << 10) != 0,
             uimp: cr4 & (1 << 11) != 0,
             vmxe: cr4 & (1 << 13) != 0,
