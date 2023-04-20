@@ -22,8 +22,19 @@ impl ConsoleOutput {
         Ok(())
     }
 
-    pub fn set_cursor_position(&self, column: usize, row: usize) -> Result<(), usize> {
-        let status = (self.set_cursor_position)(self, column, row);
+    pub fn query_mode(&self, mode_number: usize) -> Result<(usize, usize), usize> {
+        let mut columns = 0;
+        let mut rows = 0;
+        let status = (self.query_mode)(self, mode_number, &mut columns, &mut rows);
+        if status != 0 {
+            return Err(status);
+        }
+
+        Ok((columns, rows))
+    }
+
+    pub fn set_mode(&self, mode_number: usize) -> Result<(), usize> {
+        let status = (self.set_mode)(self, mode_number);
         if status != 0 {
             return Err(status);
         }
@@ -31,8 +42,13 @@ impl ConsoleOutput {
         Ok(())
     }
 
-    pub fn mode(&self) -> Mode {
-        *self.mode
+    pub fn set_cursor_position(&self, column: usize, row: usize) -> Result<(), usize> {
+        let status = (self.set_cursor_position)(self, column, row);
+        if status != 0 {
+            return Err(status);
+        }
+
+        Ok(())
     }
 }
 
@@ -74,5 +90,5 @@ pub struct ConsoleOutput {
     /// UEFI Spec 2.10 section 12.4.10
     enable_cursor: extern "efiapi" fn(&Self, visible: bool) -> Status,
     /// UEFI Spec 2.10 section 12.4.1
-    mode: &'static Mode,
+    pub mode: &'static Mode,
 }
