@@ -1,18 +1,18 @@
 // https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html volume 3A contains paging information
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct PageMapLevel4TableEntry(pub u64);
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct PageDirPointerTableEntry(pub u64);
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct PageDirTableEntry(pub u64);
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct PageTableEntry(pub u64);
 

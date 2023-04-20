@@ -92,11 +92,22 @@ pub extern "efiapi" fn efi_main(
     println!("gfx: {:#x?}", gfx_buffer);
     println!("st: {:#x?}", system_table.inner as *const _);
     println!("main: {:#x?}", efi_main as *const fn());
+    println!(
+        "{:#x} => {:#x?}",
+        gfx_buffer as u64,
+        translate_addr(gfx_buffer as u64)
+    );
+    println!(
+        "{:#x} => {:#x?}",
+        system_table.inner as *const _ as u64,
+        translate_addr(system_table.inner as *const _ as u64)
+    );
+    println!("{:#x} => {:#x?}", 0x3f802023, translate_addr(0x3f802023));
     wait_for_key();
 
     // print_regs();
-    // print_mem_map();
-    // print_page_table();
+    print_mem_map();
+    print_page_table();
     wait_for_key();
 
     // Read kernel executable
@@ -151,6 +162,52 @@ pub extern "efiapi" fn efi_main(
     unreachable!("should have jumped to kernel at this point")
 }
 
+fn translate_addr(virt: u64) -> Option<u64> {
+    let mask = 0x000F_FFFF_FFFF_F000;
+    let pml4_index = virt >> 39 & 0x1FF;
+    let page_dir_ptr_index = virt >> 30 & 0x1FF;
+    let page_dir_index = virt >> 21 & 0x1FF;
+    let page_index = virt >> 12 & 0x1FF;
+    let pml4_table_addr = control::Cr3::read().pba_pml4;
+    let pml4_table = unsafe { &*(pml4_table_addr as *const PageMapLevel4Table) };
+    let pml4_entry = pml4_table.entries[pml4_index as usize];
+    if pml4_entry.0 & 0x1 == 0 {
+        return None;
+    }
+
+    let page_dir_ptr_table_addr = pml4_entry.0 & mask;
+    // println!("page_dir_ptr_table_addr: {}", page_dir_ptr_table_addr);
+    let page_dir_ptr_table = unsafe { &*(page_dir_ptr_table_addr as *const PageDirPointerTable) };
+    let page_dir_ptr_entry = page_dir_ptr_table.entries[page_dir_ptr_index as usize];
+    if page_dir_ptr_entry.0 & 0x1 == 0 {
+        return None;
+    }
+
+    if page_dir_ptr_entry.0 & (1 << 7) != 0 {
+        return Some(page_dir_ptr_entry.0 & 0x000F_FFFF_C000_0000 | (virt & 0x3FFF_FFFF));
+    }
+    let page_dir_table_addr = page_dir_ptr_entry.0 & mask;
+    // println!("page_dir_table_addr: {}", page_dir_table_addr);
+    let page_dir_table = unsafe { &*(page_dir_table_addr as *const PageDirTable) };
+    let page_dir_entry = page_dir_table.entries[page_dir_index as usize];
+    if page_dir_entry.0 & 0x1 == 0 {
+        return None;
+    }
+
+    if page_dir_entry.0 & (1 << 7) != 0 {
+        return Some(page_dir_entry.0 & 0x000F_FFFF_FFE0_0000 | (virt & 0x001F_FFFF));
+    }
+    let page_table_addr = page_dir_entry.0 & mask;
+    // println!("page_table_addr: {}", page_table_addr);
+    let page_table = unsafe { &*(page_table_addr as *const PageTable) };
+    let page_entry = page_table.entries[page_index as usize];
+    if page_entry.0 & 0x1 == 0 {
+        return None;
+    }
+
+    Some(page_entry.0 & mask | (virt & 0xFFF))
+}
+
 #[allow(dead_code)]
 fn print_page_table() {
     let mask = 0x000F_FFFF_FFFF_F000;
@@ -195,11 +252,11 @@ fn print_page_table() {
                     if page_dir_entry.0 & (1 << 7) != 0 {
                         num_2mb_pages += 1;
                         let virt_base_addr = (i << 39) | (j << 30) | (k << 21);
-                        let phys_base_addr = entry.0; // & 0x000F_FFFF_FFE0_0000;
-                        println!(
-                            "        {},{},{}: maps a 2mb page {:x} {:x}",
-                            i, j, k, virt_base_addr, phys_base_addr
-                        );
+                        let phys_base_addr = entry.0 & 0x000F_FFFF_FFE0_0000;
+                        // println!(
+                        //     "        {},{},{}: maps a 2mb page {:x} {:x}",
+                        //     i, j, k, virt_base_addr, phys_base_addr
+                        // );
                     } else {
                         let table_addr = entry.0 & mask;
                         let table = unsafe { &*(table_addr as *const PageTable) };
@@ -213,13 +270,15 @@ fn print_page_table() {
                             let virt_base_addr = (i << 39) | (j << 30) | (k << 21) | (l << 12);
                             let phys_base_addr = (entry.0 & mask) as usize;
                             println!(
-                                "            {},{},{},{} {:#x}",
+                                "            {},{},{},{} {:#x} {:#x}",
                                 i,
                                 j,
                                 k,
                                 l,
-                                phys_base_addr - virt_base_addr
+                                phys_base_addr - virt_base_addr,
+                                phys_base_addr
                             );
+                            panic!();
                         }
                     }
                 }
@@ -359,30 +418,6 @@ macro_rules! print {
 macro_rules! println {
     () => (print!("\n"));
     ($($arg:tt)*) => (print!("{}\n", format_args!($($arg)*)));
-}
-
-// TODO: implement debug on the enum type instead
-fn mem_type_str(mem_type: u32) -> &'static str {
-    match mem_type {
-        0 => "EfiReservedMemoryType",
-        1 => "EfiLoaderCode",
-        2 => "EfiLoaderData",
-        3 => "EfiBootServicesCode",
-        4 => "EfiBootServicesData",
-        5 => "EfiRuntimeServicesCode",
-        6 => "EfiRuntimeServicesData",
-        7 => "EfiConventionalMemory",
-        8 => "EfiUnusableMemory",
-        9 => "EfiACPIReclaimMemory",
-        10 => "EfiACPIMemoryNVS",
-        11 => "EfiMemoryMappedIO",
-        12 => "EfiMemoryMappedIOPortSpace",
-        13 => "EfiPalCode",
-        14 => "EfiPersistentMemory",
-        15 => "EfiUnacceptedMemoryType",
-        16 => "EfiMaxMemoryType",
-        _ => "",
-    }
 }
 
 fn clear_screen() {

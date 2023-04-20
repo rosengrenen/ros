@@ -1,7 +1,8 @@
 #!/bin/sh
 
-cargo build --target x86_64-unknown-uefi
+cargo build --target x86_64-unknown-uefi --release
 cp target/x86_64-unknown-uefi/debug/bootloader.efi target/x86_64-unknown-uefi/debug/BOOTX64.EFI
+cp target/x86_64-unknown-uefi/release/bootloader.efi target/x86_64-unknown-uefi/release/BOOTX64.EFI
 
 dd if=/dev/zero of=fat.img bs=1k count=2880
 mformat -i fat.img -f 2880 ::
