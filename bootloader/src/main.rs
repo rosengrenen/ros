@@ -21,7 +21,7 @@ use uefi::{
     string::String16,
 };
 
-use crate::x86_64::{control, flags, gdt};
+use crate::x86_64::{control, efer, flags, gdt};
 
 static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable> = None;
 
@@ -162,6 +162,10 @@ fn print_regs() {
 
     clear_screen();
     println!("{:x?}", control::Cr4::read());
+    wait_for_key();
+
+    clear_screen();
+    println!("{:x?}", efer::Efer::read());
     wait_for_key();
 
     clear_screen();

@@ -78,13 +78,13 @@ pub struct GdtDescAccess(u8);
 impl Debug for GdtDescAccess {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("GdtDescAccess")
-            .field("a", &((self.0 << 0) != 0))
-            .field("rw", &((self.0 << 1) != 0))
-            .field("dc", &((self.0 << 2) != 0))
-            .field("e", &((self.0 << 3) != 0))
-            .field("s", &((self.0 << 4) != 0))
+            .field("a", &(self.0 & (1 << 0) != 0))
+            .field("rw", &(self.0 & (1 << 1) != 0))
+            .field("dc", &(self.0 & (1 << 2) != 0))
+            .field("e", &(self.0 & (1 << 3) != 0))
+            .field("s", &(self.0 & (1 << 4) != 0))
             .field("dpl", &((self.0 << 5) & 0xF))
-            .field("p", &((self.0 << 7) != 0))
+            .field("p", &(self.0 & (1 << 7) != 0))
             .finish()
     }
 }
@@ -96,9 +96,9 @@ pub struct GdtDescFlags(u8);
 impl Debug for GdtDescFlags {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("GdtDescAccess")
-            .field("l", &((self.0 << 5) != 0))
-            .field("db", &((self.0 << 6) != 0))
-            .field("g", &((self.0 << 7) != 0))
+            .field("l", &(self.0 & (1 << 5) != 0))
+            .field("db", &(self.0 & (1 << 6) != 0))
+            .field("g", &(self.0 & (1 << 7) != 0))
             .finish()
     }
 }
