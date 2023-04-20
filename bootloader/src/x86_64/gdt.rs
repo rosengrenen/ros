@@ -1,6 +1,8 @@
 use core::fmt::Debug;
 
-#[derive(Clone, Copy, Debug)]
+/// Base and limit are ignored in 64-bit mode, the whole address space is
+/// affected regardless.
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct GdtDesc {
     limit_low: u16,
@@ -9,6 +11,32 @@ pub struct GdtDesc {
     access: GdtDescAccess,
     flags_limit: GdtDescFlags,
     base_high: u8,
+}
+
+impl GdtDesc {
+    pub fn limit(&self) -> u32 {
+        let limit_low = self.limit_low as u32;
+        let limit_high = (self.flags_limit.0 & 0xF) as u32;
+        (limit_high << 16) | limit_low
+    }
+
+    pub fn base(&self) -> u32 {
+        let base_high = self.base_high as u32;
+        let base_mid = self.base_mid as u32;
+        let base_low = self.base_low as u32;
+        (base_high << 24) | (base_mid << 16) | base_low
+    }
+}
+
+impl Debug for GdtDesc {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("GdtDesc")
+            .field("limit", &self.limit())
+            .field("base", &self.base())
+            .field("access", &self.access)
+            .field("flags", &self.flags_limit)
+            .finish()
+    }
 }
 
 impl GdtDesc {

@@ -280,6 +280,7 @@ macro_rules! println {
     ($($arg:tt)*) => (print!("{}\n", format_args!($($arg)*)));
 }
 
+// TODO: implement debug on the enum type instead
 fn mem_type_str(mem_type: u32) -> &'static str {
     match mem_type {
         0 => "EfiReservedMemoryType",
