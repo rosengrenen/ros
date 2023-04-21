@@ -103,10 +103,25 @@ pub extern "efiapi" fn efi_main(
         translate_addr(system_table.inner as *const _ as u64)
     );
     println!("{:#x} => {:#x?}", 0x3f802023, translate_addr(0x3f802023));
+    println!(
+        "{:#x} => {:#x?}",
+        0x478800123u64,
+        translate_addr(0x478800123)
+    );
+    wait_for_key();
+
+    // for virt_addr in (0..0xFFF_FFFF_FFFF).step_by(0xFFF_FFFF) {
+    //     if let Some(phys_addr) = translate_addr(virt_addr) {
+    //         if virt_addr != phys_addr {
+    //             println!("{:#x} => {:#x?}", virt_addr, translate_addr(virt_addr));
+    //         }
+    //     }
+    // }
+    println!("done");
     wait_for_key();
 
     // print_regs();
-    print_mem_map();
+    // print_mem_map();
     print_page_table();
     wait_for_key();
 
@@ -217,68 +232,57 @@ fn print_page_table() {
     let mut num_1gb_pages = 0;
     let mut num_2mb_pages = 0;
     let mut num_4kb_pages = 0;
-    for (i, entry) in pml4_table
+    // One pml4 table
+    let mut total_size_bytes = 4096;
+    for (i, pml4_entry) in pml4_table
         .entries
         .iter()
-        .filter(|e| e.0 & 0x1 != 0)
         .enumerate()
+        .filter(|(_, e)| e.0 & 0x1 != 0)
     {
-        // println!("{}: {:x?}", i, entry);
-        let table_addr = entry.0 & mask;
-        let table = unsafe { &*(table_addr as *const PageDirPointerTable) };
+        let page_dir_ptr_table_addr = pml4_entry.0 & mask;
+        let table = unsafe { &*(page_dir_ptr_table_addr as *const PageDirPointerTable) };
+        total_size_bytes += 4096;
         for (j, page_dir_pointer_entry) in table
             .entries
             .iter()
-            .filter(|e| (e.0 & 0x1) != 0)
             .enumerate()
+            .filter(|(_, e)| (e.0 & 0x1) != 0)
         {
             if page_dir_pointer_entry.0 & (1 << 7) != 0 {
                 num_1gb_pages += 1;
-                let virt_base_addr = (i << 39) | (j << 30);
-                let phys_base_addr = entry.0 & 0x000F_FFFF_C000_0000;
-                println!(
-                    "    {},{}: maps a 1gb page {:x} {:x}",
-                    i, j, virt_base_addr, phys_base_addr
-                );
+                // let virt_base_addr = (i << 39) | (j << 30);
+                // let phys_base_addr = page_dir_pointer_entry.0 & 0x000F_FFFF_C000_0000;
+                // println!("maps a 1gb page {:x} {:x}", virt_base_addr, phys_base_addr);
             } else {
-                let table_addr = page_dir_pointer_entry.0 & mask;
-                let table = unsafe { &*(table_addr as *const PageDirTable) };
-                for (k, page_dir_entry) in table
+                let page_dir_table_addr = page_dir_pointer_entry.0 & mask;
+                let page_dir_table = unsafe { &*(page_dir_table_addr as *const PageDirTable) };
+                total_size_bytes += 4096;
+                for (k, page_dir_entry) in page_dir_table
                     .entries
                     .iter()
-                    .filter(|e| (e.0 & 0x1) != 0)
                     .enumerate()
+                    .filter(|(_, e)| (e.0 & 0x1) != 0)
                 {
                     if page_dir_entry.0 & (1 << 7) != 0 {
                         num_2mb_pages += 1;
-                        let virt_base_addr = (i << 39) | (j << 30) | (k << 21);
-                        let phys_base_addr = entry.0 & 0x000F_FFFF_FFE0_0000;
-                        // println!(
-                        //     "        {},{},{}: maps a 2mb page {:x} {:x}",
-                        //     i, j, k, virt_base_addr, phys_base_addr
-                        // );
+                        // let virt_base_addr = (i << 39) | (j << 30) | (k << 21);
+                        // let phys_base_addr = page_dir_entry.0 & 0x000F_FFFF_FFE0_0000;
+                        // println!("maps a 2mb page {:x} {:x}", virt_base_addr, phys_base_addr);
                     } else {
-                        let table_addr = entry.0 & mask;
-                        let table = unsafe { &*(table_addr as *const PageTable) };
-                        for (l, entry) in table
+                        let page_table_addr = page_dir_entry.0 & mask;
+                        let page_table = unsafe { &*(page_table_addr as *const PageTable) };
+                        total_size_bytes += 4096;
+                        for (l, page_entry) in page_table
                             .entries
                             .iter()
-                            .filter(|e| (e.0 & 0x1) != 0)
                             .enumerate()
+                            .filter(|(_, e)| (e.0 & 0x1) != 0)
                         {
                             num_4kb_pages += 1;
-                            let virt_base_addr = (i << 39) | (j << 30) | (k << 21) | (l << 12);
-                            let phys_base_addr = (entry.0 & mask) as usize;
-                            println!(
-                                "            {},{},{},{} {:#x} {:#x}",
-                                i,
-                                j,
-                                k,
-                                l,
-                                phys_base_addr - virt_base_addr,
-                                phys_base_addr
-                            );
-                            panic!();
+                            // let virt_base_addr = (i << 39) | (j << 30) | (k << 21) | (l << 12);
+                            // let phys_base_addr = (page_entry.0 & mask) as usize;
+                            // println!("maps as 4kb page {:#x} {:#x}", virt_base_addr, phys_base_addr);
                         }
                     }
                 }
@@ -289,6 +293,7 @@ fn print_page_table() {
         "num page tables: {}, {}, {}",
         num_1gb_pages, num_2mb_pages, num_4kb_pages
     );
+    println!("paging uses {} bytes", total_size_bytes);
 }
 
 #[allow(dead_code)]

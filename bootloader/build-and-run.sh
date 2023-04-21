@@ -1,6 +1,8 @@
 #!/bin/sh
 
-cargo build --target x86_64-unknown-uefi --release
+set -e
+
+cargo build --target x86_64-unknown-uefi
 cp target/x86_64-unknown-uefi/debug/bootloader.efi target/x86_64-unknown-uefi/debug/BOOTX64.EFI
 cp target/x86_64-unknown-uefi/release/bootloader.efi target/x86_64-unknown-uefi/release/BOOTX64.EFI
 
