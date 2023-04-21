@@ -89,40 +89,9 @@ pub extern "efiapi" fn efi_main(
     st.con_out.set_mode(*best_mode_number as _).unwrap();
     clear_screen();
 
-    println!("gfx: {:#x?}", gfx_buffer);
-    println!("st: {:#x?}", system_table.inner as *const _);
-    println!("main: {:#x?}", efi_main as *const fn());
-    println!(
-        "{:#x} => {:#x?}",
-        gfx_buffer as u64,
-        translate_addr(gfx_buffer as u64)
-    );
-    println!(
-        "{:#x} => {:#x?}",
-        system_table.inner as *const _ as u64,
-        translate_addr(system_table.inner as *const _ as u64)
-    );
-    println!("{:#x} => {:#x?}", 0x3f802023, translate_addr(0x3f802023));
-    println!(
-        "{:#x} => {:#x?}",
-        0x478800123u64,
-        translate_addr(0x478800123)
-    );
-    wait_for_key();
-
-    // for virt_addr in (0..0xFFF_FFFF_FFFF).step_by(0xFFF_FFFF) {
-    //     if let Some(phys_addr) = translate_addr(virt_addr) {
-    //         if virt_addr != phys_addr {
-    //             println!("{:#x} => {:#x?}", virt_addr, translate_addr(virt_addr));
-    //         }
-    //     }
-    // }
-    println!("done");
-    wait_for_key();
-
     // print_regs();
     // print_mem_map();
-    print_page_table();
+    // print_page_table();
     wait_for_key();
 
     // Read kernel executable
@@ -331,6 +300,13 @@ fn print_regs() {
         println!("{:#x?}", desc);
         wait_for_key();
     }
+
+    let pcid: u64;
+    unsafe {
+        core::arch::asm!("mov eax, 0x1; cpuid; mov {}, rax", out(reg) pcid);
+    }
+    let pcid_supported = pcid & (1 << 17) != 0;
+    println!("PCID supported: {}", pcid_supported);
 }
 
 #[allow(dead_code)]
