@@ -175,8 +175,8 @@ pub fn print_regs() {
 
 #[allow(dead_code)]
 pub fn print_mem_map() {
-    let st = system_table().inner;
-    let memory_map = st.boot_services.get_memory_map().unwrap();
+    let st = system_table();
+    let memory_map = st.boot_services().get_memory_map().unwrap();
     let mut total_ram_kb = 0;
     // Note: EFI page sizes are always 4096 bytes
     const EFI_PAGE_SIZE_BYTES: u64 = 4096;
@@ -195,7 +195,7 @@ pub fn print_mem_map() {
         ENTRIES_PER_PAGE.min(memory_map_len),
         memory_map_len
     );
-    st.con_out.set_cursor_position(0, 2).unwrap();
+    st.con_out().set_cursor_position(0, 2).unwrap();
     for (i, desc) in memory_map.iter().enumerate() {
         if i != 0 && i % ENTRIES_PER_PAGE == 0 {
             wait_for_key();
@@ -206,7 +206,7 @@ pub fn print_mem_map() {
                 (i + ENTRIES_PER_PAGE).min(memory_map_len),
                 memory_map_len
             );
-            st.con_out.set_cursor_position(0, 2).unwrap();
+            st.con_out().set_cursor_position(0, 2).unwrap();
         }
 
         let mut size = desc.number_of_pages * EFI_PAGE_SIZE_BYTES / KB_IN_BYTES;
@@ -235,21 +235,21 @@ pub fn print_mem_map() {
 }
 
 pub fn print_str(string: &str, pos: Option<(usize, usize)>) {
-    let st = system_table().inner;
+    let st = system_table();
     if let Some((col, row)) = pos {
-        st.con_out.set_cursor_position(col, row).unwrap();
+        st.con_out().set_cursor_position(col, row).unwrap();
     }
 
     let parts = string.split('\n').collect::<Vec<_>>();
     for (i, part) in parts.iter().enumerate() {
         if !part.is_empty() {
             let string: String16 = part.parse().unwrap();
-            st.con_out.output_string(&string).unwrap();
+            st.con_out().output_string(&string).unwrap();
         }
 
         if i != parts.len() - 1 {
             let string: String16 = "\r\n".parse().unwrap();
-            st.con_out.output_string(&string).unwrap();
+            st.con_out().output_string(&string).unwrap();
         }
     }
 }
@@ -266,15 +266,15 @@ macro_rules! println {
 }
 
 pub fn clear_screen() {
-    let st = system_table().inner;
-    st.con_out.reset(false).unwrap();
+    let st = system_table();
+    st.con_out().reset(false).unwrap();
 }
 
 pub fn wait_for_key() {
-    let st = system_table().inner;
-    st.con_in.reset(false).unwrap();
+    let st = system_table();
+    st.con_in().reset(false).unwrap();
     loop {
-        match st.con_in.read_key() {
+        match st.con_in().read_key() {
             Ok(_key) => break,
             Err(_status) => continue,
         }

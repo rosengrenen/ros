@@ -44,8 +44,7 @@ pub fn get_elf_entry_point_offset(elf: &[u8]) -> Result<KernelMainFn, &'static s
     let image_size = image_end - image_start;
     let page_count = image_size as usize / 4096 + 1;
     let page_addr = system_table()
-        .inner
-        .boot_services
+        .boot_services()
         .allocate_pages(
             AllocateType::AllocateAnyPages,
             MemoryType::EfiLoaderData,

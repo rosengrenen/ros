@@ -1,3 +1,19 @@
+// CRC32 The 32-bit CRC for the entire table. This value is computed by setting
+// this field to 0, and computing the 32-bit CRC for HeaderSize bytes.
+
+// NOTE: The capabilities found in the EFI system table, runtime table and boot
+// services table may change over time. The first field in each of these tables
+// is an EFI_TABLE_HEADER. This header’s Revision field is incremented when new
+// capabilities and functions are added to the functions in the table. When
+// checking for capabilities, code should verify that Revision is greater than
+// or equal to the revision level of the table at the point when the
+// capabilities were added to the UEFI specification.
+
+// NOTE: The size of the system table, runtime services table, and boot
+//  services table may increase over time. It is very important to always use
+// the HeaderSize field of the EFI_TABLE_HEADER to determine the size of these
+// tables.
+
 #![no_std]
 
 #[macro_use]
@@ -8,7 +24,9 @@ pub mod services;
 pub mod string;
 mod table;
 
-use core::ffi::c_void;
+use core::{ffi::c_void, marker::PhantomData};
+
+use services::boot::MemoryMap;
 
 /// UEFI Spec 2.10 section 4.2.1
 #[derive(Clone, Copy, Debug)]
@@ -25,30 +43,65 @@ pub type Handle = *const c_void;
 
 pub type Status = usize;
 
+pub struct Boot;
+
+pub struct Runtime;
+
 #[repr(C)]
-pub struct SystemTable {
+pub struct SystemTable<S> {
     pub inner: &'static SystemTableImpl,
+    _marker: PhantomData<S>,
+}
+
+impl SystemTable<Boot> {
+    pub fn con_in(&self) -> &services::console::ConsoleInput {
+        self.inner.con_in
+    }
+
+    pub fn con_out(&self) -> &services::console::ConsoleOutput {
+        self.inner.con_out
+    }
+
+    pub fn std_err(&self) -> &services::console::ConsoleOutput {
+        self.inner.std_err
+    }
+
+    pub fn boot_services(&self) -> &services::boot::BootServices {
+        self.inner.boot_services
+    }
+
+    pub fn exit_boot_services(
+        self,
+        image_handle: Handle,
+    ) -> Result<(SystemTable<Runtime>, MemoryMap), usize> {
+        let memory_map = self.boot_services().get_memory_map()?;
+        self.boot_services()
+            .exit_boot_services(image_handle, memory_map.key)?;
+
+        crate::allocator::disable();
+
+        Ok((unsafe { core::mem::transmute(self) }, memory_map))
+    }
 }
 
 /// UEFI Spec 2.10 section 4.3.1
 #[repr(C)]
 pub struct SystemTableImpl {
-    pub header: TableHeader,
-    pub firmware_vendor: *const u16,
-    pub firmware_revision: u32,
+    header: TableHeader,
+    firmware_vendor: *const u16,
+    firmware_revision: u32,
     console_in_handle: Handle,
-    pub con_in: &'static services::console::ConsoleInput,
+    con_in: &'static services::console::ConsoleInput,
     console_out_handle: Handle,
-    pub con_out: &'static services::console::ConsoleOutput,
+    con_out: &'static services::console::ConsoleOutput,
     standard_error_handle: Handle,
-    pub std_err: &'static services::console::ConsoleOutput,
-    pub runtime_services: *const c_void,
-    pub boot_services: &'static services::boot::BootServices,
-    pub number_of_table_entries: usize,
-    // pub configuration_table: *mut efi_configuration_table,
-    pub configuration_table: *const c_void,
+    std_err: &'static services::console::ConsoleOutput,
+    runtime_services: *const c_void,
+    boot_services: &'static services::boot::BootServices,
+    number_of_table_entries: usize,
+    configuration_table: *const c_void,
 }
 
-pub fn init(system_table: &SystemTable) {
+pub fn init(system_table: &SystemTable<Boot>) {
     allocator::enable(system_table.inner.boot_services);
 }

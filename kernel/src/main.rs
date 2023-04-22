@@ -14,27 +14,27 @@ pub extern "sysv64" fn _start(buffer: *mut BltPixel, width: usize, height: usize
     loop {
         if red == 255 {
             if blue > 0 {
-                blue -= 1;
+                blue -= 5;
             } else if green == 255 {
-                red -= 1;
+                red -= 5;
             } else {
-                green += 1;
+                green += 5;
             }
         } else if green == 255 {
             if red > 0 {
-                red -= 1;
+                red -= 5;
             } else if blue == 255 {
-                green -= 1;
+                green -= 5;
             } else {
-                blue += 1;
+                blue += 5;
             }
         } else if blue == 255 {
             if green > 0 {
-                green -= 1;
+                green -= 5;
             } else if red == 255 {
-                blue -= 1;
+                blue -= 5;
             } else {
-                red += 1;
+                red += 5;
             }
         }
 

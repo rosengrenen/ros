@@ -24,10 +24,15 @@ use uefi::{
 
 use crate::print::{clear_screen, wait_for_key};
 
-static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable> = None;
+static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable<uefi::Boot>> = None;
+static mut SYSTEM_TABLE_RT: Option<&'static uefi::SystemTable<uefi::Runtime>> = None;
 
-pub fn system_table() -> &'static uefi::SystemTable {
+pub fn system_table() -> &'static uefi::SystemTable<uefi::Boot> {
     unsafe { SYSTEM_TABLE.expect("System table global variable not available") }
+}
+
+pub fn system_table_rt() -> &'static uefi::SystemTable<uefi::Runtime> {
+    unsafe { SYSTEM_TABLE_RT.expect("System table global variable not available") }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -52,14 +57,13 @@ pub fn gfx() -> GraphicsBuffer {
 #[no_mangle]
 pub extern "efiapi" fn efi_main(
     image_handle: uefi::Handle,
-    system_table: uefi::SystemTable,
+    st: uefi::SystemTable<uefi::Boot>,
 ) -> uefi::Status {
-    let st = system_table.inner;
     unsafe {
-        SYSTEM_TABLE = Some(core::mem::transmute(&system_table));
+        SYSTEM_TABLE = Some(core::mem::transmute(&st));
     }
     let gop = st
-        .boot_services
+        .boot_services()
         .locate_protocol::<Graphics>(&graphics::PROTOCOL_GUID)
         .unwrap();
     let gfx_buffer = gop.mode.frame_buffer_base as *mut BltPixel;
@@ -72,19 +76,19 @@ pub extern "efiapi" fn efi_main(
             height: buffer_h,
         })
     }
-    uefi::init(&system_table);
+    uefi::init(&st);
 
     // Set best console output mode
-    let modes = (0..st.con_out.mode.max_mode)
+    let modes = (0..st.con_out().mode.max_mode)
         .filter_map(|mode_number| {
-            st.con_out
+            st.con_out()
                 .query_mode(mode_number as _)
                 .ok()
                 .map(|mode| (mode_number, mode))
         })
         .collect::<Vec<_>>();
     let (best_mode_number, _) = modes.last().unwrap();
-    st.con_out.set_mode(*best_mode_number as _).unwrap();
+    st.con_out().set_mode(*best_mode_number as _).unwrap();
     clear_screen();
 
     // print_regs();
@@ -94,7 +98,7 @@ pub extern "efiapi" fn efi_main(
 
     // Read kernel executable
     let fs = st
-        .boot_services
+        .boot_services()
         .locate_protocol::<FileSystem>(&filesystem::PROTOCOL_GUID)
         .unwrap();
     let root_fs = unsafe { &*fs.open_volume().unwrap() };
@@ -109,7 +113,7 @@ pub extern "efiapi" fn efi_main(
 
     // Allocate 128KiB for stack
     let stack = st
-        .boot_services
+        .boot_services()
         .allocate_pages(
             AllocateType::AllocateAnyPages,
             MemoryType::EfiLoaderData,
@@ -123,11 +127,17 @@ pub extern "efiapi" fn efi_main(
     println!("stack start {}", stack_start);
     wait_for_key();
 
+    // Physical memory that needs to be identity mapped
+    //  * Efi structures?
+    //  * Kernel?
+    //  * Existing page tables?
+
     // These two have to be called next to each other
-    let mem_map = st.boot_services.get_memory_map().unwrap();
-    st.boot_services
-        .exit_boot_services(image_handle, mem_map.key)
-        .unwrap();
+    let (st, mem_map) = st.exit_boot_services(image_handle).unwrap();
+    unsafe {
+        SYSTEM_TABLE = None;
+        SYSTEM_TABLE_RT = Some(core::mem::transmute(&st));
+    }
     // Jump to kernel
     let g = gfx();
     let stack_end = stack_end;

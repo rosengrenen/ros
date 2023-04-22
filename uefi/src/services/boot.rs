@@ -100,7 +100,11 @@ impl BootServices {
         Ok(())
     }
 
-    pub fn exit_boot_services(&self, image_handle: Handle, map_key: usize) -> Result<(), usize> {
+    pub(crate) fn exit_boot_services(
+        &self,
+        image_handle: Handle,
+        map_key: usize,
+    ) -> Result<(), usize> {
         let status = (self.exit_boot_services)(image_handle, map_key);
         if status != 0 {
             return Err(status);
