@@ -9,8 +9,24 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
+pub enum PageSize {
+    Size4KiB,
+    Size2MiB,
+    Size1GiB,
+}
+
 #[allow(dead_code)]
 pub fn translate_addr(virt: u64) -> Option<u64> {
+    let (base_addr, page_size) = addr_page_table_indices(virt)?;
+    match page_size {
+        PageSize::Size1GiB => Some(base_addr | (virt & 0x3FFF_FFFF)),
+        PageSize::Size2MiB => Some(base_addr | (virt & 0x001F_FFFF)),
+        PageSize::Size4KiB => Some(base_addr | (virt & 0xFFF)),
+    }
+}
+
+pub fn addr_page_table_indices(virt: u64) -> Option<(u64, PageSize)> {
     let mask = 0x000F_FFFF_FFFF_F000;
     let pml4_index = virt >> 39 & 0x1FF;
     let page_dir_ptr_index = virt >> 30 & 0x1FF;
@@ -32,7 +48,10 @@ pub fn translate_addr(virt: u64) -> Option<u64> {
     }
 
     if page_dir_ptr_entry.0 & (1 << 7) != 0 {
-        return Some(page_dir_ptr_entry.0 & 0x000F_FFFF_C000_0000 | (virt & 0x3FFF_FFFF));
+        return Some((
+            page_dir_ptr_entry.0 & 0x000F_FFFF_C000_0000,
+            PageSize::Size1GiB,
+        ));
     }
     let page_dir_table_addr = page_dir_ptr_entry.0 & mask;
     // println!("page_dir_table_addr: {}", page_dir_table_addr);
@@ -43,7 +62,7 @@ pub fn translate_addr(virt: u64) -> Option<u64> {
     }
 
     if page_dir_entry.0 & (1 << 7) != 0 {
-        return Some(page_dir_entry.0 & 0x000F_FFFF_FFE0_0000 | (virt & 0x001F_FFFF));
+        return Some((page_dir_entry.0 & 0x000F_FFFF_FFE0_0000, PageSize::Size2MiB));
     }
     let page_table_addr = page_dir_entry.0 & mask;
     // println!("page_table_addr: {}", page_table_addr);
@@ -53,14 +72,13 @@ pub fn translate_addr(virt: u64) -> Option<u64> {
         return None;
     }
 
-    Some(page_entry.0 & mask | (virt & 0xFFF))
+    Some((page_entry.0 & mask, PageSize::Size4KiB))
 }
 
 #[allow(dead_code)]
 pub fn print_page_table() {
     let mask = 0x000F_FFFF_FFFF_F000;
     let pml4_table_addr = control::Cr3::read().pba_pml4;
-    println!("{:x?}", pml4_table_addr);
     let pml4_table = unsafe { &*(pml4_table_addr as *const PageMapLevel4Table) };
     let mut num_1gb_pages = 0;
     let mut num_2mb_pages = 0;
@@ -209,28 +227,13 @@ pub fn print_mem_map() {
             st.con_out().set_cursor_position(0, 2).unwrap();
         }
 
-        let mut size = desc.number_of_pages * EFI_PAGE_SIZE_BYTES / KB_IN_BYTES;
-        let unit = if size < 1024 {
-            "K"
-        } else if size < 1024 * 1024 {
-            size /= 1024;
-            "M !"
-        } else {
-            size /= 1024 * 1024;
-            "G !!!"
-        };
-        let i = desc.physical_start >> 39 & 0x1FF;
-        let j = desc.physical_start >> 30 & 0x1FF;
-        let k = desc.physical_start >> 21 & 0x1FF;
-        let l = desc.physical_start >> 12 & 0x1FF;
-        println!("{:#x?} ({:?})", desc, (i, j, k, l));
-
+        println!("{:#x?}", desc);
         total_ram_kb += desc.number_of_pages * EFI_PAGE_SIZE_BYTES / KB_IN_BYTES;
     }
 
     wait_for_key();
     clear_screen();
-    print_str(&format!("Total ram: {}", total_ram_kb), Some((0, 1)));
+    println!("Total ram: {}", total_ram_kb);
     wait_for_key();
 }
 

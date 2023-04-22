@@ -22,7 +22,7 @@ use uefi::{
     string::String16,
 };
 
-use crate::print::{clear_screen, wait_for_key};
+use crate::print::{clear_screen, print_mem_map, print_page_table, print_regs, wait_for_key};
 
 static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable<uefi::Boot>> = None;
 static mut SYSTEM_TABLE_RT: Option<&'static uefi::SystemTable<uefi::Runtime>> = None;
