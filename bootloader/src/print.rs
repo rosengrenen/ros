@@ -1,5 +1,5 @@
 use alloc::vec::Vec;
-use uefi::string::String16;
+use uefi::{services::boot::MemoryType, string::String16};
 
 use crate::{
     print, println, system_table,
@@ -73,6 +73,53 @@ pub fn addr_page_table_indices(virt: u64) -> Option<(u64, PageSize)> {
     }
 
     Some((page_entry.0 & mask, PageSize::Size4KiB))
+}
+
+#[allow(dead_code)]
+pub fn addr_page_indices(virt: u64) -> Option<u64> {
+    let mask = 0x000F_FFFF_FFFF_F000;
+    let pml4_index = virt >> 39 & 0x1FF;
+    let page_dir_ptr_index = virt >> 30 & 0x1FF;
+    let page_dir_index = virt >> 21 & 0x1FF;
+    let page_index = virt >> 12 & 0x1FF;
+    let pml4_table_addr = control::Cr3::read().pba_pml4;
+    let pml4_table = unsafe { &*(pml4_table_addr as *const PageMapLevel4Table) };
+    let pml4_entry = pml4_table.entries[pml4_index as usize];
+    if pml4_entry.0 & 0x1 == 0 {
+        return None;
+    }
+
+    let page_dir_ptr_table_addr = pml4_entry.0 & mask;
+    // println!("page_dir_ptr_table_addr: {}", page_dir_ptr_table_addr);
+    let page_dir_ptr_table = unsafe { &*(page_dir_ptr_table_addr as *const PageDirPointerTable) };
+    let page_dir_ptr_entry = page_dir_ptr_table.entries[page_dir_ptr_index as usize];
+    if page_dir_ptr_entry.0 & 0x1 == 0 {
+        return None;
+    }
+
+    if page_dir_ptr_entry.0 & (1 << 7) != 0 {
+        return Some(page_dir_ptr_entry.0 & 0x000F_FFFF_C000_0000 | (virt & 0x3FFF_FFFF));
+    }
+    let page_dir_table_addr = page_dir_ptr_entry.0 & mask;
+    // println!("page_dir_table_addr: {}", page_dir_table_addr);
+    let page_dir_table = unsafe { &*(page_dir_table_addr as *const PageDirTable) };
+    let page_dir_entry = page_dir_table.entries[page_dir_index as usize];
+    if page_dir_entry.0 & 0x1 == 0 {
+        return None;
+    }
+
+    if page_dir_entry.0 & (1 << 7) != 0 {
+        return Some(page_dir_entry.0 & 0x000F_FFFF_FFE0_0000 | (virt & 0x001F_FFFF));
+    }
+    let page_table_addr = page_dir_entry.0 & mask;
+    // println!("page_table_addr: {}", page_table_addr);
+    let page_table = unsafe { &*(page_table_addr as *const PageTable) };
+    let page_entry = page_table.entries[page_index as usize];
+    if page_entry.0 & 0x1 == 0 {
+        return None;
+    }
+
+    Some(page_entry.0 & mask | (virt & 0xFFF))
 }
 
 #[allow(dead_code)]
@@ -196,6 +243,7 @@ pub fn print_mem_map() {
     let st = system_table();
     let memory_map = st.boot_services().get_memory_map().unwrap();
     let mut total_ram_kb = 0;
+    let mut usable_rt_kb = 0;
     // Note: EFI page sizes are always 4096 bytes
     const EFI_PAGE_SIZE_BYTES: u64 = 4096;
     const KB_IN_BYTES: u64 = 1024;
@@ -216,7 +264,7 @@ pub fn print_mem_map() {
     st.con_out().set_cursor_position(0, 2).unwrap();
     for (i, desc) in memory_map.iter().enumerate() {
         if i != 0 && i % ENTRIES_PER_PAGE == 0 {
-            wait_for_key();
+            // wait_for_key();
             clear_screen();
             println!(
                 "Showing {}-{} / {}",
@@ -229,6 +277,30 @@ pub fn print_mem_map() {
 
         println!("{:#x?}", desc);
         total_ram_kb += desc.number_of_pages * EFI_PAGE_SIZE_BYTES / KB_IN_BYTES;
+        let usable = match desc.ty {
+            MemoryType::EfiReservedMemoryType => false,
+            MemoryType::EfiLoaderCode => false,
+            MemoryType::EfiLoaderData => false,
+            MemoryType::EfiBootServicesCode => true,
+            MemoryType::EfiBootServicesData => true,
+            MemoryType::EfiRuntimeServicesCode => false,
+            MemoryType::EfiRuntimeServicesData => false,
+            MemoryType::EfiConventionalMemory => true,
+            MemoryType::EfiUnusableMemory => false,
+            MemoryType::EfiACPIReclaimMemory => false,
+            MemoryType::EfiACPIMemoryNVS => false,
+            MemoryType::EfiMemoryMappedIO => false,
+            MemoryType::EfiMemoryMappedIOPortSpace => false,
+            MemoryType::EfiPalCode => false,
+            MemoryType::EfiPersistentMemory => true,
+            MemoryType::EfiUnacceptedMemoryType => false,
+            MemoryType::EfiMaxMemoryType => false,
+        };
+        if usable {
+            usable_rt_kb += desc.number_of_pages * EFI_PAGE_SIZE_BYTES / KB_IN_BYTES;
+        } else {
+            println!("Unusable {:x?}", desc.ty);
+        }
     }
 
     wait_for_key();

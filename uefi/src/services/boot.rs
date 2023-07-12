@@ -115,9 +115,9 @@ impl BootServices {
         Ok(())
     }
 
-    pub fn locate_protocol<T>(&self, protocol: &Guid) -> Result<&'static T, usize> {
+    pub fn locate_protocol<T: UefiProtocol>(&self) -> Result<&'static T, usize> {
         let mut interface = core::ptr::null();
-        let status = (self.locate_protocol)(protocol, core::ptr::null(), &mut interface as *mut _);
+        let status = (self.locate_protocol)(&T::GUID, core::ptr::null(), &mut interface as *mut _);
         if status != 0 {
             return Err(status);
         }
@@ -125,6 +125,10 @@ impl BootServices {
         let interface = unsafe { &*(interface as *const T) };
         Ok(interface)
     }
+}
+
+pub trait UefiProtocol {
+    const GUID: Guid;
 }
 
 #[derive(Debug)]

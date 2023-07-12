@@ -1,13 +1,6 @@
 use crate::Status;
 
-use super::boot::Guid;
-
-pub const PROTOCOL_GUID: Guid = Guid(
-    0x9042a9de,
-    0x23dc,
-    0x4a38,
-    [0x96, 0xfb, 0x7a, 0xde, 0xd0, 0x80, 0x51, 0x6a],
-);
+use super::boot::{Guid, UefiProtocol};
 
 impl Graphics {
     pub fn query_mode(&self, mode_number: u32) -> Result<&'static ModeInfo, usize> {
@@ -55,6 +48,15 @@ impl Graphics {
 
         Ok(())
     }
+}
+
+impl UefiProtocol for Graphics {
+    const GUID: Guid = Guid(
+        0x9042a9de,
+        0x23dc,
+        0x4a38,
+        [0x96, 0xfb, 0x7a, 0xde, 0xd0, 0x80, 0x51, 0x6a],
+    );
 }
 
 #[repr(C)]

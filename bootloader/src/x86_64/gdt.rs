@@ -106,8 +106,8 @@ impl Debug for GdtDescFlags {
 #[derive(Debug)]
 #[repr(C, packed)]
 pub struct Gdtr {
-    limit: u16,
-    base: u64,
+    pub limit: u16,
+    pub base: u64,
 }
 
 impl Gdtr {

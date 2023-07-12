@@ -96,7 +96,7 @@ pub struct SystemTableImpl {
     con_out: &'static services::console::ConsoleOutput,
     standard_error_handle: Handle,
     std_err: &'static services::console::ConsoleOutput,
-    runtime_services: *const c_void,
+    pub runtime_services: *const c_void,
     boot_services: &'static services::boot::BootServices,
     number_of_table_entries: usize,
     configuration_table: *const c_void,

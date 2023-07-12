@@ -16,13 +16,16 @@ use uefi::{
     allocator,
     services::{
         boot::{AllocateType, MemoryType},
-        filesystem::{self, FileSystem},
-        graphics::{self, BltPixel, Graphics},
+        filesystem::FileSystem,
+        graphics::{BltPixel, Graphics},
     },
     string::String16,
 };
 
-use crate::print::{clear_screen, print_mem_map, print_page_table, print_regs, wait_for_key};
+use crate::{
+    print::{clear_screen, print_mem_map, print_page_table, wait_for_key},
+    x86_64::gdt,
+};
 
 static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable<uefi::Boot>> = None;
 static mut SYSTEM_TABLE_RT: Option<&'static uefi::SystemTable<uefi::Runtime>> = None;
@@ -62,10 +65,8 @@ pub extern "efiapi" fn efi_main(
     unsafe {
         SYSTEM_TABLE = Some(core::mem::transmute(&st));
     }
-    let gop = st
-        .boot_services()
-        .locate_protocol::<Graphics>(&graphics::PROTOCOL_GUID)
-        .unwrap();
+    uefi::init(&st);
+    let gop = st.boot_services().locate_protocol::<Graphics>().unwrap();
     let gfx_buffer = gop.mode.frame_buffer_base as *mut BltPixel;
     let buffer_w = gop.mode.info.horizontal_resolution as usize;
     let buffer_h = gop.mode.info.vertical_resolution as usize;
@@ -76,7 +77,6 @@ pub extern "efiapi" fn efi_main(
             height: buffer_h,
         })
     }
-    uefi::init(&st);
 
     // Set best console output mode
     let modes = (0..st.con_out().mode.max_mode)
@@ -91,16 +91,26 @@ pub extern "efiapi" fn efi_main(
     st.con_out().set_mode(*best_mode_number as _).unwrap();
     clear_screen();
 
+    let addr = st.inner.runtime_services as u64;
+    let addr = gdt::Gdtr::read().base;
+    println!("{:x}", addr);
+    let mem_map = st.boot_services().get_memory_map().unwrap();
+    let mem_region = mem_map
+        .iter()
+        .find(|desc| {
+            desc.physical_start < addr && addr < desc.physical_start + desc.number_of_pages * 4096
+        })
+        .unwrap();
+    println!("{:#x?}", mem_region);
+    wait_for_key();
+
     // print_regs();
-    // print_mem_map();
-    // print_page_table();
+    print_mem_map();
+    print_page_table();
     wait_for_key();
 
     // Read kernel executable
-    let fs = st
-        .boot_services()
-        .locate_protocol::<FileSystem>(&filesystem::PROTOCOL_GUID)
-        .unwrap();
+    let fs = st.boot_services().locate_protocol::<FileSystem>().unwrap();
     let root_fs = unsafe { &*fs.open_volume().unwrap() };
     let file_name: String16 = "ros".parse().unwrap();
     let file = unsafe { &*root_fs.open(&file_name, 0x3, 0x0).unwrap() };

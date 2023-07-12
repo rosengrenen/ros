@@ -6,7 +6,7 @@ use core::panic::PanicInfo;
 use uefi::services::graphics::BltPixel;
 
 #[no_mangle]
-pub extern "sysv64" fn _start(buffer: *mut BltPixel, width: usize, height: usize) -> ! {
+pub extern "C" fn _start(buffer: *mut BltPixel, width: usize, height: usize) -> ! {
     let buffer = unsafe { core::slice::from_raw_parts_mut(buffer, width * height) };
     let mut red = 255;
     let mut green = 0;
