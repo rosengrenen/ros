@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use uefi::string::String16;
 
 use crate::{
-    print, println, system_table,
+    print, println,
     x86_64::{
         control, efer, flags, gdt,
         paging::{PageDirPointerTable, PageDirTable, PageMapLevel4Table, PageTable},
@@ -196,6 +196,7 @@ pub fn print_mem_map() {
     let st = system_table();
     let memory_map = st.boot_services().get_memory_map().unwrap();
     let mut total_ram_kb = 0;
+    let mut rt_usable_ram_kb = 0;
     // Note: EFI page sizes are always 4096 bytes
     const EFI_PAGE_SIZE_BYTES: u64 = 4096;
     const KB_IN_BYTES: u64 = 1024;
@@ -214,6 +215,7 @@ pub fn print_mem_map() {
         memory_map_len
     );
     st.con_out().set_cursor_position(0, 2).unwrap();
+    let mut prev_end = 0;
     for (i, desc) in memory_map.iter().enumerate() {
         if i != 0 && i % ENTRIES_PER_PAGE == 0 {
             wait_for_key();
@@ -227,13 +229,49 @@ pub fn print_mem_map() {
             st.con_out().set_cursor_position(0, 2).unwrap();
         }
 
-        println!("{:#x?}", desc);
+        let start = desc.physical_start;
+        let end = desc.physical_start + desc.number_of_pages * 4096;
+        println!("{:x} {:x} {:x} {:#x?}", start - prev_end, start, end, desc,);
         total_ram_kb += desc.number_of_pages * EFI_PAGE_SIZE_BYTES / KB_IN_BYTES;
+        let usable = match desc.ty {
+            uefi::services::boot::MemoryType::EfiReservedMemoryType => false,
+            uefi::services::boot::MemoryType::EfiLoaderCode => true,
+            uefi::services::boot::MemoryType::EfiLoaderData => true,
+            uefi::services::boot::MemoryType::EfiBootServicesCode => true,
+            uefi::services::boot::MemoryType::EfiBootServicesData => true,
+            uefi::services::boot::MemoryType::EfiRuntimeServicesCode => false,
+            uefi::services::boot::MemoryType::EfiRuntimeServicesData => false,
+            uefi::services::boot::MemoryType::EfiConventionalMemory => true,
+            uefi::services::boot::MemoryType::EfiUnusableMemory => false,
+            uefi::services::boot::MemoryType::EfiACPIReclaimMemory => true,
+            uefi::services::boot::MemoryType::EfiACPIMemoryNVS => false,
+            uefi::services::boot::MemoryType::EfiMemoryMappedIO => false,
+            uefi::services::boot::MemoryType::EfiMemoryMappedIOPortSpace => false,
+            uefi::services::boot::MemoryType::EfiPalCode => false,
+            uefi::services::boot::MemoryType::EfiPersistentMemory => true,
+            uefi::services::boot::MemoryType::EfiUnacceptedMemoryType => false,
+            uefi::services::boot::MemoryType::EfiMaxMemoryType => false,
+        };
+        if usable {
+            rt_usable_ram_kb += desc.number_of_pages * EFI_PAGE_SIZE_BYTES / KB_IN_BYTES;
+        } else {
+            println!(
+                "Unusable {:?} {}KiB",
+                desc.ty,
+                desc.number_of_pages * EFI_PAGE_SIZE_BYTES / KB_IN_BYTES
+            )
+        }
+        prev_end = end;
     }
 
     wait_for_key();
     clear_screen();
-    println!("Total ram: {}", total_ram_kb);
+    println!(
+        "Total ram: {}, usable: {}, non-usable: {}",
+        total_ram_kb,
+        rt_usable_ram_kb,
+        total_ram_kb - rt_usable_ram_kb
+    );
     wait_for_key();
 }
 

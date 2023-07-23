@@ -1,15 +1,12 @@
 use alloc::vec::Vec;
-use uefi::services::{
-    boot::{AllocateType, MemoryType},
-    graphics::BltPixel,
-};
+use uefi::services::boot::{AllocateType, BootServices, MemoryType};
 
-use crate::system_table;
+pub type KernelMainFn = extern "C" fn(info: *const bootloader_api::BootInfo) -> usize;
 
-pub type KernelMainFn =
-    extern "sysv64" fn(buffer: *mut BltPixel, width: usize, height: usize) -> usize;
-
-pub fn get_elf_entry_point_offset(elf: &[u8]) -> Result<KernelMainFn, &'static str> {
+pub fn get_elf_entry_point_offset(
+    boot_services: &BootServices,
+    elf: &[u8],
+) -> Result<(KernelMainFn, u64, usize), &'static str> {
     let header = ElfHeader::try_from(elf).unwrap();
     if header.magic != [0x7F, 0x45, 0x4C, 0x46] {
         return Err("Not an ELF file");
@@ -42,16 +39,16 @@ pub fn get_elf_entry_point_offset(elf: &[u8]) -> Result<KernelMainFn, &'static s
     }
 
     let image_size = image_end - image_start;
-    let page_count = image_size as usize / 4096 + 1;
-    let page_addr = system_table()
-        .boot_services()
+    let kernel_pages = image_size as usize / 4096 + 1;
+    let kernel_addr = boot_services
         .allocate_pages(
             AllocateType::AllocateAnyPages,
             MemoryType::EfiLoaderData,
-            page_count,
+            kernel_pages,
         )
         .unwrap();
-    let page = unsafe { core::slice::from_raw_parts_mut(page_addr as *mut u8, page_count * 4096) };
+    let page =
+        unsafe { core::slice::from_raw_parts_mut(kernel_addr as *mut u8, kernel_pages * 4096) };
 
     for entry in &load_entries {
         let file_start_addr = entry.segment_file_offset as usize;
@@ -65,7 +62,7 @@ pub fn get_elf_entry_point_offset(elf: &[u8]) -> Result<KernelMainFn, &'static s
     let entry_point_offset = header.entry - image_start;
     let entry_point = &page[entry_point_offset as usize];
     let entry_point_fn: KernelMainFn = unsafe { core::mem::transmute(entry_point) };
-    Ok(entry_point_fn)
+    Ok((entry_point_fn, kernel_addr, kernel_pages))
 }
 
 #[derive(Clone, Copy, Debug)]

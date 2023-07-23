@@ -115,7 +115,7 @@ impl BootServices {
         Ok(())
     }
 
-    pub fn locate_protocol<T>(&self, protocol: &Guid) -> Result<&'static T, usize> {
+    pub fn locate_protocol<T>(&self, protocol: &Guid) -> Result<&T, usize> {
         let mut interface = core::ptr::null();
         let status = (self.locate_protocol)(protocol, core::ptr::null(), &mut interface as *mut _);
         if status != 0 {

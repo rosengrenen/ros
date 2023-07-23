@@ -5,12 +5,12 @@
 extern crate alloc;
 
 mod elf;
-mod print;
+// mod print;
 mod x86_64;
 
-use core::fmt::Debug;
+use core::alloc::Layout;
 
-use alloc::vec::Vec;
+use bootloader_api::BootInfo;
 use elf::get_elf_entry_point_offset;
 use uefi::{
     allocator,
@@ -22,137 +22,132 @@ use uefi::{
     string::String16,
 };
 
-use crate::print::{clear_screen, print_mem_map, print_page_table, print_regs, wait_for_key};
-
-static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable<uefi::Boot>> = None;
-static mut SYSTEM_TABLE_RT: Option<&'static uefi::SystemTable<uefi::Runtime>> = None;
-
-pub fn system_table() -> &'static uefi::SystemTable<uefi::Boot> {
-    unsafe { SYSTEM_TABLE.expect("System table global variable not available") }
-}
-
-pub fn system_table_rt() -> &'static uefi::SystemTable<uefi::Runtime> {
-    unsafe { SYSTEM_TABLE_RT.expect("System table global variable not available") }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct GraphicsBuffer {
-    pub buffer: *mut BltPixel,
-    pub width: usize,
-    pub height: usize,
-}
-
-impl GraphicsBuffer {
-    pub fn buf(&self) -> &'static mut [BltPixel] {
-        unsafe { core::slice::from_raw_parts_mut(self.buffer, self.width * self.height) }
-    }
-}
-
-static mut GRAPHICS_BUFFER: Option<GraphicsBuffer> = None;
-
-pub fn gfx() -> GraphicsBuffer {
-    unsafe { GRAPHICS_BUFFER.unwrap() }
-}
-
 #[no_mangle]
 pub extern "efiapi" fn efi_main(
     image_handle: uefi::Handle,
-    st: uefi::SystemTable<uefi::Boot>,
+    system_table: uefi::SystemTable<uefi::Uninit>,
 ) -> uefi::Status {
-    unsafe {
-        SYSTEM_TABLE = Some(core::mem::transmute(&st));
-    }
-    let gop = st
-        .boot_services()
-        .locate_protocol::<Graphics>(&graphics::PROTOCOL_GUID)
-        .unwrap();
-    let gfx_buffer = gop.mode.frame_buffer_base as *mut BltPixel;
-    let buffer_w = gop.mode.info.horizontal_resolution as usize;
-    let buffer_h = gop.mode.info.vertical_resolution as usize;
-    unsafe {
-        GRAPHICS_BUFFER = Some(GraphicsBuffer {
-            buffer: gfx_buffer,
-            width: buffer_w,
-            height: buffer_h,
-        })
-    }
-    uefi::init(&st);
+    let system_table = system_table.init();
+    // This is what the bootloader needs to do:
+    // 1. Read the kernel file
+    let (kernel_fn, kernel_addr, kernel_pages) = {
+        let fs = system_table
+            .boot_services()
+            .locate_protocol::<FileSystem>(&filesystem::PROTOCOL_GUID)
+            .unwrap();
+        let root_fs = unsafe { &*fs.open_volume().unwrap() };
+        let file_name: String16 = "ros".parse().unwrap();
+        let file = unsafe { &*root_fs.open(&file_name, 0x3, 0x0).unwrap() };
+        let info = file.get_info().unwrap();
+        let mut buffer = vec![0u8; info.file_size as usize];
+        let read_bytes = file.read(&mut buffer).unwrap();
+        buffer.truncate(read_bytes);
+        get_elf_entry_point_offset(system_table.boot_services(), &buffer).unwrap()
+    };
 
-    // Set best console output mode
-    let modes = (0..st.con_out().mode.max_mode)
-        .filter_map(|mode_number| {
-            st.con_out()
-                .query_mode(mode_number as _)
-                .ok()
-                .map(|mode| (mode_number, mode))
-        })
-        .collect::<Vec<_>>();
-    let (best_mode_number, _) = modes.last().unwrap();
-    st.con_out().set_mode(*best_mode_number as _).unwrap();
-    clear_screen();
-
-    // print_regs();
-    // print_mem_map();
-    // print_page_table();
-    wait_for_key();
-
-    // Read kernel executable
-    let fs = st
-        .boot_services()
-        .locate_protocol::<FileSystem>(&filesystem::PROTOCOL_GUID)
-        .unwrap();
-    let root_fs = unsafe { &*fs.open_volume().unwrap() };
-    let file_name: String16 = "ros".parse().unwrap();
-    let file = unsafe { &*root_fs.open(&file_name, 0x3, 0x0).unwrap() };
-    let info = file.get_info().unwrap();
-    let mut buffer = vec![0u8; info.file_size as usize];
-    let read_bytes = file.read(&mut buffer).unwrap();
-    buffer.truncate(read_bytes);
-
-    let entry_point_fn = get_elf_entry_point_offset(&buffer).unwrap();
-
-    // Allocate 128KiB for stack
-    let stack = st
+    // 2. Allocate stack for the kernel
+    let stack_pages = 1;
+    let stack = system_table
         .boot_services()
         .allocate_pages(
             AllocateType::AllocateAnyPages,
             MemoryType::EfiLoaderData,
-            32,
+            stack_pages,
         )
         .unwrap();
     let stack_start = stack;
-    let stack_end = stack_start + 128 * 1024;
+    let stack_end = stack_start + 4096 * stack_pages as u64;
 
-    clear_screen();
-    println!("stack start {}", stack_start);
-    wait_for_key();
+    // 3. Prepare arguments to the kernel
+    let framebuffer = {
+        let gop = system_table
+            .boot_services()
+            .locate_protocol::<Graphics>(&graphics::PROTOCOL_GUID)
+            .unwrap();
+        bootloader_api::Framebuffer {
+            base: gop.mode.frame_buffer_base as _,
+            width: gop.mode.info.horizontal_resolution as _,
+            height: gop.mode.info.vertical_resolution as _,
+        }
+    };
 
-    // Physical memory that needs to be identity mapped
-    //  * Efi structures?
-    //  * Kernel?
-    //  * Existing page tables?
+    // Calculate the total size of the boot info struct, including regions which are pointed to
+    let boot_info_layout = Layout::new::<BootInfo>();
+    let memory_regions_layout = Layout::array::<bootloader_api::MemoryRegion>(0).unwrap();
+    let reserved_memory_regions_layout =
+        Layout::array::<bootloader_api::ReservedMemoryRegion>(0).unwrap();
+    let (boot_info_layout, memory_regions_offset) =
+        boot_info_layout.extend(memory_regions_layout).unwrap();
+    let (boot_info_layout, reserved_memory_regions_offset) = boot_info_layout
+        .extend(reserved_memory_regions_layout)
+        .unwrap();
 
-    // These two have to be called next to each other
-    let (st, mem_map) = st.exit_boot_services(image_handle).unwrap();
-    unsafe {
-        SYSTEM_TABLE = None;
-        SYSTEM_TABLE_RT = Some(core::mem::transmute(&st));
-    }
-    // Jump to kernel
-    let g = gfx();
+    // Allocate frames for the boot info
+    let boot_info_addr = 0;
+
+    // Exit UEFI boot services
+    let (system_table, mem_map) = system_table.exit_boot_services(image_handle).unwrap();
+
+    // Populate memory regions
+    let memory_regions_addr = boot_info_addr + memory_regions_offset;
+    let memory_regions_len = 0;
+
+    // Populate reserved memory regions
+    // Kernel
+    // Page table
+    // 
+    let reserved_memory_regions_addr = boot_info_addr + reserved_memory_regions_offset;
+    let reserved_memory_regions_len = 0;
+
     let stack_end = stack_end;
+    let info = BootInfo {
+        uefi_system_table: system_table,
+        framebuffer,
+        kernel: bootloader_api::Kernel {
+            base: kernel_addr,
+            frames: kernel_pages,
+            stack_base: stack_end as usize,
+        },
+        memory_regions: bootloader_api::MemoryRegions {
+            ptr: memory_regions_addr as _,
+            len: memory_regions_len,
+        },
+        reserved_memory_regions: bootloader_api::ReservedMemoryRegions {
+            ptr: reserved_memory_regions_addr as _,
+            len: reserved_memory_regions_len,
+        },
+    };
+    let info_ptr = &info as *const BootInfo;
+
+    // 4. Call the kernel
     unsafe {
         core::arch::asm!("mov rsp, {}; jmp {}",
-          in(reg) stack_end,
-          in(reg) entry_point_fn,
-          in("rdi") g.buffer,
-          in("rsi") g.width,
-          in("rdx") g.height
+          in(reg) stack_end - 16,
+          in(reg) kernel_fn,
+          in("rdi") info_ptr,
         );
     }
 
     unreachable!("should have jumped to kernel at this point")
 }
+
+/// The kernel needs to know what regions of the memory are occupied and which aren't.
+/// Before exiting uefi boot services uefi handles memory allocation. But after exiting
+/// the boot services and before handing over control to the kernel memory needs to be
+/// allocated and kept track of. The frame allocator uses the uefi memory map and
+/// allows for allocation of individual frames, starting from the beginning of the memory
+/// and progressing upward. With the information the frame allocator stores about
+/// allocated frames a new memory map can be built that can be handed over to the kernel.
+///
+/// The frame allocator does not allocate frames that are part of the uefi boot services,
+/// but memory used by the uefi boot services is usable by the kernel, so everything
+/// that is possibly in the boot service memory regions need to be moves elsewhere before
+/// handing control to the kernel
+///
+/// The frame allocator does not support deallocations, as it only keeps track of the
+/// address of the latest sequentially allocated frame, i.e. does not keep track of
+/// invidual frames.
+struct FrameAllocator {}
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {

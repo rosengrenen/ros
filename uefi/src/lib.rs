@@ -43,6 +43,8 @@ pub type Handle = *const c_void;
 
 pub type Status = usize;
 
+pub struct Uninit;
+
 pub struct Boot;
 
 pub struct Runtime;
@@ -51,6 +53,13 @@ pub struct Runtime;
 pub struct SystemTable<S> {
     pub inner: &'static SystemTableImpl,
     _marker: PhantomData<S>,
+}
+
+impl SystemTable<Uninit> {
+    pub fn init(self) -> SystemTable<Boot> {
+        allocator::enable(self.inner.boot_services);
+        unsafe { core::mem::transmute(self) }
+    }
 }
 
 impl SystemTable<Boot> {
@@ -100,8 +109,4 @@ pub struct SystemTableImpl {
     boot_services: &'static services::boot::BootServices,
     number_of_table_entries: usize,
     configuration_table: *const c_void,
-}
-
-pub fn init(system_table: &SystemTable<Boot>) {
-    allocator::enable(system_table.inner.boot_services);
 }

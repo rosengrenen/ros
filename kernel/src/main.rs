@@ -3,11 +3,26 @@
 
 use core::panic::PanicInfo;
 
+use bootloader_api::BootInfo;
 use uefi::services::graphics::BltPixel;
 
 #[no_mangle]
-pub extern "sysv64" fn _start(buffer: *mut BltPixel, width: usize, height: usize) -> ! {
-    let buffer = unsafe { core::slice::from_raw_parts_mut(buffer, width * height) };
+pub extern "C" fn _start(info: &'static BootInfo) -> ! {
+    let framebuffer = &info.frambuffer;
+    let memory_regions =
+        unsafe { core::slice::from_raw_parts(info.memory_regions.ptr, info.memory_regions.len) };
+    // Set things up
+    // * Set up physical frame manager
+    // * Set up paging
+    // * Set up interrupt handlers
+
+    // Load init system
+    let buffer = unsafe {
+        core::slice::from_raw_parts_mut(
+            framebuffer.base as *mut BltPixel,
+            framebuffer.width * framebuffer.height,
+        )
+    };
     let mut red = 255;
     let mut green = 0;
     let mut blue = 0;
@@ -38,9 +53,9 @@ pub extern "sysv64" fn _start(buffer: *mut BltPixel, width: usize, height: usize
             }
         }
 
-        for x in 0..width {
-            for y in 0..height {
-                buffer[y * width + x] = BltPixel {
+        for y in 0..framebuffer.height {
+            for x in 0..framebuffer.width {
+                buffer[y * framebuffer.width + x] = BltPixel {
                     blue,
                     green,
                     red,
@@ -48,6 +63,25 @@ pub extern "sysv64" fn _start(buffer: *mut BltPixel, width: usize, height: usize
                 }
             }
         }
+    }
+}
+
+struct FrameAllocator {
+    //
+}
+
+impl FrameAllocator {}
+
+// TODO: bitfield
+struct Frame(pub u8);
+
+impl Frame {
+    fn allocated(&self) -> bool {
+        self.0 & 0x1 != 0
+    }
+
+    fn reserved(&self) -> bool {
+        self.0 & 0x2 != 0
     }
 }
 

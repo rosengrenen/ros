@@ -81,6 +81,7 @@ pub struct Graphics {
     pub mode: &'static Mode,
 }
 
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Mode {
     pub max_mode: u32,

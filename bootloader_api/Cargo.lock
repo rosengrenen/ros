@@ -3,14 +3,6 @@
 version = 3
 
 [[package]]
-name = "bootloader"
-version = "0.1.0"
-dependencies = [
- "bootloader_api",
- "uefi",
-]
-
-[[package]]
 name = "bootloader_api"
 version = "0.1.0"
 dependencies = [
