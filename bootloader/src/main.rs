@@ -16,11 +16,43 @@ use uefi::{
     allocator,
     services::{
         boot::{AllocateType, MemoryType},
-        filesystem::{self, FileSystem},
-        graphics::{self, BltPixel, Graphics},
+        filesystem::FileSystem,
+        graphics::{BltPixel, Graphics},
     },
     string::String16,
 };
+
+use crate::print::{clear_screen, print_mem_map, print_page_table, print_regs, wait_for_key};
+
+static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable<uefi::Boot>> = None;
+static mut SYSTEM_TABLE_RT: Option<&'static uefi::SystemTable<uefi::Runtime>> = None;
+
+pub fn system_table() -> &'static uefi::SystemTable<uefi::Boot> {
+    unsafe { SYSTEM_TABLE.expect("System table global variable not available") }
+}
+
+pub fn system_table_rt() -> &'static uefi::SystemTable<uefi::Runtime> {
+    unsafe { SYSTEM_TABLE_RT.expect("System table global variable not available") }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct GraphicsBuffer {
+    pub buffer: *mut BltPixel,
+    pub width: usize,
+    pub height: usize,
+}
+
+impl GraphicsBuffer {
+    pub fn buf(&self) -> &'static mut [BltPixel] {
+        unsafe { core::slice::from_raw_parts_mut(self.buffer, self.width * self.height) }
+    }
+}
+
+static mut GRAPHICS_BUFFER: Option<GraphicsBuffer> = None;
+
+pub fn gfx() -> GraphicsBuffer {
+    unsafe { GRAPHICS_BUFFER.unwrap() }
+}
 
 #[no_mangle]
 pub extern "efiapi" fn efi_main(

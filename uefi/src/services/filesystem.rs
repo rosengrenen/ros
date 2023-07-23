@@ -1,13 +1,9 @@
 use crate::Status;
 
-use super::{boot::Guid, file::File};
-
-pub const PROTOCOL_GUID: Guid = Guid(
-    0x0964e5b22,
-    0x6459,
-    0x11d2,
-    [0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b],
-);
+use super::{
+    boot::{Guid, UefiProtocol},
+    file::File,
+};
 
 impl FileSystem {
     pub fn open_volume(&self) -> Result<*const File, usize> {
@@ -19,6 +15,15 @@ impl FileSystem {
 
         Ok(file)
     }
+}
+
+impl UefiProtocol for FileSystem {
+    const GUID: Guid = Guid(
+        0x0964e5b22,
+        0x6459,
+        0x11d2,
+        [0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b],
+    );
 }
 
 #[repr(C)]
