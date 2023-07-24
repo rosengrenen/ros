@@ -4,7 +4,7 @@ set -e
 
 cargo build --target x86_64-unknown-uefi
 cp target/x86_64-unknown-uefi/debug/bootloader.efi target/x86_64-unknown-uefi/debug/BOOTX64.EFI
-cp target/x86_64-unknown-uefi/release/bootloader.efi target/x86_64-unknown-uefi/release/BOOTX64.EFI
+# cp target/x86_64-unknown-uefi/release/bootloader.efi target/x86_64-unknown-uefi/release/BOOTX64.EFI
 
 dd if=/dev/zero of=fat.img bs=1k count=2880
 mformat -i fat.img -f 2880 ::

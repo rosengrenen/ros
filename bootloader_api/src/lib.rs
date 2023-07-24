@@ -25,9 +25,9 @@ pub struct Framebuffer {
 #[repr(C)]
 pub struct Kernel {
     /// Physical address of kernel base
-    base: u64,
+    pub base: u64,
     /// Number of frames the kernel occupies
-    frames: usize,
+    pub frames: usize,
     /// Physical address
     pub stack_base: usize,
 }

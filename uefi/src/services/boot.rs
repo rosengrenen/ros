@@ -110,8 +110,6 @@ impl BootServices {
             return Err(status);
         }
 
-        crate::allocator::disable();
-
         Ok(())
     }
 

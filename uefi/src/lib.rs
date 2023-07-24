@@ -15,6 +15,7 @@
 // tables.
 
 #![no_std]
+#![feature(allocator_api)]
 
 #[macro_use]
 extern crate alloc;
@@ -57,7 +58,6 @@ pub struct SystemTable<S> {
 
 impl SystemTable<Uninit> {
     pub fn init(self) -> SystemTable<Boot> {
-        allocator::enable(self.inner.boot_services);
         unsafe { core::mem::transmute(self) }
     }
 }
@@ -86,8 +86,6 @@ impl SystemTable<Boot> {
         let memory_map = self.boot_services().get_memory_map()?;
         self.boot_services()
             .exit_boot_services(image_handle, memory_map.key)?;
-
-        crate::allocator::disable();
 
         Ok((unsafe { core::mem::transmute(self) }, memory_map))
     }

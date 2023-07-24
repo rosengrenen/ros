@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+
 use core::panic::PanicInfo;
 
 use bootloader_api::BootInfo;
@@ -8,7 +10,7 @@ use uefi::services::graphics::BltPixel;
 
 #[no_mangle]
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
-    let framebuffer = &info.frambuffer;
+    let framebuffer = &info.framebuffer;
     let memory_regions =
         unsafe { core::slice::from_raw_parts(info.memory_regions.ptr, info.memory_regions.len) };
     // Set things up
@@ -91,3 +93,20 @@ fn panic(_info: &PanicInfo) -> ! {
     // println!("{}", info);
     loop {}
 }
+
+// We can't rely on a global allocator in the kernel, but one must be
+// provided since we use the alloc crate
+struct DummyAllocator;
+
+unsafe impl alloc::alloc::GlobalAlloc for DummyAllocator {
+    unsafe fn alloc(&self, _layout: core::alloc::Layout) -> *mut u8 {
+        unimplemented!()
+    }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: core::alloc::Layout) {
+        unimplemented!()
+    }
+}
+
+#[global_allocator]
+static GLOBAL_ALLOCATOR: DummyAllocator = DummyAllocator;

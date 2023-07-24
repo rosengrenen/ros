@@ -13,7 +13,7 @@ use core::alloc::Layout;
 use bootloader_api::BootInfo;
 use elf::get_elf_entry_point_offset;
 use uefi::{
-    allocator,
+    allocator::UefiAllocator,
     services::{
         boot::{AllocateType, MemoryType},
         filesystem::FileSystem,
@@ -21,19 +21,6 @@ use uefi::{
     },
     string::String16,
 };
-
-use crate::print::{clear_screen, print_mem_map, print_page_table, print_regs, wait_for_key};
-
-static mut SYSTEM_TABLE: Option<&'static uefi::SystemTable<uefi::Boot>> = None;
-static mut SYSTEM_TABLE_RT: Option<&'static uefi::SystemTable<uefi::Runtime>> = None;
-
-pub fn system_table() -> &'static uefi::SystemTable<uefi::Boot> {
-    unsafe { SYSTEM_TABLE.expect("System table global variable not available") }
-}
-
-pub fn system_table_rt() -> &'static uefi::SystemTable<uefi::Runtime> {
-    unsafe { SYSTEM_TABLE_RT.expect("System table global variable not available") }
-}
 
 #[derive(Clone, Copy, Debug)]
 pub struct GraphicsBuffer {
@@ -48,33 +35,43 @@ impl GraphicsBuffer {
     }
 }
 
-static mut GRAPHICS_BUFFER: Option<GraphicsBuffer> = None;
-
-pub fn gfx() -> GraphicsBuffer {
-    unsafe { GRAPHICS_BUFFER.unwrap() }
-}
-
 #[no_mangle]
 pub extern "efiapi" fn efi_main(
     image_handle: uefi::Handle,
     system_table: uefi::SystemTable<uefi::Uninit>,
 ) -> uefi::Status {
     let system_table = system_table.init();
+    let uefi_allocator = UefiAllocator::new(system_table.boot_services());
+    system_table.con_out().reset(false).unwrap();
     // This is what the bootloader needs to do:
     // 1. Read the kernel file
     let (kernel_fn, kernel_addr, kernel_pages) = {
         let fs = system_table
             .boot_services()
-            .locate_protocol::<FileSystem>(&filesystem::PROTOCOL_GUID)
+            .locate_protocol::<FileSystem>()
             .unwrap();
-        let root_fs = unsafe { &*fs.open_volume().unwrap() };
+        let root_fs = fs.open_volume().unwrap();
         let file_name: String16 = "ros".parse().unwrap();
+
         let file = unsafe { &*root_fs.open(&file_name, 0x3, 0x0).unwrap() };
         let info = file.get_info().unwrap();
         let mut buffer = vec![0u8; info.file_size as usize];
         let read_bytes = file.read(&mut buffer).unwrap();
         buffer.truncate(read_bytes);
         get_elf_entry_point_offset(system_table.boot_services(), &buffer).unwrap()
+    };
+
+    // 2. Retrieve kernel args from UEFI boot services before it goes out of scope
+    let framebuffer = {
+        let graphics = system_table
+            .boot_services()
+            .locate_protocol::<Graphics>()
+            .unwrap();
+        bootloader_api::Framebuffer {
+            base: graphics.mode.frame_buffer_base as _,
+            width: graphics.mode.info.horizontal_resolution as _,
+            height: graphics.mode.info.vertical_resolution as _,
+        }
     };
 
     // 2. Allocate stack for the kernel
@@ -89,19 +86,6 @@ pub extern "efiapi" fn efi_main(
         .unwrap();
     let stack_start = stack;
     let stack_end = stack_start + 4096 * stack_pages as u64;
-
-    // 3. Prepare arguments to the kernel
-    let framebuffer = {
-        let gop = system_table
-            .boot_services()
-            .locate_protocol::<Graphics>(&graphics::PROTOCOL_GUID)
-            .unwrap();
-        bootloader_api::Framebuffer {
-            base: gop.mode.frame_buffer_base as _,
-            width: gop.mode.info.horizontal_resolution as _,
-            height: gop.mode.info.vertical_resolution as _,
-        }
-    };
 
     // Calculate the total size of the boot info struct, including regions which are pointed to
     let boot_info_layout = Layout::new::<BootInfo>();
@@ -127,7 +111,7 @@ pub extern "efiapi" fn efi_main(
     // Populate reserved memory regions
     // Kernel
     // Page table
-    // 
+    //
     let reserved_memory_regions_addr = boot_info_addr + reserved_memory_regions_offset;
     let reserved_memory_regions_len = 0;
 
@@ -183,19 +167,22 @@ struct FrameAllocator {}
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
-    if allocator::allocator_enabled() {
-        println!("{}", info);
-    } else {
-        let g = gfx();
-        for i in 0..g.width * g.height {
-            g.buf()[i] = BltPixel {
-                blue: 0,
-                green: 0,
-                red: 255,
-                reserved: 255,
-            }
-        }
-    }
-
     loop {}
 }
+
+// We can't rely on a global allocator in the bootloader, but one must be
+// provided since we use the alloc crate
+struct DummyAllocator;
+
+unsafe impl alloc::alloc::GlobalAlloc for DummyAllocator {
+    unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
+        unimplemented!()
+    }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+        unimplemented!()
+    }
+}
+
+#[global_allocator]
+static GLOBAL_ALLOCATOR: DummyAllocator = DummyAllocator;

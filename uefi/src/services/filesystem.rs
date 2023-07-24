@@ -6,14 +6,14 @@ use super::{
 };
 
 impl FileSystem {
-    pub fn open_volume(&self) -> Result<*const File, usize> {
+    pub fn open_volume(&self) -> Result<&'static File, usize> {
         let mut file = core::ptr::null();
         let status = (self.open_volume)(self, &mut file as *mut _);
         if status != 0 {
             return Err(status);
         }
 
-        Ok(file)
+        Ok(unsafe { &*file })
     }
 }
 
