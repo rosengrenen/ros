@@ -1,9 +1,6 @@
 #![no_std]
 #![no_main]
 
-#[macro_use]
-extern crate alloc;
-
 mod elf;
 // mod print;
 mod x86_64;
@@ -74,6 +71,7 @@ pub extern "efiapi" fn efi_main(
         }
     };
 
+    const STACK_PAGES: i32 = 1;
     // 2. Allocate stack for the kernel
     let stack_pages = 1;
     let stack = system_table
@@ -169,20 +167,3 @@ struct FrameAllocator {}
 fn panic(info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
-
-// We can't rely on a global allocator in the bootloader, but one must be
-// provided since we use the alloc crate
-struct DummyAllocator;
-
-unsafe impl alloc::alloc::GlobalAlloc for DummyAllocator {
-    unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
-        unimplemented!()
-    }
-
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
-        unimplemented!()
-    }
-}
-
-#[global_allocator]
-static GLOBAL_ALLOCATOR: DummyAllocator = DummyAllocator;

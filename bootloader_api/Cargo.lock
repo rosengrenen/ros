@@ -3,6 +3,10 @@
 version = 3
 
 [[package]]
+name = "alloc"
+version = "0.1.0"
+
+[[package]]
 name = "bootloader_api"
 version = "0.1.0"
 dependencies = [
@@ -12,3 +16,6 @@ dependencies = [
 [[package]]
 name = "uefi"
 version = "0.1.0"
+dependencies = [
+ "alloc",
+]

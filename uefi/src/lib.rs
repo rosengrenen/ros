@@ -17,15 +17,12 @@
 #![no_std]
 #![feature(allocator_api)]
 
-#[macro_use]
-extern crate alloc;
-
 pub mod allocator;
 pub mod services;
 pub mod string;
 mod table;
 
-use core::{ffi::c_void, marker::PhantomData};
+use core::{alloc::Allocator, ffi::c_void, marker::PhantomData};
 
 use services::boot::MemoryMap;
 
@@ -79,11 +76,12 @@ impl SystemTable<Boot> {
         self.inner.boot_services
     }
 
-    pub fn exit_boot_services(
+    pub fn exit_boot_services<A: Allocator>(
         self,
         image_handle: Handle,
-    ) -> Result<(SystemTable<Runtime>, MemoryMap), usize> {
-        let memory_map = self.boot_services().get_memory_map()?;
+        alloc: A,
+    ) -> Result<(SystemTable<Runtime>, MemoryMap<A>), usize> {
+        let memory_map = self.boot_services().get_memory_map(alloc)?;
         self.boot_services()
             .exit_boot_services(image_handle, memory_map.key)?;
 

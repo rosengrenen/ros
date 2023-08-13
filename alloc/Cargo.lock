@@ -5,10 +5,3 @@ version = 3
 [[package]]
 name = "alloc"
 version = "0.1.0"
-
-[[package]]
-name = "uefi"
-version = "0.1.0"
-dependencies = [
- "alloc",
-]

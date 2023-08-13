@@ -1,4 +1,4 @@
-use core::ffi::c_void;
+use core::{alloc::Allocator, ffi::c_void};
 
 use crate::{Handle, Status, TableHeader};
 
@@ -27,9 +27,9 @@ impl BootServices {
         Ok(())
     }
 
-    pub fn get_memory_map(&self) -> Result<MemoryMap, usize> {
+    pub fn get_memory_map<A: Allocator>(&self, alloc: A) -> Result<MemoryMap<A>, usize> {
         let (mut memory_map_size, mut entry_size) = self.get_memory_map_size()?;
-        let mut buffer = vec![0u8; memory_map_size];
+        let mut buffer = alloc::vec::Vec::from_elem(0u8, memory_map_size, alloc);
         let mut map_key = 0;
         loop {
             let mut descriptor_version = 0;
@@ -49,8 +49,6 @@ impl BootServices {
             if status != 5 {
                 return Err(status);
             }
-
-            buffer = vec![0u8; memory_map_size];
         }
 
         Ok(MemoryMap {
@@ -131,15 +129,15 @@ pub trait UefiProtocol {
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct MemoryMap {
-    pub buffer: alloc::vec::Vec<u8>,
+pub struct MemoryMap<A: Allocator> {
+    pub buffer: alloc::vec::Vec<u8, A>,
     pub key: usize,
     pub entry_size: usize,
     pub len: usize,
 }
 
-impl MemoryMap {
-    pub fn iter(&self) -> MemoryMapIter {
+impl<A: Allocator> MemoryMap<A> {
+    pub fn iter(&self) -> MemoryMapIter<A> {
         MemoryMapIter {
             memory_map: self,
             index: 0,
@@ -148,12 +146,12 @@ impl MemoryMap {
 }
 
 #[repr(C)]
-pub struct MemoryMapIter<'iter> {
-    memory_map: &'iter MemoryMap,
+pub struct MemoryMapIter<'iter, A: Allocator> {
+    memory_map: &'iter MemoryMap<A>,
     index: usize,
 }
 
-impl<'iter> Iterator for MemoryMapIter<'iter> {
+impl<'iter, A: Allocator> Iterator for MemoryMapIter<'iter, A> {
     type Item = &'iter MemoryDescriptor;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -174,7 +172,7 @@ impl<'iter> Iterator for MemoryMapIter<'iter> {
     }
 }
 
-impl<'iter> ExactSizeIterator for MemoryMapIter<'iter> {
+impl<'iter, A: Allocator> ExactSizeIterator for MemoryMapIter<'iter, A> {
     fn len(&self) -> usize {
         self.memory_map.len
     }

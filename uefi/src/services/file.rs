@@ -49,7 +49,8 @@ impl File {
     }
 
     pub fn get_info(&self) -> Result<&'static FileInfo, usize> {
-        let mut buffer = vec![0u8; core::mem::size_of::<FileInfo>()];
+        let mut buffer = alloc::vec::Vec::new();
+        // let mut buffer = vec![0u8; core::mem::size_of::<FileInfo>()];
         loop {
             let mut buffer_size = buffer.len();
             let status = (self.get_info)(
@@ -63,7 +64,8 @@ impl File {
             }
 
             if (status & 0xFFFFFFFF) == 5 {
-                buffer = vec![0; buffer_size];
+                buffer = alloc::vec::Vec::new();
+                // buffer = vec![0; buffer_size];
                 continue;
             }
 
