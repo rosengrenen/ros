@@ -1,4 +1,6 @@
-use core::ffi::c_void;
+use core::{alloc::Allocator, ffi::c_void};
+
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
     string::{Char16, RawString16},
@@ -48,36 +50,21 @@ impl File {
         Ok(bytes_read)
     }
 
-    pub fn get_info(&self) -> Result<&'static FileInfo, usize> {
-        let mut buffer = alloc::vec::Vec::new();
-        // let mut buffer = vec![0u8; core::mem::size_of::<FileInfo>()];
-        loop {
-            let mut buffer_size = buffer.len();
-            let status = (self.get_info)(
-                self,
-                &FILE_INFO_GUID,
-                &mut buffer_size,
-                buffer.as_mut_ptr() as _,
-            );
-            if status == 0 {
-                break;
-            }
-
-            if (status & 0xFFFFFFFF) == 5 {
-                buffer = alloc::vec::Vec::new();
-                // buffer = vec![0; buffer_size];
-                continue;
-            }
-
+    pub fn get_info<A: Allocator>(&self, alloc: A) -> Result<Box<FileInfo, A>, usize> {
+        // let mut buffer = Vec::new(alloc);
+        let file_info = Box::new_uninit(alloc).map_err(|_| 0usize)?;
+        let mut file_info = unsafe { file_info.assume_init() };
+        let mut buffer_size = core::mem::size_of::<FileInfo>();
+        let status = (self.get_info)(
+            self,
+            &FILE_INFO_GUID,
+            &mut buffer_size,
+            &mut *file_info as *mut _ as _,
+        );
+        if status != 0 {
             return Err(status);
         }
 
-        // TODO: this is a memory leak, since the buffer is never released
-        let file_info = unsafe {
-            let buffer_ptr = buffer.as_ptr() as *const FileInfo;
-            core::mem::forget(buffer);
-            &*buffer_ptr
-        };
         Ok(file_info)
     }
 }

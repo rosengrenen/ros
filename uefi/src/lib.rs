@@ -19,7 +19,7 @@
 
 pub mod allocator;
 pub mod services;
-pub mod string;
+// pub mod string;
 mod table;
 
 use core::{alloc::Allocator, ffi::c_void, marker::PhantomData};

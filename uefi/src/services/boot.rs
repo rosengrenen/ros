@@ -1,5 +1,7 @@
 use core::{alloc::Allocator, ffi::c_void};
 
+use alloc::vec::Vec;
+
 use crate::{Handle, Status, TableHeader};
 
 impl BootServices {
@@ -29,7 +31,8 @@ impl BootServices {
 
     pub fn get_memory_map<A: Allocator>(&self, alloc: A) -> Result<MemoryMap<A>, usize> {
         let (mut memory_map_size, mut entry_size) = self.get_memory_map_size()?;
-        let mut buffer = alloc::vec::Vec::from_elem(0u8, memory_map_size, alloc);
+        let mut buffer =
+            alloc::vec::Vec::with_elem(0u8, memory_map_size, alloc).map_err(|_| 0usize)?;
         let mut map_key = 0;
         loop {
             let mut descriptor_version = 0;
@@ -130,7 +133,7 @@ pub trait UefiProtocol {
 #[derive(Debug)]
 #[repr(C)]
 pub struct MemoryMap<A: Allocator> {
-    pub buffer: alloc::vec::Vec<u8, A>,
+    pub buffer: Vec<u8, A>,
     pub key: usize,
     pub entry_size: usize,
     pub len: usize,
