@@ -1,11 +1,8 @@
 use core::{alloc::Allocator, ffi::c_void};
 
-use alloc::{boxed::Box, vec::Vec};
+use alloc::boxed::Box;
 
-use crate::{
-    string::{Char16, RawString16},
-    Status,
-};
+use crate::{string::RawString16, Status};
 
 use super::boot::Guid;
 
@@ -75,7 +72,7 @@ pub struct File {
     open: extern "efiapi" fn(
         &Self,
         file: *mut *const Self,
-        file_name: *const Char16,
+        file_name: *const u16,
         open_mode: u64,
         attributes: u64,
     ) -> Status,

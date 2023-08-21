@@ -3,4 +3,5 @@
 #![feature(ptr_internals)]
 
 pub mod boxed;
+pub mod iter;
 pub mod vec;

@@ -1,6 +1,6 @@
 use core::ffi::c_void;
 
-use crate::{string::Char16, Status};
+use crate::Status;
 
 impl ConsoleInput {
     pub fn reset(&self, extended_verification: bool) -> Result<(), usize> {
@@ -28,7 +28,7 @@ impl ConsoleInput {
 #[repr(C)]
 pub struct Key {
     pub scan_code: u16,
-    pub unicode_char: Char16,
+    pub unicode_char: u16,
 }
 
 /// UEFI Spec 2.10 section 12.3.1

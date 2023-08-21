@@ -1,9 +1,11 @@
 use core::{
-    alloc::{Allocator, Layout},
+    alloc::{AllocError, Allocator, Layout},
     fmt::Debug,
     ops::{Deref, DerefMut},
     ptr::Unique,
 };
+
+use crate::iter::FromIteratorIn;
 
 pub struct Vec<T, A: Allocator> {
     ptr: Unique<T>,
@@ -31,6 +33,32 @@ impl<T, A: Allocator> Vec<T, A> {
     pub fn as_ptr(&self) -> *const T {
         self.ptr.as_ptr()
     }
+
+    pub fn push(&mut self, item: T) -> Result<(), AllocError> {
+        if self.len == self.cap {
+            let current_layout = Layout::array::<T>(self.cap).unwrap();
+            // TODO: refactor and don't grow x2, there is some better number
+            let new_layout = Layout::array::<T>((self.cap * 2).max(1)).unwrap();
+            let new_ptr: Unique<T> = self.alloc.allocate(new_layout)?.cast().into();
+
+            // Copy elements to new memory region
+            for i in 0..self.len {
+                unsafe {
+                    core::ptr::write(new_ptr.as_ptr(), core::ptr::read(self.as_ptr().add(i)));
+                }
+            }
+
+            unsafe {
+                self.alloc
+                    .deallocate(self.ptr.cast().into(), current_layout);
+            }
+            self.ptr = new_ptr;
+        }
+
+        unsafe { core::ptr::write(self.ptr.as_ptr().add(self.len), item) }
+        self.len += 1;
+        Ok(())
+    }
 }
 
 impl<T: Clone, A: Allocator> Vec<T, A> {
@@ -57,6 +85,17 @@ impl<T: Clone, A: Allocator> Vec<T, A> {
             len: n,
             alloc,
         })
+    }
+}
+
+impl<T, A: Allocator> FromIteratorIn<T, A> for Vec<T, A> {
+    fn from_iter_in<I: IntoIterator<Item = T>>(iter: I, alloc: A) -> Result<Self, AllocError> {
+        let mut vec = Vec::new(alloc);
+        for item in iter.into_iter() {
+            vec.push(item)?;
+        }
+
+        Ok(vec)
     }
 }
 

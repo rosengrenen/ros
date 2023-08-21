@@ -48,7 +48,7 @@ pub extern "efiapi" fn efi_main(
             .locate_protocol::<FileSystem>()
             .unwrap();
         let root_fs = fs.open_volume().unwrap();
-        let file_name: String16 = "ros".parse().unwrap();
+        let file_name:  = String16::from_str("ros", &uefi_allocator)?;
 
         let file = unsafe { &*root_fs.open(&file_name, 0x3, 0x0).unwrap() };
         let info = file.get_info().unwrap();
