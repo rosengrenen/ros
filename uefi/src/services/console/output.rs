@@ -10,8 +10,8 @@ impl ConsoleOutput {
         Ok(())
     }
 
-    pub fn output_string(&self, string: &RawString16) -> Result<(), usize> {
-        let status = (self.output_string)(self, string.as_ptr());
+    pub fn output_string(&self, string: RawString16) -> Result<(), usize> {
+        let status = (self.output_string)(self, string);
         if status != 0 {
             return Err(status);
         }

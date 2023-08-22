@@ -9,18 +9,12 @@ use super::boot::Guid;
 impl File {
     pub fn open(
         &self,
-        name: &RawString16,
+        name: RawString16,
         open_mode: u64,
         attributes: u64,
     ) -> Result<*const File, usize> {
         let mut file = core::ptr::null();
-        let status = (self.open)(
-            self,
-            &mut file as *mut _,
-            name.as_ptr(),
-            open_mode,
-            attributes,
-        );
+        let status = (self.open)(self, &mut file as *mut _, name, open_mode, attributes);
         if status != 0 {
             return Err(status);
         }

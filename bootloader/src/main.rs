@@ -1,12 +1,17 @@
 #![no_std]
 #![no_main]
+#![feature(allocator_api)]
 
 mod elf;
 // mod print;
 mod x86_64;
 
-use core::alloc::Layout;
+use core::{
+    alloc::{AllocError, Allocator, Layout},
+    ptr::NonNull,
+};
 
+use alloc::{iter::IteratorCollectIn, vec::Vec};
 use bootloader_api::BootInfo;
 use elf::get_elf_entry_point_offset;
 use uefi::{
@@ -48,14 +53,14 @@ pub extern "efiapi" fn efi_main(
             .locate_protocol::<FileSystem>()
             .unwrap();
         let root_fs = fs.open_volume().unwrap();
-        let file_name:  = String16::from_str("ros", &uefi_allocator)?;
-
-        let file = unsafe { &*root_fs.open(&file_name, 0x3, 0x0).unwrap() };
-        let info = file.get_info().unwrap();
-        let mut buffer = vec![0u8; info.file_size as usize];
-        let read_bytes = file.read(&mut buffer).unwrap();
-        buffer.truncate(read_bytes);
-        get_elf_entry_point_offset(system_table.boot_services(), &buffer).unwrap()
+        let file_name = String16::from_str("ros", &uefi_allocator).unwrap();
+        let file = unsafe { &*root_fs.open(file_name.as_raw(), 0x3, 0x0).unwrap() };
+        let info = file.get_info(&uefi_allocator).unwrap();
+        let mut buffer = Vec::with_elem(0u8, info.file_size as usize, &uefi_allocator).unwrap();
+        let _read_bytes = file.read(&mut buffer).unwrap();
+        // TODO: impl truncate
+        // buffer.truncate(read_bytes);
+        get_elf_entry_point_offset(system_table.boot_services(), &buffer, &uefi_allocator).unwrap()
     };
 
     // 2. Retrieve kernel args from UEFI boot services before it goes out of scope
@@ -71,19 +76,18 @@ pub extern "efiapi" fn efi_main(
         }
     };
 
-    const STACK_PAGES: i32 = 1;
     // 2. Allocate stack for the kernel
-    let stack_pages = 1;
+    const STACK_PAGES: usize = 1;
     let stack = system_table
         .boot_services()
         .allocate_pages(
             AllocateType::AllocateAnyPages,
             MemoryType::EfiLoaderData,
-            stack_pages,
+            STACK_PAGES,
         )
         .unwrap();
     let stack_start = stack;
-    let stack_end = stack_start + 4096 * stack_pages as u64;
+    let stack_end = stack_start + 4096 * STACK_PAGES as u64;
 
     // Calculate the total size of the boot info struct, including regions which are pointed to
     let boot_info_layout = Layout::new::<BootInfo>();
@@ -92,15 +96,42 @@ pub extern "efiapi" fn efi_main(
         Layout::array::<bootloader_api::ReservedMemoryRegion>(0).unwrap();
     let (boot_info_layout, memory_regions_offset) =
         boot_info_layout.extend(memory_regions_layout).unwrap();
-    let (boot_info_layout, reserved_memory_regions_offset) = boot_info_layout
+    let (_boot_info_layout, reserved_memory_regions_offset) = boot_info_layout
         .extend(reserved_memory_regions_layout)
         .unwrap();
 
     // Allocate frames for the boot info
     let boot_info_addr = 0;
 
+    let memory_map = system_table
+        .boot_services()
+        .get_memory_map(&uefi_allocator)
+        .unwrap();
+
+    struct DummyAllocator;
+
+    unsafe impl Allocator for DummyAllocator {
+        fn allocate(&self, _layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+            todo!()
+        }
+
+        unsafe fn deallocate(&self, _ptr: NonNull<u8>, _layout: Layout) {
+            todo!()
+        }
+    }
+
+    let memory_map_key = memory_map.key;
+
+    let new_allocator = DummyAllocator;
+    let _memory_descs = memory_map
+        .into_iter()
+        .collect_in::<Vec<_, _>, _>(&new_allocator)
+        .unwrap();
+
     // Exit UEFI boot services
-    let (system_table, mem_map) = system_table.exit_boot_services(image_handle).unwrap();
+    let system_table = system_table
+        .exit_boot_services(image_handle, memory_map_key)
+        .unwrap();
 
     // Populate memory regions
     let memory_regions_addr = boot_info_addr + memory_regions_offset;
@@ -161,9 +192,9 @@ pub extern "efiapi" fn efi_main(
 /// The frame allocator does not support deallocations, as it only keeps track of the
 /// address of the latest sequentially allocated frame, i.e. does not keep track of
 /// invidual frames.
-struct FrameAllocator {}
+// struct FrameAllocator {}
 
 #[panic_handler]
-fn panic(info: &core::panic::PanicInfo) -> ! {
+fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }

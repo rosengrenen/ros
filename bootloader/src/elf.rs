@@ -1,11 +1,14 @@
-use alloc::vec::Vec;
+use core::alloc::Allocator;
+
+use alloc::{iter::IteratorCollectIn, vec::Vec};
 use uefi::services::boot::{AllocateType, BootServices, MemoryType};
 
 pub type KernelMainFn = extern "C" fn(info: *const bootloader_api::BootInfo) -> usize;
 
-pub fn get_elf_entry_point_offset(
+pub fn get_elf_entry_point_offset<A: Allocator>(
     boot_services: &BootServices,
     elf: &[u8],
+    alloc: &A,
 ) -> Result<(KernelMainFn, u64, usize), &'static str> {
     let header = ElfHeader::try_from(elf).unwrap();
     if header.magic != [0x7F, 0x45, 0x4C, 0x46] {
@@ -19,21 +22,26 @@ pub fn get_elf_entry_point_offset(
     const PROGRAM_HEADER_SIZE: usize = core::mem::size_of::<ProgramHeader>();
     assert!(header.program_header_size as usize == PROGRAM_HEADER_SIZE);
 
-    let mut program_header_entries =
-        vec![ProgramHeader::default(); header.program_header_count as _];
+    let mut program_header_entries = Vec::with_elem(
+        ProgramHeader::default(),
+        header.program_header_count as _,
+        alloc,
+    )
+    .unwrap();
     for i in 0..header.program_header_count {
         let entry_start = header.program_header_offset as usize + i as usize * PROGRAM_HEADER_SIZE;
         program_header_entries[i as usize] =
             ProgramHeader::try_from(&elf[entry_start..entry_start + PROGRAM_HEADER_SIZE]).unwrap();
     }
 
-    let load_entries: Vec<_> = program_header_entries
+    let load_entries: Vec<_, _> = program_header_entries
         .into_iter()
         .filter(|e| e.ty == 1)
-        .collect();
+        .collect_in(alloc)
+        .unwrap();
     let mut image_start = u64::MAX;
     let mut image_end = 0;
-    for entry in &load_entries {
+    for &entry in &load_entries {
         image_start = image_start.min(entry.virtual_address);
         image_end = image_end.max(entry.virtual_address + entry.segment_mem_size);
     }

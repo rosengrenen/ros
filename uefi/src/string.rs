@@ -1,34 +1,23 @@
-use core::{
-    alloc::{AllocError, Allocator},
-    fmt::Debug,
-};
+use core::alloc::{AllocError, Allocator};
 
 use alloc::{iter::IteratorCollectIn, vec::Vec};
 
-#[derive(Debug)]
-#[repr(C)]
-pub struct RawString16(pub *const u16);
-
-impl RawString16 {
-    pub fn as_ptr(&self) -> *const u16 {
-        self.0
-    }
-}
+pub type RawString16 = *const u16;
 
 #[repr(C)]
-pub struct String16<A: Allocator> {
-    buf: Vec<u16, A>,
+pub struct String16<'alloc, A: Allocator> {
+    buf: Vec<'alloc, u16, A>,
 }
 
-impl<A: Allocator> String16<A> {
-    fn from_str(s: &str, alloc: A) -> Result<Self, AllocError> {
+impl<'alloc, A: Allocator> String16<'alloc, A> {
+    pub fn from_str(s: &str, alloc: &'alloc A) -> Result<Self, AllocError> {
         let mut buf: Vec<_, _> = s.encode_utf16().collect_in(alloc)?;
         // Is this string or cstring??
         buf.push(0)?;
         Ok(Self { buf })
     }
 
-    pub fn as_ptr(&self) -> *const u16 {
+    pub fn as_raw(&self) -> RawString16 {
         self.buf.as_ptr()
     }
 }

@@ -1,8 +1,6 @@
-use core::{alloc::Allocator, ffi::c_void};
-
-use alloc::vec::Vec;
-
 use crate::{Handle, Status, TableHeader};
+use alloc::vec::Vec;
+use core::{alloc::Allocator, ffi::c_void};
 
 impl BootServices {
     pub fn allocate_pages(
@@ -29,10 +27,12 @@ impl BootServices {
         Ok(())
     }
 
-    pub fn get_memory_map<A: Allocator>(&self, alloc: A) -> Result<MemoryMap<A>, usize> {
+    pub fn get_memory_map<'alloc, A: Allocator>(
+        &self,
+        alloc: &'alloc A,
+    ) -> Result<MemoryMap<'alloc, A>, usize> {
         let (mut memory_map_size, mut entry_size) = self.get_memory_map_size()?;
-        let mut buffer =
-            alloc::vec::Vec::with_elem(0u8, memory_map_size, alloc).map_err(|_| 0usize)?;
+        let mut buffer = Vec::with_elem(0u8, memory_map_size, alloc).map_err(|_| 0usize)?;
         let mut map_key = 0;
         loop {
             let mut descriptor_version = 0;
@@ -52,6 +52,8 @@ impl BootServices {
             if status != 5 {
                 return Err(status);
             }
+
+            buffer = Vec::with_elem(0, memory_map_size, alloc).map_err(|_| 0usize)?;
         }
 
         Ok(MemoryMap {
@@ -131,15 +133,14 @@ pub trait UefiProtocol {
 }
 
 #[derive(Debug)]
-#[repr(C)]
-pub struct MemoryMap<A: Allocator> {
-    pub buffer: Vec<u8, A>,
+pub struct MemoryMap<'alloc, A: Allocator> {
+    pub buffer: Vec<'alloc, u8, A>,
     pub key: usize,
     pub entry_size: usize,
     pub len: usize,
 }
 
-impl<A: Allocator> MemoryMap<A> {
+impl<'alloc, A: Allocator> MemoryMap<'alloc, A> {
     pub fn iter(&self) -> MemoryMapIter<A> {
         MemoryMapIter {
             memory_map: self,
@@ -148,13 +149,12 @@ impl<A: Allocator> MemoryMap<A> {
     }
 }
 
-#[repr(C)]
-pub struct MemoryMapIter<'iter, A: Allocator> {
-    memory_map: &'iter MemoryMap<A>,
+pub struct MemoryMapIter<'alloc, 'iter, A: Allocator> {
+    memory_map: &'iter MemoryMap<'alloc, A>,
     index: usize,
 }
 
-impl<'iter, A: Allocator> Iterator for MemoryMapIter<'iter, A> {
+impl<'alloc, 'iter, A: Allocator> Iterator for MemoryMapIter<'alloc, 'iter, A> {
     type Item = &'iter MemoryDescriptor;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -175,7 +175,51 @@ impl<'iter, A: Allocator> Iterator for MemoryMapIter<'iter, A> {
     }
 }
 
-impl<'iter, A: Allocator> ExactSizeIterator for MemoryMapIter<'iter, A> {
+impl<'alloc, 'iter, A: Allocator> ExactSizeIterator for MemoryMapIter<'alloc, 'iter, A> {
+    fn len(&self) -> usize {
+        self.memory_map.len
+    }
+}
+
+pub struct MemoryMapIntoIter<'alloc, A: Allocator> {
+    memory_map: MemoryMap<'alloc, A>,
+    index: usize,
+}
+
+impl<'alloc, A: Allocator> IntoIterator for MemoryMap<'alloc, A> {
+    type Item = MemoryDescriptor;
+    type IntoIter = MemoryMapIntoIter<'alloc, A>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Self::IntoIter {
+            memory_map: self,
+            index: 0,
+        }
+    }
+}
+
+impl<'alloc, A: Allocator> Iterator for MemoryMapIntoIter<'alloc, A> {
+    type Item = MemoryDescriptor;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.memory_map.len {
+            return None;
+        }
+
+        let memory_descriptor = unsafe {
+            *self
+                .memory_map
+                .buffer
+                .as_ptr()
+                .add(self.index * self.memory_map.entry_size)
+                .cast()
+        };
+        self.index += 1;
+        Some(memory_descriptor)
+    }
+}
+
+impl<'alloc, A: Allocator> ExactSizeIterator for MemoryMapIntoIter<'alloc, A> {
     fn len(&self) -> usize {
         self.memory_map.len
     }

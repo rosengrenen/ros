@@ -22,9 +22,7 @@ pub mod services;
 pub mod string;
 mod table;
 
-use core::{alloc::Allocator, ffi::c_void, marker::PhantomData};
-
-use services::boot::MemoryMap;
+use core::{ffi::c_void, marker::PhantomData};
 
 /// UEFI Spec 2.10 section 4.2.1
 #[derive(Clone, Copy, Debug)]
@@ -76,16 +74,14 @@ impl SystemTable<Boot> {
         self.inner.boot_services
     }
 
-    pub fn exit_boot_services<A: Allocator>(
+    pub fn exit_boot_services(
         self,
         image_handle: Handle,
-        alloc: A,
-    ) -> Result<(SystemTable<Runtime>, MemoryMap<A>), usize> {
-        let memory_map = self.boot_services().get_memory_map(alloc)?;
+        memory_map_key: usize,
+    ) -> Result<SystemTable<Runtime>, usize> {
         self.boot_services()
-            .exit_boot_services(image_handle, memory_map.key)?;
-
-        Ok((unsafe { core::mem::transmute(self) }, memory_map))
+            .exit_boot_services(image_handle, memory_map_key)?;
+        Ok(unsafe { core::mem::transmute(self) })
     }
 }
 
