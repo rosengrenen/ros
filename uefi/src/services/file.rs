@@ -1,6 +1,6 @@
 use core::{alloc::Allocator, ffi::c_void};
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::{string::RawString16, Status};
 
@@ -41,21 +41,35 @@ impl File {
         Ok(bytes_read)
     }
 
-    pub fn get_info<A: Allocator>(&self, alloc: A) -> Result<Box<FileInfo, A>, usize> {
-        // let mut buffer = Vec::new(alloc);
-        let file_info = Box::new_uninit(alloc).map_err(|_| 0usize)?;
-        let mut file_info = unsafe { file_info.assume_init() };
+    pub fn get_info<'alloc, A: Allocator>(
+        &self,
+        alloc: &'alloc A,
+    ) -> Result<Box<'alloc, FileInfo, A>, usize> {
         let mut buffer_size = core::mem::size_of::<FileInfo>();
-        let status = (self.get_info)(
-            self,
-            &FILE_INFO_GUID,
-            &mut buffer_size,
-            &mut *file_info as *mut _ as _,
-        );
-        if status != 0 {
-            return Err(status);
+        let mut buffer = Vec::with_elem(0u8, buffer_size, alloc).map_err(|_| 48usize)?;
+        loop {
+            let status = (self.get_info)(
+                self,
+                &FILE_INFO_GUID,
+                &mut buffer_size,
+                buffer.as_mut_ptr() as *mut _,
+            );
+
+            if status == 0 {
+                break;
+            }
+
+            if (status & 0xFFFFFFFF) != 5 {
+                return Err(status);
+            }
+
+            buffer = Vec::with_elem(0u8, buffer_size, alloc).map_err(|_| 49usize)?;
         }
 
+        let file_info = unsafe {
+            Box::new(core::ptr::read(buffer.as_ptr() as *const FileInfo), alloc)
+                .map_err(|_| 50usize)?
+        };
         Ok(file_info)
     }
 }

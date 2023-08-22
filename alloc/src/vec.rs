@@ -1,5 +1,5 @@
 use core::{
-    alloc::{AllocError, Allocator, Layout},
+    alloc::{AllocError, Allocator, Layout, LayoutError},
     fmt::Debug,
     ops::{Deref, DerefMut},
     ptr::Unique,
@@ -34,30 +34,56 @@ impl<'alloc, T, A: Allocator> Vec<'alloc, T, A> {
         self.ptr.as_ptr()
     }
 
-    pub fn push(&mut self, item: T) -> Result<(), AllocError> {
+    pub fn push(&mut self, item: T) -> Result<(), PushError> {
         if self.len == self.cap {
-            let current_layout = Layout::array::<T>(self.cap).unwrap();
             // TODO: refactor and don't grow x2, there is some better number
-            let new_layout = Layout::array::<T>((self.cap * 2).max(1)).unwrap();
+            let new_cap = (self.cap * 2).max(1);
+            let new_layout = Layout::array::<T>(new_cap)?;
             let new_ptr: Unique<T> = self.alloc.allocate(new_layout)?.cast().into();
 
             // Copy elements to new memory region
             for i in 0..self.len {
                 unsafe {
-                    core::ptr::write(new_ptr.as_ptr(), core::ptr::read(self.as_ptr().add(i)));
+                    core::ptr::write(
+                        new_ptr.as_ptr().add(i),
+                        core::ptr::read(self.as_ptr().add(i)),
+                    );
                 }
             }
 
-            unsafe {
-                self.alloc
-                    .deallocate(self.ptr.cast().into(), current_layout);
+            if self.cap != 0 {
+                let current_layout = Layout::array::<T>(self.cap)?;
+                unsafe {
+                    self.alloc
+                        .deallocate(self.ptr.cast().into(), current_layout);
+                }
             }
+
             self.ptr = new_ptr;
+            self.cap = new_cap;
         }
 
         unsafe { core::ptr::write(self.ptr.as_ptr().add(self.len), item) }
         self.len += 1;
         Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum PushError {
+    AllocError(AllocError),
+    LayoutError(LayoutError),
+}
+
+impl From<AllocError> for PushError {
+    fn from(value: AllocError) -> Self {
+        Self::AllocError(value)
+    }
+}
+
+impl From<LayoutError> for PushError {
+    fn from(value: LayoutError) -> Self {
+        Self::LayoutError(value)
     }
 }
 
@@ -95,7 +121,7 @@ impl<'alloc, T, A: Allocator> FromIteratorIn<'alloc, T, A> for Vec<'alloc, T, A>
     ) -> Result<Self, AllocError> {
         let mut vec = Vec::new(alloc);
         for item in iter.into_iter() {
-            vec.push(item)?;
+            vec.push(item).unwrap();
         }
 
         Ok(vec)
@@ -139,5 +165,25 @@ impl<'alloc, 'vec, T, A: Allocator> IntoIterator for &'vec mut Vec<'alloc, T, A>
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
+    }
+}
+
+impl<'alloc, A: Allocator> core::fmt::Write for Vec<'alloc, u8, A> {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        for b in s.bytes() {
+            self.push(b).unwrap();
+        }
+
+        Ok(())
+    }
+}
+
+impl<'alloc, A: Allocator> core::fmt::Write for Vec<'alloc, char, A> {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        for c in s.chars() {
+            self.push(c).unwrap();
+        }
+
+        Ok(())
     }
 }

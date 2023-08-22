@@ -13,7 +13,7 @@ impl<'alloc, A: Allocator> String16<'alloc, A> {
     pub fn from_str(s: &str, alloc: &'alloc A) -> Result<Self, AllocError> {
         let mut buf: Vec<_, _> = s.encode_utf16().collect_in(alloc)?;
         // Is this string or cstring??
-        buf.push(0)?;
+        buf.push(0).unwrap();
         Ok(Self { buf })
     }
 

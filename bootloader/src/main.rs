@@ -6,13 +6,13 @@ mod elf;
 // mod print;
 mod x86_64;
 
-use core::{
-    alloc::{AllocError, Allocator, Layout},
-    ptr::NonNull,
-};
-
 use alloc::{iter::IteratorCollectIn, vec::Vec};
 use bootloader_api::BootInfo;
+use core::{
+    alloc::{AllocError, Allocator, Layout},
+    fmt::Write,
+    ptr::NonNull,
+};
 use elf::get_elf_entry_point_offset;
 use uefi::{
     allocator::UefiAllocator,
@@ -45,6 +45,7 @@ pub extern "efiapi" fn efi_main(
     let system_table = system_table.init();
     let uefi_allocator = UefiAllocator::new(system_table.boot_services());
     system_table.con_out().reset(false).unwrap();
+
     // This is what the bootloader needs to do:
     // 1. Read the kernel file
     let (kernel_fn, kernel_addr, kernel_pages) = {
@@ -58,6 +59,12 @@ pub extern "efiapi" fn efi_main(
         let info = file.get_info(&uefi_allocator).unwrap();
         let mut buffer = Vec::with_elem(0u8, info.file_size as usize, &uefi_allocator).unwrap();
         let _read_bytes = file.read(&mut buffer).unwrap();
+        let mut v: Vec<u8, _> = Vec::new(&uefi_allocator);
+        write!(v, "{:?}", buffer).unwrap();
+        let s = unsafe { core::str::from_utf8_unchecked(&v) };
+        let ss = String16::from_str(s, &uefi_allocator).unwrap();
+        system_table.con_out().output_string(ss.as_raw()).unwrap();
+
         // TODO: impl truncate
         // buffer.truncate(read_bytes);
         get_elf_entry_point_offset(system_table.boot_services(), &buffer, &uefi_allocator).unwrap()
