@@ -62,9 +62,8 @@ pub fn get_elf_entry_point_offset<A: Allocator>(
         let file_start_addr = entry.segment_file_offset as usize;
         let loaded_start_addr = (entry.virtual_address - image_start) as usize;
         let size = entry.segment_mem_size as usize;
-        for i in 0..size {
-            page[loaded_start_addr + i] = elf[file_start_addr + i];
-        }
+        page[loaded_start_addr..(size + loaded_start_addr)]
+            .copy_from_slice(&elf[file_start_addr..(size + file_start_addr)]);
     }
 
     let entry_point_offset = header.entry - image_start;

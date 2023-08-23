@@ -37,19 +37,3 @@ unsafe impl<'bs> Allocator for UefiAllocator<'bs> {
             .unwrap();
     }
 }
-
-unsafe impl<'bs> core::alloc::GlobalAlloc for UefiAllocator<'bs> {
-    unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        match self
-            .boot_services
-            .allocate_pool(MemoryType::EfiLoaderData, layout.size())
-        {
-            Ok(memory) => memory as _,
-            Err(_) => core::ptr::null_mut(),
-        }
-    }
-
-    unsafe fn dealloc(&self, ptr: *mut u8, _layout: core::alloc::Layout) {
-        let _ = self.boot_services.free_pool(ptr as _);
-    }
-}

@@ -10,14 +10,13 @@ use alloc::{iter::IteratorCollectIn, vec::Vec};
 use bootloader_api::BootInfo;
 use core::{
     alloc::{AllocError, Allocator, Layout},
-    fmt::Write,
     ptr::NonNull,
 };
 use elf::get_elf_entry_point_offset;
 use uefi::{
     allocator::UefiAllocator,
     services::{
-        boot::{AllocateType, MemoryType},
+        boot::{AllocateType, MemoryDescriptor, MemoryType},
         filesystem::FileSystem,
         graphics::{BltPixel, Graphics},
     },
@@ -59,11 +58,6 @@ pub extern "efiapi" fn efi_main(
         let info = file.get_info(&uefi_allocator).unwrap();
         let mut buffer = Vec::with_elem(0u8, info.file_size as usize, &uefi_allocator).unwrap();
         let _read_bytes = file.read(&mut buffer).unwrap();
-        let mut v: Vec<u8, _> = Vec::new(&uefi_allocator);
-        write!(v, "{:?}", buffer).unwrap();
-        let s = unsafe { core::str::from_utf8_unchecked(&v) };
-        let ss = String16::from_str(s, &uefi_allocator).unwrap();
-        system_table.con_out().output_string(ss.as_raw()).unwrap();
 
         // TODO: impl truncate
         // buffer.truncate(read_bytes);
@@ -115,25 +109,115 @@ pub extern "efiapi" fn efi_main(
         .get_memory_map(&uefi_allocator)
         .unwrap();
 
-    struct DummyAllocator;
+    struct BumpAllocator {
+        memory_map: [Option<MemoryDescriptor>; 128],
+        memory_map_len: usize,
+        inner: BumpAllocatorInner,
+    }
 
-    unsafe impl Allocator for DummyAllocator {
-        fn allocate(&self, _layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-            todo!()
-        }
+    struct BumpAllocatorInner {
+        descriptor_index: usize,
+        addr: u64,
+    }
 
-        unsafe fn deallocate(&self, _ptr: NonNull<u8>, _layout: Layout) {
-            todo!()
+    impl BumpAllocator {
+        pub fn new<'iter>(memory_map_iter: impl Iterator<Item = &'iter MemoryDescriptor>) -> Self {
+            let mut memory_map = [None; 128];
+            let mut memory_map_len = 0;
+            for (i, item) in memory_map_iter
+                .filter(|desc| match desc.ty {
+                    MemoryType::EfiReservedMemoryType => false,
+                    MemoryType::EfiLoaderCode => true,
+                    MemoryType::EfiLoaderData => true,
+                    MemoryType::EfiBootServicesCode => true,
+                    MemoryType::EfiBootServicesData => true,
+                    MemoryType::EfiRuntimeServicesCode => false,
+                    MemoryType::EfiRuntimeServicesData => false,
+                    MemoryType::EfiConventionalMemory => true,
+                    MemoryType::EfiUnusableMemory => false,
+                    MemoryType::EfiACPIReclaimMemory => false,
+                    MemoryType::EfiACPIMemoryNVS => false,
+                    MemoryType::EfiMemoryMappedIO => false,
+                    MemoryType::EfiMemoryMappedIOPortSpace => false,
+                    MemoryType::EfiPalCode => false,
+                    MemoryType::EfiPersistentMemory => false,
+                    MemoryType::EfiUnacceptedMemoryType => false,
+                    MemoryType::EfiMaxMemoryType => false,
+                })
+                .filter(|desc| desc.physical_start > 0)
+                .enumerate()
+            {
+                if i >= 128 {
+                    break;
+                }
+
+                memory_map[i] = Some(*item);
+                memory_map_len += 1;
+            }
+
+            Self {
+                memory_map,
+                memory_map_len,
+                inner: BumpAllocatorInner {
+                    descriptor_index: 0,
+                    addr: memory_map[0].unwrap().physical_start,
+                },
+            }
         }
     }
 
-    let memory_map_key = memory_map.key;
+    unsafe impl Allocator for BumpAllocator {
+        fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+            let inner = unsafe {
+                let inner = (&self.inner) as *const BumpAllocatorInner;
+                let inner = inner as *mut BumpAllocatorInner;
+                &mut *inner
+            };
 
-    let new_allocator = DummyAllocator;
+            loop {
+                let mem_desc = &self.memory_map[inner.descriptor_index].unwrap();
+                let mem_desc_size = mem_desc.number_of_pages * 4096;
+                let mem_left_in_desc = mem_desc.physical_start + mem_desc_size - inner.addr;
+
+                let size = layout.size() as u64;
+                let align = layout.align() as u64;
+                let align_offset = if align % inner.addr == 0 {
+                    0
+                } else {
+                    align - align % inner.addr
+                };
+
+                if mem_left_in_desc >= size + align_offset {
+                    let ptr = (inner.addr + align_offset) as *mut u8;
+                    inner.addr += align_offset + size;
+                    let slice = unsafe { core::slice::from_raw_parts_mut(ptr, size as _) };
+                    return Ok(unsafe { NonNull::new_unchecked(slice) });
+                }
+
+                if inner.descriptor_index >= self.memory_map_len {
+                    return Err(AllocError);
+                }
+
+                inner.descriptor_index += 1;
+                inner.addr = self.memory_map[inner.descriptor_index]
+                    .unwrap()
+                    .physical_start;
+            }
+        }
+
+        unsafe fn deallocate(&self, _ptr: NonNull<u8>, _layout: Layout) {
+            // Deallocating is a noop
+        }
+    }
+
+    let new_allocator = BumpAllocator::new(memory_map.iter());
+    let memory_map_key = memory_map.key;
     let _memory_descs = memory_map
-        .into_iter()
+        .iter()
+        .cloned()
         .collect_in::<Vec<_, _>, _>(&new_allocator)
         .unwrap();
+    core::mem::forget(memory_map);
 
     // Exit UEFI boot services
     let system_table = system_table
@@ -151,7 +235,6 @@ pub extern "efiapi" fn efi_main(
     let reserved_memory_regions_addr = boot_info_addr + reserved_memory_regions_offset;
     let reserved_memory_regions_len = 0;
 
-    let stack_end = stack_end;
     let info = BootInfo {
         uefi_system_table: system_table,
         framebuffer,

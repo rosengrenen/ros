@@ -109,6 +109,8 @@ impl BootServices {
         map_key: usize,
     ) -> Result<(), usize> {
         let status = (self.exit_boot_services)(image_handle, map_key);
+        // TODO: do this everywhere uefi functions are called, but errors have a high bit set and warnings do not, and success is always 0
+        // so this could technically be just a warning
         if status != 0 {
             return Err(status);
         }

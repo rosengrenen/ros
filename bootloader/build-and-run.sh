@@ -12,6 +12,7 @@ mmd -i fat.img ::/EFI
 mmd -i fat.img ::/EFI/BOOT
 mcopy -i fat.img target/x86_64-unknown-uefi/debug/BOOTX64.EFI ::/EFI/BOOT
 mcopy -i fat.img banner.txt ::/
+cd ../kernel && cargo build --target x86_64.json --release && cd -
 mcopy -i fat.img ../kernel/target/x86_64/release/ros ::/
 
 mkgpt -o hdimage.bin --image-size 8192 --part fat.img --type system
