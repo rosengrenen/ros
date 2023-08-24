@@ -10,6 +10,7 @@ use alloc::{iter::IteratorCollectIn, vec::Vec};
 use bootloader_api::BootInfo;
 use core::{
     alloc::{AllocError, Allocator, Layout},
+    fmt::Write,
     ptr::NonNull,
 };
 use elf::get_elf_entry_point_offset;
@@ -17,6 +18,7 @@ use uefi::{
     allocator::UefiAllocator,
     services::{
         boot::{AllocateType, MemoryDescriptor, MemoryType},
+        console::serial::Serial,
         filesystem::FileSystem,
         graphics::{BltPixel, Graphics},
     },
@@ -44,6 +46,11 @@ pub extern "efiapi" fn efi_main(
     let system_table = system_table.init();
     let uefi_allocator = UefiAllocator::new(system_table.boot_services());
     system_table.con_out().reset(false).unwrap();
+
+    let serial = system_table
+        .boot_services()
+        .locate_protocol::<Serial>()
+        .unwrap();
 
     // This is what the bootloader needs to do:
     // 1. Read the kernel file
@@ -218,6 +225,7 @@ pub extern "efiapi" fn efi_main(
         .collect_in::<Vec<_, _>, _>(&new_allocator)
         .unwrap();
     core::mem::forget(memory_map);
+    write!(serial, "{:?}", _memory_descs).unwrap();
 
     // Exit UEFI boot services
     let system_table = system_table

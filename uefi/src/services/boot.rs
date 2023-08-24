@@ -118,14 +118,14 @@ impl BootServices {
         Ok(())
     }
 
-    pub fn locate_protocol<T: UefiProtocol>(&self) -> Result<&'static T, usize> {
+    pub fn locate_protocol<T: UefiProtocol>(&self) -> Result<&mut T, usize> {
         let mut interface = core::ptr::null();
         let status = (self.locate_protocol)(&T::GUID, core::ptr::null(), &mut interface as *mut _);
         if status != 0 {
             return Err(status);
         }
 
-        let interface = unsafe { &*(interface as *const T) };
+        let interface = unsafe { &mut *(interface as *mut T) };
         Ok(interface)
     }
 }
