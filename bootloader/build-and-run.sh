@@ -2,7 +2,7 @@
 
 set -e
 
-cargo build --target x86_64-unknown-uefi
+cargo build
 cp target/x86_64-unknown-uefi/debug/bootloader.efi target/x86_64-unknown-uefi/debug/BOOTX64.EFI
 # cp target/x86_64-unknown-uefi/release/bootloader.efi target/x86_64-unknown-uefi/release/BOOTX64.EFI
 
@@ -12,7 +12,7 @@ mmd -i fat.img ::/EFI
 mmd -i fat.img ::/EFI/BOOT
 mcopy -i fat.img target/x86_64-unknown-uefi/debug/BOOTX64.EFI ::/EFI/BOOT
 mcopy -i fat.img banner.txt ::/
-cd ../kernel && cargo build --target x86_64.json --release && cd -
+cd ../kernel && cargo build --release && cd -
 mcopy -i fat.img ../kernel/target/x86_64/release/ros ::/
 
 mkgpt -o hdimage.bin --image-size 8192 --part fat.img --type system
