@@ -12,6 +12,7 @@ version = "0.1.0"
 dependencies = [
  "alloc",
  "bootloader_api",
+ "serial",
  "uefi",
 ]
 
@@ -21,6 +22,10 @@ version = "0.1.0"
 dependencies = [
  "uefi",
 ]
+
+[[package]]
+name = "serial"
+version = "0.1.0"
 
 [[package]]
 name = "uefi"

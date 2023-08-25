@@ -1,5 +1,9 @@
 // Translated from https://isu-rathnayaka.medium.com/develop-your-own-x86-operating-system-os-4-e8479e150451
 
+#![no_std]
+
+pub const COM1_BASE: u16 = 0x03f8;
+
 pub struct SerialPort {
     base: u16,
 }

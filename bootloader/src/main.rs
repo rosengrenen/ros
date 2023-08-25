@@ -4,7 +4,6 @@
 
 mod elf;
 // mod print;
-mod serial;
 mod x86_64;
 
 use alloc::{iter::IteratorCollectIn, vec::Vec};
@@ -25,8 +24,6 @@ use uefi::{
     },
     string::String16,
 };
-
-use crate::serial::SerialPort;
 
 #[derive(Clone, Copy, Debug)]
 pub struct GraphicsBuffer {
@@ -264,9 +261,6 @@ pub extern "efiapi" fn efi_main(
         },
     };
     let info_ptr = &info as *const BootInfo;
-    let mut serial = SerialPort::new(0x03f8);
-    serial.configure(1);
-    write!(serial, "{:?}", _memory_descs).unwrap();
 
     // 4. Call the kernel
     unsafe {
