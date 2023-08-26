@@ -14,6 +14,7 @@ use core::{
     ptr::NonNull,
 };
 use elf::get_elf_entry_point_offset;
+use serial::{SerialPort, COM1_BASE};
 use uefi::{
     allocator::UefiAllocator,
     services::{
@@ -225,7 +226,7 @@ pub extern "efiapi" fn efi_main(
         .collect_in::<Vec<_, _>, _>(&new_allocator)
         .unwrap();
     core::mem::forget(memory_map);
-    write!(serial, "uefi").unwrap();
+    writeln!(serial, "uefi").unwrap();
 
     // Exit UEFI boot services
     let system_table = system_table
@@ -261,6 +262,10 @@ pub extern "efiapi" fn efi_main(
         },
     };
     let info_ptr = &info as *const BootInfo;
+
+    let mut serial = SerialPort::new(COM1_BASE);
+    writeln!(serial, "launching kernel!!").unwrap();
+    writeln!(serial, "jumping to {:x}", kernel_fn as usize).unwrap();
 
     // 4. Call the kernel
     unsafe {

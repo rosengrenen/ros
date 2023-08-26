@@ -18,8 +18,13 @@ name = "ros"
 version = "0.1.0"
 dependencies = [
  "bootloader_api",
+ "serial",
  "uefi",
 ]
+
+[[package]]
+name = "serial"
+version = "0.1.0"
 
 [[package]]
 name = "uefi"

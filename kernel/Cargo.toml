@@ -11,4 +11,5 @@ panic = "abort"
 
 [dependencies]
 bootloader_api = { path = "../bootloader_api" }
+serial = { path = "../serial" }
 uefi = { path = "../uefi" }
