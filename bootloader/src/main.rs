@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(allocator_api)]
+#![feature(abi_x86_interrupt)]
 
 mod elf;
 // mod print;
@@ -26,6 +27,8 @@ use uefi::{
     string::String16,
 };
 
+use crate::x86_64::idt::IdtEntry;
+
 #[derive(Clone, Copy, Debug)]
 pub struct GraphicsBuffer {
     pub buffer: *mut BltPixel,
@@ -37,6 +40,26 @@ impl GraphicsBuffer {
     pub fn buf(&self) -> &'static mut [BltPixel] {
         unsafe { core::slice::from_raw_parts_mut(self.buffer, self.width * self.height) }
     }
+}
+
+#[derive(Debug)]
+#[repr(C)]
+struct InterruptStackFrame {
+    pub instruction_pointer: u64,
+    pub code_segment: u64,
+    pub cpu_flags: u64,
+    pub stack_pointer: u64,
+    pub stack_segment: u64,
+}
+
+extern "x86-interrupt" fn interrupt_breakpoint(frame: InterruptStackFrame) {
+    // let mut serial = SerialPort::new(COM1_BASE);
+    // writeln!(serial, "{:?}", frame);
+}
+
+extern "x86-interrupt" fn interrupt_dbl(frame: InterruptStackFrame, code: u64) {
+    // let mut serial = SerialPort::new(COM1_BASE);
+    // writeln!(serial, "interrupt {:?}, code: {}", frame, code);
 }
 
 #[no_mangle]
@@ -52,6 +75,39 @@ pub extern "efiapi" fn efi_main(
         .boot_services()
         .locate_protocol::<Serial>()
         .unwrap();
+
+    let idt = system_table
+        .boot_services()
+        .allocate_pages(AllocateType::AllocateAnyPages, MemoryType::EfiLoaderData, 1)
+        .unwrap() as *mut IdtEntry;
+    let idt =
+        unsafe { core::slice::from_raw_parts_mut(idt, 4096 / core::mem::size_of::<IdtEntry>()) };
+    for e in idt.iter_mut() {
+        *e = IdtEntry::new(interrupt_breakpoint as _, 0, 0b1000_0111_0000_000);
+    }
+    // idt[8] = IdtEntry::new(interrupt_dbl as _, 0, 0b1000_1000_1000_000);
+    unsafe {
+        #[repr(C, packed(2))]
+        pub struct DescriptorTablePointer {
+            /// Size of the DT.
+            pub limit: u16,
+            /// Pointer to the memory region containing the DT.
+            pub base: u64,
+        }
+        let ptr = DescriptorTablePointer {
+            limit: idt.len() as _,
+            base: idt.as_ptr() as _,
+        };
+        core::arch::asm!("lidt [{}]; sti", in(reg) &ptr, options(readonly, nostack, preserves_flags));
+    }
+
+    unsafe {
+        core::arch::asm!("int3");
+    }
+
+    write!(serial, "hello").unwrap();
+
+    loop {}
 
     // This is what the bootloader needs to do:
     // 1. Read the kernel file
