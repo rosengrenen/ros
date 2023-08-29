@@ -44,7 +44,7 @@ impl GdtDesc {
         let gdtr = Gdtr::read();
         GdtTableIter {
             base: gdtr.base as *const GdtDesc,
-            len: gdtr.limit as usize,
+            len: (gdtr.limit as usize + 1) / core::mem::size_of::<GdtDesc>(),
             index: 0,
         }
     }

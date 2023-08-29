@@ -10,7 +10,7 @@ use core::{
 };
 use serial::{SerialPort, COM1_BASE};
 use uefi::services::graphics::BltPixel;
-use x86_64::idt::IdtEntry;
+use x86_64::{gdt::GdtDesc, idt::IdtEntry};
 
 struct Dummy;
 
@@ -53,7 +53,6 @@ extern "x86-interrupt" fn interrupt_div0(frame: InterruptStackFrame) {
 }
 
 extern "x86-interrupt" fn interrupt_breakpoint(frame: InterruptStackFrame) {
-    loop {}
     let mut serial = SerialPort::new(COM1_BASE);
     serial.write_str("Breakpoint");
     writeln!(serial, "Breakpoint: {:?}", frame);
@@ -92,6 +91,24 @@ fn write_num(serial: &mut SerialPort, mut num: u64) {
     }
 }
 
+fn reload_segments() {
+    // reloadSegments:
+    //    ; Reload CS register:
+    //    PUSH 0x08                 ; Push code segment to stack, 0x08 is a stand-in for your code segment
+    //    LEA RAX, [rel .reload_CS] ; Load address of .reload_CS into RAX
+    //    PUSH RAX                  ; Push this value to the stack
+    //    RETFQ                     ; Perform a far return, RETFQ or LRETQ depending on syntax
+    // .reload_CS:
+    //    ; Reload data segment registers
+    //    MOV   AX, 0x10 ; 0x10 is a stand-in for your data segment
+    //    MOV   DS, AX
+    //    MOV   ES, AX
+    //    MOV   FS, AX
+    //    MOV   GS, AX
+    //    MOV   SS, AX
+    //    RET
+}
+
 #[no_mangle]
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     let framebuffer = &info.framebuffer;
@@ -119,7 +136,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     serial.write_char('\n');
 
     let gdt = unsafe {
-        core::slice::from_raw_parts_mut(info.gdt as *mut u64, 2)
+        core::slice::from_raw_parts_mut(info.gdt as *mut u64, 3)
         // core::slice::from_raw_parts_mut(info.gdt as *mut u64, 4096 / core::mem::size_of::<u64>())
     };
     // null segment
@@ -127,6 +144,9 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     // kernel code segment
     // flags(0x2) = [long mode], access byte(0x9a) = [present, desc type = code/data segment, executable, rw]
     gdt[1] = 0x0020_9a00_0000_0000;
+    // kernel data segment
+    // flags(0x2) = [long mode], access byte(0x92) = [present, desc type = code/data segment, rw]
+    gdt[2] = 0x0020_9200_0000_0000;
 
     let idt = unsafe {
         core::slice::from_raw_parts_mut(
@@ -144,7 +164,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     serial.write_str("setting up gdt\n");
     unsafe {
         let ptr = DescriptorTablePointer {
-            limit: gdt.len() as _,
+            limit: (gdt.len() * core::mem::size_of::<GdtDesc>() - 1) as u16,
             base: info.gdt,
         };
         core::arch::asm!("cli");
@@ -156,7 +176,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     serial.write_str("setting up idt\n");
     unsafe {
         let ptr = DescriptorTablePointer {
-            limit: idt.len() as _,
+            limit: (idt.len() * core::mem::size_of::<IdtEntry>() - 1) as u16,
             base: info.idt,
         };
         // writeln!(serial, "{:x?}", ptr);
