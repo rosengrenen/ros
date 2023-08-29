@@ -43,32 +43,24 @@ extern "C" fn lmao() {
 }
 
 extern "x86-interrupt" fn interrupt_div0(frame: InterruptStackFrame) {
-    // loop {}
-    unsafe {
-        core::arch::asm!("hlt");
-    }
-    // let mut serial = SerialPort::new(COM1_BASE);
-    // serial.write_str("Div 0");
-    // writeln!(serial, "Div 0: {:?}", frame);
+    let mut serial = SerialPort::new(COM1_BASE);
+    serial.write_str("Div 0\n");
+    loop {}
 }
 
 extern "x86-interrupt" fn interrupt_breakpoint(frame: InterruptStackFrame) {
     let mut serial = SerialPort::new(COM1_BASE);
-    serial.write_str("Breakpoint");
-    writeln!(serial, "Breakpoint: {:?}", frame);
+    serial.write_str("Breakpoint\n");
 }
 
 extern "x86-interrupt" fn interrupt_dbl(frame: InterruptStackFrame, code: u64) {
-    loop {}
     let mut serial = SerialPort::new(COM1_BASE);
-    serial.write_str("double fault");
-    // writeln!(serial, "interrupt {:?}, code: {}", frame, code);
+    serial.write_str("Double fault\n");
 }
 
-extern "x86-interrupt" fn interrupt_gp(frame: InterruptStackFrame, code: u64) {
-    loop {}
-    // let mut serial = SerialPort::new(COM1_BASE);
-    // writeln!(serial, "interrupt {:?}, code: {}", frame, code);
+extern "x86-interrupt" fn interrupt_page_fault(frame: InterruptStackFrame, code: u64) {
+    let mut serial = SerialPort::new(COM1_BASE);
+    serial.write_str("Page fault\n");
 }
 
 fn divide_by_zero() {
@@ -92,21 +84,26 @@ fn write_num(serial: &mut SerialPort, mut num: u64) {
 }
 
 fn reload_segments() {
-    // reloadSegments:
-    //    ; Reload CS register:
-    //    PUSH 0x08                 ; Push code segment to stack, 0x08 is a stand-in for your code segment
-    //    LEA RAX, [rel .reload_CS] ; Load address of .reload_CS into RAX
-    //    PUSH RAX                  ; Push this value to the stack
-    //    RETFQ                     ; Perform a far return, RETFQ or LRETQ depending on syntax
-    // .reload_CS:
-    //    ; Reload data segment registers
-    //    MOV   AX, 0x10 ; 0x10 is a stand-in for your data segment
-    //    MOV   DS, AX
-    //    MOV   ES, AX
-    //    MOV   FS, AX
-    //    MOV   GS, AX
-    //    MOV   SS, AX
-    //    RET
+    unsafe {
+        core::arch::asm!(
+                // push the segment selector, index 1 of the gdt
+                "push 0x8",
+                // load and push the address of the "2" label
+                "lea {tmp}, [rip + 2f]",
+                "push {tmp}",
+                // far return, popping the return address and the new CS value from the stack
+                "retfq",
+                "2:",
+                // set the rest of the segment registers to the data segment in the gdt
+                "mov ax, 0x10",
+                "mov ds, ax",
+                "mov es, ax",
+                "mov fs, ax",
+                "mov gs, ax",
+                "mov ss, ax",
+                tmp = lateout(reg) _,
+        );
+    }
 }
 
 #[no_mangle]
@@ -159,7 +156,10 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     }
 
     // entry point, index 1 of gdt  (1 << 3) = 8, options(0x8f00) = [present, gate type is trap gate]
-    idt[3] = IdtEntry::new(interrupt_breakpoint as _, 0x8, 0x8f00);
+    // entry point, index 1 of gdt  (1 << 3) = 8, options(0x8f00) = [present, gate type is trap gate]
+    idt[0x3] = IdtEntry::new(interrupt_breakpoint as _, 0x8, 0x8e00);
+    idt[0x8] = IdtEntry::new(interrupt_dbl as _, 0x8, 0x8e00);
+    idt[0xe] = IdtEntry::new(interrupt_page_fault as _, 0x8, 0x8e00);
 
     serial.write_str("setting up gdt\n");
     unsafe {
@@ -172,6 +172,8 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         core::arch::asm!("sti");
     }
     serial.write_str("successfully set up gdt (?)\n");
+
+    reload_segments();
 
     serial.write_str("setting up idt\n");
     unsafe {
@@ -186,10 +188,17 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     }
     serial.write_str("successfully set up idt (?)\n");
 
-    // divide_by_zero();
     unsafe {
         core::arch::asm!("int3");
     }
+    // divide_by_zero();
+    // doesnt work yet as every page is identity mapped
+    fn cause_page_fault() {
+        unsafe {
+            *(0xdead_beef as *mut u64) = 5;
+        }
+    }
+    cause_page_fault();
 
     for y in 0..framebuffer.height {
         for x in 0..framebuffer.width {
@@ -207,7 +216,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     // let mut d = Dummy;
     // the line below crashes the whole thing, the macro just invokes .write_fmt so they are equivalent
     // serial.write_fmt(format_args!("{}, format_args! works?\n", 2));
-    // write!(d, "write! works");
+    // write!(serial, "write! works");
 
     let mut red = 255;
     let mut green = 0;
