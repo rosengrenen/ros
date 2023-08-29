@@ -38,10 +38,18 @@ struct InterruptStackFrame {
     pub stack_segment: u64,
 }
 
+extern "C" fn lmao() {
+    loop {}
+}
+
 extern "x86-interrupt" fn interrupt_div0(frame: InterruptStackFrame) {
-    let mut serial = SerialPort::new(COM1_BASE);
-    serial.write_str("Div 0");
-    writeln!(serial, "Div 0: {:?}", frame);
+    // loop {}
+    unsafe {
+        core::arch::asm!("hlt");
+    }
+    // let mut serial = SerialPort::new(COM1_BASE);
+    // serial.write_str("Div 0");
+    // writeln!(serial, "Div 0: {:?}", frame);
 }
 
 extern "x86-interrupt" fn interrupt_breakpoint(frame: InterruptStackFrame) {
@@ -52,18 +60,36 @@ extern "x86-interrupt" fn interrupt_breakpoint(frame: InterruptStackFrame) {
 }
 
 extern "x86-interrupt" fn interrupt_dbl(frame: InterruptStackFrame, code: u64) {
+    loop {}
     let mut serial = SerialPort::new(COM1_BASE);
     serial.write_str("double fault");
     // writeln!(serial, "interrupt {:?}, code: {}", frame, code);
 }
 
 extern "x86-interrupt" fn interrupt_gp(frame: InterruptStackFrame, code: u64) {
+    loop {}
     // let mut serial = SerialPort::new(COM1_BASE);
     // writeln!(serial, "interrupt {:?}, code: {}", frame, code);
 }
 
 fn divide_by_zero() {
     unsafe { core::arch::asm!("mov dx, 0; div dx") }
+}
+
+#[derive(Debug)]
+#[repr(C, packed(2))]
+pub struct DescriptorTablePointer {
+    /// Size of the DT.
+    pub limit: u16,
+    /// Pointer to the memory region containing the DT.
+    pub base: u64,
+}
+
+fn write_num(serial: &mut SerialPort, mut num: u64) {
+    while num > 0 {
+        serial.serial_write(&[((num % 10) as u8 + b'0')]);
+        num /= 10;
+    }
 }
 
 #[no_mangle]
@@ -76,6 +102,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     // * Set up paging
     // * Set up interrupt handlers
     // Load init system
+
     let buffer = unsafe {
         core::slice::from_raw_parts_mut(
             framebuffer.base as *mut BltPixel,
@@ -85,33 +112,56 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
 
     let mut serial = SerialPort::new(COM1_BASE);
     serial.configure(1);
+    serial.write_str("_start\n");
+    write_num(&mut serial, _start as _);
+    serial.write_str("\ninterrupt_div0\n");
+    write_num(&mut serial, interrupt_div0 as _);
+    serial.write_char('\n');
+
+    let gdt = unsafe {
+        core::slice::from_raw_parts_mut(info.gdt as *mut u64, 2)
+        // core::slice::from_raw_parts_mut(info.gdt as *mut u64, 4096 / core::mem::size_of::<u64>())
+    };
+    // null segment
+    gdt[0] = 0;
+    // kernel code segment
+    // flags(0x2) = [long mode], access byte(0x9a) = [present, desc type = code/data segment, executable, rw]
+    gdt[1] = 0x0020_9a00_0000_0000;
 
     let idt = unsafe {
-        core::slice::from_raw_parts_mut(info.idt as *mut _, 4096 / core::mem::size_of::<IdtEntry>())
+        core::slice::from_raw_parts_mut(
+            info.idt as *mut IdtEntry,
+            4096 / core::mem::size_of::<IdtEntry>(),
+        )
     };
-    // idt[0x00] = IdtEntry::new(interrupt_div0 as _, 0, 0b1000_0111_0000_000);
-    idt[0x03] = IdtEntry::new(interrupt_breakpoint as _, 0, 0b1000_0111_0000_000);
-    // idt[0x08] = IdtEntry::new(interrupt_dbl as _, 0, 0b1000_0111_0000_000);
-    // idt[0x0d] = IdtEntry::new(interrupt_gp as _, 0, 0b1000_0111_0000_000);
-    // writeln!(serial, "{:?}", idt);
+    for entry in idt.iter_mut() {
+        *entry = IdtEntry::new(0, 0, 0);
+    }
+
+    // entry point, index 1 of gdt  (1 << 3) = 8, options(0x8f00) = [present, gate type is trap gate]
+    idt[3] = IdtEntry::new(interrupt_breakpoint as _, 0x8, 0x8f00);
+
+    serial.write_str("setting up gdt\n");
+    unsafe {
+        let ptr = DescriptorTablePointer {
+            limit: gdt.len() as _,
+            base: info.gdt,
+        };
+        core::arch::asm!("cli");
+        core::arch::asm!("lgdt [{}]", in(reg) &ptr);
+        core::arch::asm!("sti");
+    }
+    serial.write_str("successfully set up gdt (?)\n");
 
     serial.write_str("setting up idt\n");
     unsafe {
-        #[derive(Debug)]
-        #[repr(C, packed(2))]
-        pub struct DescriptorTablePointer {
-            /// Size of the DT.
-            pub limit: u16,
-            /// Pointer to the memory region containing the DT.
-            pub base: u64,
-        }
         let ptr = DescriptorTablePointer {
-            limit: 32,
+            limit: idt.len() as _,
             base: info.idt,
         };
         // writeln!(serial, "{:x?}", ptr);
         core::arch::asm!("cli");
-        core::arch::asm!("lidt [{}]", in(reg) &ptr, options(readonly, nostack, preserves_flags));
+        core::arch::asm!("lidt [{}]", in(reg) &ptr);
         core::arch::asm!("sti");
     }
     serial.write_str("successfully set up idt (?)\n");

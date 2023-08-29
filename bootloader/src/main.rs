@@ -26,7 +26,7 @@ use uefi::{
 };
 use x86_64::{
     control::{Cr0, Cr2, Cr3, Cr4},
-    gdt::GdtDesc,
+    gdt::{GdtDesc, Gdtr},
     idt::{read_cs, IdtEntry},
 };
 
@@ -51,6 +51,53 @@ fn read_eflags() -> u64 {
     flags
 }
 
+#[derive(Debug)]
+#[repr(C)]
+struct InterruptStackFrame {
+    pub instruction_pointer: u64,
+    pub code_segment: u64,
+    pub cpu_flags: u64,
+    pub stack_pointer: u64,
+    pub stack_segment: u64,
+}
+
+extern "x86-interrupt" fn interrupt_div0(frame: InterruptStackFrame) {
+    let mut serial = SerialPort::new(COM1_BASE);
+    serial.write_str("Div 0");
+    writeln!(serial, "Div 0: {:?}", frame);
+}
+
+extern "x86-interrupt" fn interrupt_breakpoint(frame: InterruptStackFrame) {
+    loop {}
+    let mut serial = SerialPort::new(COM1_BASE);
+    serial.write_str("Breakpoint");
+    writeln!(serial, "Breakpoint: {:?}", frame);
+}
+
+extern "x86-interrupt" fn interrupt_dbl(frame: InterruptStackFrame, code: u64) {
+    let mut serial = SerialPort::new(COM1_BASE);
+    serial.write_str("double fault");
+    // writeln!(serial, "interrupt {:?}, code: {}", frame, code);
+}
+
+extern "x86-interrupt" fn interrupt_gp(frame: InterruptStackFrame, code: u64) {
+    // let mut serial = SerialPort::new(COM1_BASE);
+    // writeln!(serial, "interrupt {:?}, code: {}", frame, code);
+}
+
+fn divide_by_zero() {
+    unsafe { core::arch::asm!("mov dx, 0; div dx") }
+}
+
+#[derive(Debug)]
+#[repr(C, packed(2))]
+pub struct DescriptorTablePointer {
+    /// Size of the DT.
+    pub limit: u16,
+    /// Pointer to the memory region containing the DT.
+    pub base: u64,
+}
+
 #[no_mangle]
 pub extern "efiapi" fn efi_main(
     image_handle: uefi::Handle,
@@ -69,9 +116,11 @@ pub extern "efiapi" fn efi_main(
         .boot_services()
         .allocate_pages(AllocateType::AllocateAnyPages, MemoryType::EfiLoaderData, 1)
         .unwrap();
-    writeln!(serial, "idt at {:x}", idt);
 
-    write!(serial, "hello").unwrap();
+    let gdt = system_table
+        .boot_services()
+        .allocate_pages(AllocateType::AllocateAnyPages, MemoryType::EfiLoaderData, 1)
+        .unwrap();
 
     // This is what the bootloader needs to do:
     // 1. Read the kernel file
@@ -248,6 +297,8 @@ pub extern "efiapi" fn efi_main(
     core::mem::forget(memory_map);
     writeln!(serial, "uefi").unwrap();
 
+    writeln!(serial, "idt at {:x}", idt);
+    writeln!(serial, "gdt at {:x}", gdt);
     writeln!(serial, "{:x?}", Cr0::read());
     writeln!(serial, "{:x?}", Cr2::read());
     writeln!(serial, "{:x?}", Cr3::read());
@@ -268,8 +319,33 @@ pub extern "efiapi" fn efi_main(
     writeln!(serial, "{:x?}", Cr4::read());
     writeln!(serial, "EFLAGS: {:x?}", read_eflags());
     writeln!(serial, "CS: {:x?}", read_cs());
+
+    let gdt = unsafe { core::slice::from_raw_parts_mut(gdt as *mut u64, 64) };
+    for e in gdt.iter_mut() {
+        *e = 0;
+    }
+    // kernel code segment
+    // let access = 0b1001_1010;
+    gdt[1] = 0x00af_9a00_0000_ffff;
+    // kernel data segment
+    // let access = 0b1001_0010;
+    gdt[2] = 0x00af_9200_0000_ffff;
+
+    // serial.write_str("setting up gdt\n");
+    // unsafe {
+    //     let ptr = DescriptorTablePointer {
+    //         limit: gdt.len() as _,
+    //         base: gdt.as_ptr() as _,
+    //     };
+    //     core::arch::asm!("cli");
+    //     core::arch::asm!("lgdt [{}]", in(reg) &ptr, options(readonly, nostack, preserves_flags));
+    //     core::arch::asm!("sti");
+    // }
+    // serial.write_str("successfully set up gdt (?)\n");
+
+    writeln!(serial, "GDTR: {:x?}", Gdtr::read());
     for a in GdtDesc::table_iter() {
-        writeln!(serial, "{:?}", a);
+        writeln!(serial, "{:x?}", a);
     }
 
     // Populate memory regions
@@ -300,8 +376,73 @@ pub extern "efiapi" fn efi_main(
             len: reserved_memory_regions_len,
         },
         idt,
+        gdt: gdt.as_ptr() as _,
     };
     let info_ptr = &info as *const BootInfo;
+
+    // {
+    //     let gdt = unsafe {
+    //         core::slice::from_raw_parts_mut(info.gdt as *mut u64, 3)
+    //         // core::slice::from_raw_parts_mut(info.gdt as *mut u64, 4096 / core::mem::size_of::<u64>())
+    //     };
+    //     for e in gdt.iter_mut() {
+    //         *e = 0;
+    //     }
+    //     // kernel code segment
+    //     // let access = 0b1001_1010;
+    //     gdt[1] = 0x00af_9a00_0000_ffff;
+    //     // kernel data segment
+    //     // let access = 0b1001_0010;
+    //     gdt[2] = 0x00af_9200_0000_ffff;
+
+    //     let idt = unsafe {
+    //         core::slice::from_raw_parts_mut(
+    //             info.idt as *mut _,
+    //             4096 / core::mem::size_of::<IdtEntry>(),
+    //         )
+    //     };
+    //     // idt[0x00] = IdtEntry::new(interrupt_div0 as _, 0, 0b1000_0111_0000_000);
+    //     idt[0x03] = IdtEntry::new(
+    //         interrupt_breakpoint as _,
+    //         0b0000_0000_0000_1000,
+    //         0b1000_1111_0000_0000,
+    //     );
+    //     // idt[0x08] = IdtEntry::new(interrupt_dbl as _, 0, 0b1000_0111_0000_0000);
+    //     // idt[0x0d] = IdtEntry::new(interrupt_gp as _, 0, 0b1000_0111_0000_0000);
+    //     // writeln!(serial, "{:?}", idt);
+
+    //     serial.write_str("setting up gdt\n");
+    //     unsafe {
+    //         let ptr = DescriptorTablePointer {
+    //             limit: gdt.len() as _,
+    //             base: info.gdt,
+    //         };
+    //         core::arch::asm!("cli");
+    //         core::arch::asm!("lgdt [{}]", in(reg) &ptr, options(readonly, nostack, preserves_flags));
+    //         core::arch::asm!("sti");
+    //     }
+    //     serial.write_str("successfully set up gdt (?)\n");
+
+    //     serial.write_str("setting up idt\n");
+    //     unsafe {
+    //         let ptr = DescriptorTablePointer {
+    //             limit: idt.len() as _,
+    //             base: info.idt,
+    //         };
+    //         // writeln!(serial, "{:x?}", ptr);
+    //         core::arch::asm!("cli");
+    //         core::arch::asm!("lidt [{}]", in(reg) &ptr, options(readonly, nostack, preserves_flags));
+    //         core::arch::asm!("sti");
+    //     }
+    //     serial.write_str("successfully set up idt (?)\n");
+
+    //     // divide_by_zero();
+    //     unsafe {
+    //         core::arch::asm!("int3");
+    //     }
+    // }
+
+    writeln!(serial, "oh boy oh boy");
 
     writeln!(serial, "launching kernel!!").unwrap();
     writeln!(serial, "jumping to {:x}", kernel_fn as usize).unwrap();

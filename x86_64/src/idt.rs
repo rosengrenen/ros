@@ -13,8 +13,8 @@ impl IdtEntry {
     pub fn new(fn_ptr: u64, gdt: u16, options: u16) -> Self {
         Self {
             fn_ptr_low: fn_ptr as u16,
-            gdt: 0x8, //read_cs(),
-            options: 0x8e,
+            gdt,
+            options,
             fn_ptr_mid: (fn_ptr >> 16) as u16,
             fn_ptr_high: (fn_ptr >> 32) as u32,
             _reserved: 0,

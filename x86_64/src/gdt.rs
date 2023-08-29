@@ -44,7 +44,7 @@ impl GdtDesc {
         let gdtr = Gdtr::read();
         GdtTableIter {
             base: gdtr.base as *const GdtDesc,
-            len: gdtr.limit as usize / core::mem::size_of::<GdtDesc>(),
+            len: gdtr.limit as usize,
             index: 0,
         }
     }
@@ -113,7 +113,7 @@ pub struct Gdtr {
 impl Gdtr {
     pub fn read() -> Self {
         unsafe {
-            let mut gdtr: Self = Self { limit: 0, base: 0 };
+            let mut gdtr = Self { limit: 0, base: 0 };
             core::arch::asm!("sgdt [{}]", in(reg) &mut gdtr);
             gdtr
         }
