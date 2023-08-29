@@ -4,8 +4,6 @@
 #![feature(abi_x86_interrupt)]
 
 mod elf;
-// mod print;
-mod x86_64;
 
 use alloc::{iter::IteratorCollectIn, vec::Vec};
 use bootloader_api::BootInfo;
@@ -26,8 +24,11 @@ use uefi::{
     },
     string::String16,
 };
-
-use crate::x86_64::idt::IdtEntry;
+use x86_64::{
+    control::{Cr0, Cr2, Cr3, Cr4},
+    gdt::GdtDesc,
+    idt::{read_cs, IdtEntry},
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct GraphicsBuffer {
@@ -42,24 +43,12 @@ impl GraphicsBuffer {
     }
 }
 
-#[derive(Debug)]
-#[repr(C)]
-struct InterruptStackFrame {
-    pub instruction_pointer: u64,
-    pub code_segment: u64,
-    pub cpu_flags: u64,
-    pub stack_pointer: u64,
-    pub stack_segment: u64,
-}
-
-extern "x86-interrupt" fn interrupt_breakpoint(frame: InterruptStackFrame) {
-    // let mut serial = SerialPort::new(COM1_BASE);
-    // writeln!(serial, "{:?}", frame);
-}
-
-extern "x86-interrupt" fn interrupt_dbl(frame: InterruptStackFrame, code: u64) {
-    // let mut serial = SerialPort::new(COM1_BASE);
-    // writeln!(serial, "interrupt {:?}, code: {}", frame, code);
+fn read_eflags() -> u64 {
+    let flags;
+    unsafe {
+        core::arch::asm!("pushf; pop {}", out(reg) flags);
+    }
+    flags
 }
 
 #[no_mangle]
@@ -79,35 +68,10 @@ pub extern "efiapi" fn efi_main(
     let idt = system_table
         .boot_services()
         .allocate_pages(AllocateType::AllocateAnyPages, MemoryType::EfiLoaderData, 1)
-        .unwrap() as *mut IdtEntry;
-    let idt =
-        unsafe { core::slice::from_raw_parts_mut(idt, 4096 / core::mem::size_of::<IdtEntry>()) };
-    for e in idt.iter_mut() {
-        *e = IdtEntry::new(interrupt_breakpoint as _, 0, 0b1000_0111_0000_000);
-    }
-    // idt[8] = IdtEntry::new(interrupt_dbl as _, 0, 0b1000_1000_1000_000);
-    unsafe {
-        #[repr(C, packed(2))]
-        pub struct DescriptorTablePointer {
-            /// Size of the DT.
-            pub limit: u16,
-            /// Pointer to the memory region containing the DT.
-            pub base: u64,
-        }
-        let ptr = DescriptorTablePointer {
-            limit: idt.len() as _,
-            base: idt.as_ptr() as _,
-        };
-        core::arch::asm!("lidt [{}]; sti", in(reg) &ptr, options(readonly, nostack, preserves_flags));
-    }
-
-    unsafe {
-        core::arch::asm!("int3");
-    }
+        .unwrap();
+    writeln!(serial, "idt at {:x}", idt);
 
     write!(serial, "hello").unwrap();
-
-    loop {}
 
     // This is what the bootloader needs to do:
     // 1. Read the kernel file
@@ -284,10 +248,29 @@ pub extern "efiapi" fn efi_main(
     core::mem::forget(memory_map);
     writeln!(serial, "uefi").unwrap();
 
+    writeln!(serial, "{:x?}", Cr0::read());
+    writeln!(serial, "{:x?}", Cr2::read());
+    writeln!(serial, "{:x?}", Cr3::read());
+    writeln!(serial, "{:x?}", Cr4::read());
+    writeln!(serial, "EFLAGS: {:x?}", read_eflags());
+    writeln!(serial, "CS: {:x?}", read_cs());
+
     // Exit UEFI boot services
     let system_table = system_table
         .exit_boot_services(image_handle, memory_map_key)
         .unwrap();
+
+    let mut serial = SerialPort::new(COM1_BASE);
+
+    writeln!(serial, "{:x?}", Cr0::read());
+    writeln!(serial, "{:x?}", Cr2::read());
+    writeln!(serial, "{:x?}", Cr3::read());
+    writeln!(serial, "{:x?}", Cr4::read());
+    writeln!(serial, "EFLAGS: {:x?}", read_eflags());
+    writeln!(serial, "CS: {:x?}", read_cs());
+    for a in GdtDesc::table_iter() {
+        writeln!(serial, "{:?}", a);
+    }
 
     // Populate memory regions
     let memory_regions_addr = boot_info_addr + memory_regions_offset;
@@ -316,10 +299,10 @@ pub extern "efiapi" fn efi_main(
             ptr: reserved_memory_regions_addr as _,
             len: reserved_memory_regions_len,
         },
+        idt,
     };
     let info_ptr = &info as *const BootInfo;
 
-    let mut serial = SerialPort::new(COM1_BASE);
     writeln!(serial, "launching kernel!!").unwrap();
     writeln!(serial, "jumping to {:x}", kernel_fn as usize).unwrap();
 

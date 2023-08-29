@@ -10,3 +10,4 @@ alloc = { path = "../alloc" }
 bootloader_api = { path = "../bootloader_api" }
 serial = { path = "../serial" }
 uefi = { path = "../uefi" }
+x86_64 = { path = "../x86_64" }

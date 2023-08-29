@@ -12,6 +12,7 @@ pub struct BootInfo {
     // memory regions
     pub memory_regions: MemoryRegions,
     pub reserved_memory_regions: ReservedMemoryRegions,
+    pub idt: u64,
 }
 
 #[repr(C)]

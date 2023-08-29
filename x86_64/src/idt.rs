@@ -1,3 +1,4 @@
+#[derive(Debug)]
 #[repr(C)]
 pub struct IdtEntry {
     fn_ptr_low: u16,  // [0:15]	The lower bits of the pointer to the handler function.
@@ -11,17 +12,17 @@ pub struct IdtEntry {
 impl IdtEntry {
     pub fn new(fn_ptr: u64, gdt: u16, options: u16) -> Self {
         Self {
-            fn_ptr_low: (fn_ptr & 0xffff) as u16,
-            gdt: read_cs(),
-            options,
-            fn_ptr_mid: ((fn_ptr >> 16) & 0xffff) as u16,
-            fn_ptr_high: ((fn_ptr >> 32) & 0xffffffff) as u32,
+            fn_ptr_low: fn_ptr as u16,
+            gdt: 0x8, //read_cs(),
+            options: 0x8e,
+            fn_ptr_mid: (fn_ptr >> 16) as u16,
+            fn_ptr_high: (fn_ptr >> 32) as u32,
             _reserved: 0,
         }
     }
 }
 
-fn read_cs() -> u16 {
+pub fn read_cs() -> u16 {
     let mut segment: u16 = 0;
     unsafe {
         core::arch::asm!("mov {0:x}, cs", out(reg) segment, options(nomem, nostack, preserves_flags));
