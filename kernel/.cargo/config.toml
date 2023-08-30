@@ -1,6 +1,9 @@
 [build]
 target = "x86_64.json"
 
+[target.'cfg(all(target_arch = "x86_64", target_os = "none"))'] 
+rustflags = ["-C", "link-args=--image-base 0xFFFF800000000000"]
+
 [unstable]
 build-std-features = ["compiler-builtins-mem"]
 build-std = ["core", "compiler_builtins"]

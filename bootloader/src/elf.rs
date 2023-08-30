@@ -1,6 +1,6 @@
-use core::alloc::Allocator;
-
 use alloc::{iter::IteratorCollectIn, vec::Vec};
+use core::{alloc::Allocator, fmt::Write};
+use serial::{SerialPort, COM1_BASE};
 use uefi::services::boot::{AllocateType, BootServices, MemoryType};
 
 pub type KernelMainFn = extern "C" fn(info: *const bootloader_api::BootInfo) -> usize;
@@ -45,6 +45,9 @@ pub fn get_elf_entry_point_offset<A: Allocator>(
         image_start = image_start.min(entry.virtual_address);
         image_end = image_end.max(entry.virtual_address + entry.segment_mem_size);
     }
+
+    let mut serial = SerialPort::new(COM1_BASE);
+    writeln!(serial, "{:x?}", load_entries);
 
     let image_size = image_end - image_start;
     let kernel_pages = image_size as usize / 4096 + 1;

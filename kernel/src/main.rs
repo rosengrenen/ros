@@ -216,7 +216,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     // let mut d = Dummy;
     // the line below crashes the whole thing, the macro just invokes .write_fmt so they are equivalent
     // serial.write_fmt(format_args!("{}, format_args! works?\n", 2));
-    // write!(serial, "write! works");
+    write!(serial, "write! works: {}", 12345);
 
     let mut red = 255;
     let mut green = 0;

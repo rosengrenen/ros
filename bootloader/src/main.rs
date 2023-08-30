@@ -380,72 +380,10 @@ pub extern "efiapi" fn efi_main(
     };
     let info_ptr = &info as *const BootInfo;
 
-    // {
-    //     let gdt = unsafe {
-    //         core::slice::from_raw_parts_mut(info.gdt as *mut u64, 3)
-    //         // core::slice::from_raw_parts_mut(info.gdt as *mut u64, 4096 / core::mem::size_of::<u64>())
-    //     };
-    //     for e in gdt.iter_mut() {
-    //         *e = 0;
-    //     }
-    //     // kernel code segment
-    //     // let access = 0b1001_1010;
-    //     gdt[1] = 0x00af_9a00_0000_ffff;
-    //     // kernel data segment
-    //     // let access = 0b1001_0010;
-    //     gdt[2] = 0x00af_9200_0000_ffff;
-
-    //     let idt = unsafe {
-    //         core::slice::from_raw_parts_mut(
-    //             info.idt as *mut _,
-    //             4096 / core::mem::size_of::<IdtEntry>(),
-    //         )
-    //     };
-    //     // idt[0x00] = IdtEntry::new(interrupt_div0 as _, 0, 0b1000_0111_0000_000);
-    //     idt[0x03] = IdtEntry::new(
-    //         interrupt_breakpoint as _,
-    //         0b0000_0000_0000_1000,
-    //         0b1000_1111_0000_0000,
-    //     );
-    //     // idt[0x08] = IdtEntry::new(interrupt_dbl as _, 0, 0b1000_0111_0000_0000);
-    //     // idt[0x0d] = IdtEntry::new(interrupt_gp as _, 0, 0b1000_0111_0000_0000);
-    //     // writeln!(serial, "{:?}", idt);
-
-    //     serial.write_str("setting up gdt\n");
-    //     unsafe {
-    //         let ptr = DescriptorTablePointer {
-    //             limit: gdt.len() as _,
-    //             base: info.gdt,
-    //         };
-    //         core::arch::asm!("cli");
-    //         core::arch::asm!("lgdt [{}]", in(reg) &ptr, options(readonly, nostack, preserves_flags));
-    //         core::arch::asm!("sti");
-    //     }
-    //     serial.write_str("successfully set up gdt (?)\n");
-
-    //     serial.write_str("setting up idt\n");
-    //     unsafe {
-    //         let ptr = DescriptorTablePointer {
-    //             limit: idt.len() as _,
-    //             base: info.idt,
-    //         };
-    //         // writeln!(serial, "{:x?}", ptr);
-    //         core::arch::asm!("cli");
-    //         core::arch::asm!("lidt [{}]", in(reg) &ptr, options(readonly, nostack, preserves_flags));
-    //         core::arch::asm!("sti");
-    //     }
-    //     serial.write_str("successfully set up idt (?)\n");
-
-    //     // divide_by_zero();
-    //     unsafe {
-    //         core::arch::asm!("int3");
-    //     }
-    // }
-
-    writeln!(serial, "oh boy oh boy");
-
     writeln!(serial, "launching kernel!!").unwrap();
     writeln!(serial, "jumping to {:x}", kernel_fn as usize).unwrap();
+
+    panic!();
 
     // 4. Call the kernel
     unsafe {
