@@ -1,15 +1,20 @@
 use alloc::{iter::IteratorCollectIn, vec::Vec};
-use core::{alloc::Allocator, fmt::Write};
-use serial::{SerialPort, COM1_BASE};
+use core::alloc::Allocator;
 use uefi::services::boot::{AllocateType, BootServices, MemoryType};
 
-pub type KernelMainFn = extern "C" fn(info: *const bootloader_api::BootInfo) -> usize;
+#[derive(Debug)]
+pub struct KernelExecutable {
+    pub image_start: u64,
+    pub image_end: u64,
+    pub frames: u64,
+    pub entry_point: u64,
+}
 
 pub fn get_elf_entry_point_offset<A: Allocator>(
     boot_services: &BootServices,
     elf: &[u8],
     alloc: &A,
-) -> Result<(KernelMainFn, u64, usize), &'static str> {
+) -> Result<KernelExecutable, &'static str> {
     let header = ElfHeader::try_from(elf).unwrap();
     if header.magic != [0x7F, 0x45, 0x4C, 0x46] {
         return Err("Not an ELF file");
@@ -22,6 +27,7 @@ pub fn get_elf_entry_point_offset<A: Allocator>(
     const PROGRAM_HEADER_SIZE: usize = core::mem::size_of::<ProgramHeader>();
     assert!(header.program_header_size as usize == PROGRAM_HEADER_SIZE);
 
+    // TODO: no alloc, just iter
     let mut program_header_entries = Vec::with_elem(
         ProgramHeader::default(),
         header.program_header_count as _,
@@ -46,9 +52,6 @@ pub fn get_elf_entry_point_offset<A: Allocator>(
         image_end = image_end.max(entry.virtual_address + entry.segment_mem_size);
     }
 
-    let mut serial = SerialPort::new(COM1_BASE);
-    writeln!(serial, "{:x?}", load_entries);
-
     let image_size = image_end - image_start;
     let kernel_pages = image_size as usize / 4096 + 1;
     let kernel_addr = boot_services
@@ -70,9 +73,13 @@ pub fn get_elf_entry_point_offset<A: Allocator>(
     }
 
     let entry_point_offset = header.entry - image_start;
-    let entry_point = &page[entry_point_offset as usize];
-    let entry_point_fn: KernelMainFn = unsafe { core::mem::transmute(entry_point) };
-    Ok((entry_point_fn, kernel_addr, kernel_pages))
+    let entry_point = &page[entry_point_offset as usize] as *const _ as _;
+    Ok(KernelExecutable {
+        image_start,
+        image_end,
+        frames: kernel_pages as _,
+        entry_point,
+    })
 }
 
 #[derive(Clone, Copy, Debug)]
