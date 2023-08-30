@@ -370,3 +370,49 @@ pub enum MemoryType {
     EfiUnacceptedMemoryType,
     EfiMaxMemoryType,
 }
+
+impl MemoryType {
+    pub fn usable_by_loader(&self) -> bool {
+        match self {
+            MemoryType::EfiReservedMemoryType => false,
+            MemoryType::EfiLoaderCode => false,
+            MemoryType::EfiLoaderData => true,
+            MemoryType::EfiBootServicesCode => true,
+            MemoryType::EfiBootServicesData => true,
+            MemoryType::EfiRuntimeServicesCode => false,
+            MemoryType::EfiRuntimeServicesData => false,
+            MemoryType::EfiConventionalMemory => true,
+            MemoryType::EfiUnusableMemory => false,
+            MemoryType::EfiACPIReclaimMemory => false,
+            MemoryType::EfiACPIMemoryNVS => false,
+            MemoryType::EfiMemoryMappedIO => false,
+            MemoryType::EfiMemoryMappedIOPortSpace => false,
+            MemoryType::EfiPalCode => false,
+            MemoryType::EfiPersistentMemory => true,
+            MemoryType::EfiUnacceptedMemoryType => false,
+            MemoryType::EfiMaxMemoryType => false,
+        }
+    }
+
+    pub fn usable_by_kernel(&self) -> bool {
+        match self {
+            MemoryType::EfiReservedMemoryType => false,
+            MemoryType::EfiLoaderCode => true,
+            MemoryType::EfiLoaderData => true,
+            MemoryType::EfiBootServicesCode => true,
+            MemoryType::EfiBootServicesData => true,
+            MemoryType::EfiRuntimeServicesCode => false,
+            MemoryType::EfiRuntimeServicesData => false,
+            MemoryType::EfiConventionalMemory => true,
+            MemoryType::EfiUnusableMemory => false,
+            MemoryType::EfiACPIReclaimMemory => false, // TODO: must set up acpi in bootloader, then set to trup
+            MemoryType::EfiACPIMemoryNVS => false,
+            MemoryType::EfiMemoryMappedIO => false,
+            MemoryType::EfiMemoryMappedIOPortSpace => false,
+            MemoryType::EfiPalCode => false,
+            MemoryType::EfiPersistentMemory => true,
+            MemoryType::EfiUnacceptedMemoryType => false,
+            MemoryType::EfiMaxMemoryType => false,
+        }
+    }
+}

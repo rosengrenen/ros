@@ -10,6 +10,7 @@ use bootloader_api::BootInfo;
 use core::{
     alloc::{AllocError, Allocator, Layout},
     fmt::Write,
+    ops::DerefMut,
     ptr::NonNull,
 };
 use elf::get_elf_entry_point_offset;
@@ -28,6 +29,7 @@ use x86_64::{
     control::{Cr0, Cr2, Cr3, Cr4},
     gdt::{GdtDesc, Gdtr},
     idt::{read_cs, IdtEntry},
+    paging::PageMapLevel4Table,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -112,16 +114,6 @@ pub extern "efiapi" fn efi_main(
         .locate_protocol::<Serial>()
         .unwrap();
 
-    let idt = system_table
-        .boot_services()
-        .allocate_pages(AllocateType::AllocateAnyPages, MemoryType::EfiLoaderData, 1)
-        .unwrap();
-
-    let gdt = system_table
-        .boot_services()
-        .allocate_pages(AllocateType::AllocateAnyPages, MemoryType::EfiLoaderData, 1)
-        .unwrap();
-
     // This is what the bootloader needs to do:
     // 1. Read the kernel file
     let (kernel_fn, kernel_addr, kernel_pages) = {
@@ -202,25 +194,7 @@ pub extern "efiapi" fn efi_main(
             let mut memory_map = [None; 128];
             let mut memory_map_len = 0;
             for (i, item) in memory_map_iter
-                .filter(|desc| match desc.ty {
-                    MemoryType::EfiReservedMemoryType => false,
-                    MemoryType::EfiLoaderCode => true,
-                    MemoryType::EfiLoaderData => true,
-                    MemoryType::EfiBootServicesCode => true,
-                    MemoryType::EfiBootServicesData => true,
-                    MemoryType::EfiRuntimeServicesCode => false,
-                    MemoryType::EfiRuntimeServicesData => false,
-                    MemoryType::EfiConventionalMemory => true,
-                    MemoryType::EfiUnusableMemory => false,
-                    MemoryType::EfiACPIReclaimMemory => false,
-                    MemoryType::EfiACPIMemoryNVS => false,
-                    MemoryType::EfiMemoryMappedIO => false,
-                    MemoryType::EfiMemoryMappedIOPortSpace => false,
-                    MemoryType::EfiPalCode => false,
-                    MemoryType::EfiPersistentMemory => false,
-                    MemoryType::EfiUnacceptedMemoryType => false,
-                    MemoryType::EfiMaxMemoryType => false,
-                })
+                .filter(|desc| desc.ty.usable_by_loader())
                 .filter(|desc| desc.physical_start > 0)
                 .enumerate()
             {
@@ -239,6 +213,39 @@ pub extern "efiapi" fn efi_main(
                     descriptor_index: 0,
                     addr: memory_map[0].unwrap().physical_start,
                 },
+            }
+        }
+    }
+
+    impl BumpAllocator {
+        fn allocate_pages(&self, num_pages: u64) -> Result<u64, AllocError> {
+            let inner = unsafe {
+                let inner = (&self.inner) as *const BumpAllocatorInner;
+                let inner = inner as *mut BumpAllocatorInner;
+                &mut *inner
+            };
+
+            loop {
+                let mem_desc = &self.memory_map[inner.descriptor_index].unwrap();
+                let mem_desc_size = mem_desc.number_of_pages * 4096;
+                // align to 4096
+                inner.addr = (inner.addr & !0xfff) + 4096;
+                let mem_left_in_desc = mem_desc.physical_start + mem_desc_size - inner.addr;
+
+                if mem_left_in_desc >= 4096 * num_pages {
+                    let ptr = inner.addr;
+                    inner.addr += 4096 * num_pages;
+                    return Ok(ptr);
+                }
+
+                if inner.descriptor_index >= self.memory_map_len {
+                    return Err(AllocError);
+                }
+
+                inner.descriptor_index += 1;
+                inner.addr = self.memory_map[inner.descriptor_index]
+                    .unwrap()
+                    .physical_start;
             }
         }
     }
@@ -287,18 +294,58 @@ pub extern "efiapi" fn efi_main(
         }
     }
 
-    let new_allocator = BumpAllocator::new(memory_map.iter());
+    let bump_allocator = BumpAllocator::new(memory_map.iter());
     let memory_map_key = memory_map.key;
     let _memory_descs = memory_map
         .iter()
         .cloned()
-        .collect_in::<Vec<_, _>, _>(&new_allocator)
+        .collect_in::<Vec<_, _>, _>(&bump_allocator)
         .unwrap();
+    let mut kernel_mem_regions: Vec<MemoryDescriptor, _> = Vec::new(&bump_allocator);
+    for desc in _memory_descs.iter() {
+        if !desc.ty.usable_by_kernel() {
+            kernel_mem_regions.push(*desc);
+            continue;
+        }
+
+        if let Some(last) = kernel_mem_regions.last_mut() {
+            if last.ty.usable_by_kernel()
+                && last.physical_start + last.number_of_pages * 4096 == desc.physical_start
+            {
+                last.number_of_pages += desc.number_of_pages;
+            } else {
+                kernel_mem_regions.push(*desc).unwrap();
+            }
+        } else {
+            kernel_mem_regions.push(*desc).unwrap();
+        }
+    }
     core::mem::forget(memory_map);
     writeln!(serial, "uefi").unwrap();
+    writeln!(serial, "mem descs").unwrap();
+    for desc in _memory_descs.iter() {
+        writeln!(
+            serial,
+            "{:?} {:x} {:x}",
+            desc.ty,
+            desc.physical_start,
+            desc.physical_start + desc.number_of_pages * 4096
+        )
+        .unwrap();
+    }
 
-    writeln!(serial, "idt at {:x}", idt);
-    writeln!(serial, "gdt at {:x}", gdt);
+    writeln!(serial, "kernel mem regions").unwrap();
+    for desc in kernel_mem_regions.iter() {
+        writeln!(
+            serial,
+            "{:?} {:x} {:x}",
+            desc.ty,
+            desc.physical_start,
+            desc.physical_start + desc.number_of_pages * 4096
+        )
+        .unwrap();
+    }
+
     writeln!(serial, "{:x?}", Cr0::read());
     writeln!(serial, "{:x?}", Cr2::read());
     writeln!(serial, "{:x?}", Cr3::read());
@@ -313,6 +360,11 @@ pub extern "efiapi" fn efi_main(
 
     let mut serial = SerialPort::new(COM1_BASE);
 
+    let idt = bump_allocator.allocate_pages(1).unwrap();
+    let gdt = bump_allocator.allocate_pages(1).unwrap();
+
+    writeln!(serial, "idt at {:x}", idt);
+    writeln!(serial, "gdt at {:x}", gdt);
     writeln!(serial, "{:x?}", Cr0::read());
     writeln!(serial, "{:x?}", Cr2::read());
     writeln!(serial, "{:x?}", Cr3::read());
@@ -383,7 +435,30 @@ pub extern "efiapi" fn efi_main(
     writeln!(serial, "launching kernel!!").unwrap();
     writeln!(serial, "jumping to {:x}", kernel_fn as usize).unwrap();
 
-    panic!();
+    // let pml4 = PageMapLevel4Table::from_cr3();
+    // writeln!(serial, "pml4: {:x?}", pml4);
+    // for pml4_index in 0..512 {
+    //     if let Some(pml4_entry) = pml4.get_index(pml4_index) {
+    //         let pml4_entry = unsafe { *pml4_entry };
+    //         let pml3 = pml4_entry.page_directory_pointer();
+    //         writeln!(serial, "pml3: {:x?}", pml3);
+    //         for pml3_index in 0..512 {
+    //             if let Some(pml3_entry) = pml3.get_index(pml3_index) {
+    //                 let pml3_entry = unsafe { *pml3_entry };
+    //                 if pml3_entry.page_size() {
+    //                     writeln!(serial, "pml3 page: {:x?}", pml3_entry.page_addr_1gb());
+    //                 } else {
+    //                     let pml2 = pml3_entry.page_directory();
+    //                     writeln!(serial, "pml2: {:x?}", pml2);
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+    // writeln!(serial, "fine");
+
+    // panic!();
 
     // 4. Call the kernel
     unsafe {

@@ -126,11 +126,11 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
 
     let mut serial = SerialPort::new(COM1_BASE);
     serial.configure(1);
-    serial.write_str("_start\n");
-    write_num(&mut serial, _start as _);
-    serial.write_str("\ninterrupt_div0\n");
-    write_num(&mut serial, interrupt_div0 as _);
-    serial.write_char('\n');
+    // serial.write_str("_start\n");
+    // write_num(&mut serial, _start as _);
+    // serial.write_str("\ninterrupt_div0\n");
+    // write_num(&mut serial, interrupt_div0 as _);
+    // serial.write_char('\n');
 
     let gdt = unsafe {
         core::slice::from_raw_parts_mut(info.gdt as *mut u64, 3)
@@ -216,7 +216,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     // let mut d = Dummy;
     // the line below crashes the whole thing, the macro just invokes .write_fmt so they are equivalent
     // serial.write_fmt(format_args!("{}, format_args! works?\n", 2));
-    write!(serial, "write! works: {}", 12345);
+    // write!(serial, "write! works: {}", 12345);
 
     let mut red = 255;
     let mut green = 0;
