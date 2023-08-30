@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 #![feature(allocator_api)]
-#![feature(abi_x86_interrupt)]
 
 mod allocator;
 mod elf;
@@ -68,7 +67,8 @@ pub extern "efiapi" fn efi_main(
 
     let bump_allocator = BumpAllocator::new(memory_map.iter());
     let memory_map_key = memory_map.key;
-    let _kernel_mem_regions = get_kernel_mem_regions(memory_map, &bump_allocator).unwrap();
+    let _kernel_mem_regions = get_kernel_mem_regions(&memory_map, &bump_allocator).unwrap();
+    core::mem::forget(memory_map);
 
     // Exit UEFI boot services
     let system_table = system_table
@@ -133,7 +133,9 @@ pub extern "efiapi" fn efi_main(
 }
 
 #[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    let mut serial = SerialPort::new(COM1_BASE);
+    writeln!(serial, "{:?}", info).unwrap();
     loop {}
 }
 
@@ -154,7 +156,7 @@ fn read_kernel_executable(
 }
 
 fn get_kernel_mem_regions<'alloc, A: Allocator>(
-    memory_map: MemoryMap<UefiAllocator>,
+    memory_map: &MemoryMap<UefiAllocator>,
     alloc: &'alloc A,
 ) -> Result<Vec<'alloc, MemoryDescriptor, A>, PushError> {
     let mut kernel_mem_regions: Vec<MemoryDescriptor, _> = Vec::new(alloc);

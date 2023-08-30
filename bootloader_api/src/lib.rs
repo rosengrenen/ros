@@ -16,6 +16,7 @@ pub struct BootInfo {
     pub gdt: u64,
 }
 
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Framebuffer {
     pub base: usize,

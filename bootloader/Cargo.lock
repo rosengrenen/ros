@@ -4,11 +4,11 @@ version = 3
 
 [[package]]
 name = "alloc"
-version = "0.1.0"
+version = "0.0.0"
 
 [[package]]
 name = "bootloader"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "alloc",
  "bootloader_api",
@@ -19,22 +19,22 @@ dependencies = [
 
 [[package]]
 name = "bootloader_api"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "uefi",
 ]
 
 [[package]]
 name = "serial"
-version = "0.1.0"
+version = "0.0.0"
 
 [[package]]
 name = "uefi"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "alloc",
 ]
 
 [[package]]
 name = "x86_64"
-version = "0.1.0"
+version = "0.0.0"

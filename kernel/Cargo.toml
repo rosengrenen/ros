@@ -1,6 +1,6 @@
 [package]
 name = "ros"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
 
 [profile.dev]
@@ -11,6 +11,6 @@ panic = "abort"
 
 [dependencies]
 bootloader_api = { path = "../bootloader_api" }
-serial = { path = "../serial" }
-uefi = { path = "../uefi" }
-x86_64 = { path = "../x86_64" }
+serial = { path = "../libs/serial" }
+uefi = { path = "../libs/uefi" }
+x86_64 = { path = "../libs/arch/x86_64" }
