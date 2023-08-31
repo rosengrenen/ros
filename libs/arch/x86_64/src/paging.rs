@@ -1,6 +1,7 @@
 // https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html volume 3A contains paging information
 
 use crate::control::{Cr0, Cr3};
+use core::fmt::Write;
 
 #[derive(Debug)]
 pub struct PhysAddr(u64);
@@ -13,7 +14,7 @@ impl PhysAddr {
 
 impl core::fmt::Display for PhysAddr {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:x}", self.0)
+        write!(f, "{:#x}", self.0)
     }
 }
 
@@ -68,14 +69,17 @@ impl core::fmt::Debug for VirtAddr {
 
 impl core::fmt::Display for VirtAddr {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:x}", self.0)
+        write!(f, "{:#x}", self.0)
     }
 }
 
-trait FrameAllocator {
-    fn allocate_frame(&self) -> PhysAddr;
+#[derive(Debug)]
+pub struct FrameAllocError;
 
-    fn deallocate_frame(&self, frame: PhysAddr);
+pub trait FrameAllocator {
+    fn allocate_frame(&self) -> Result<u64, FrameAllocError>;
+
+    fn deallocate_frame(&self, frame: u64) -> Result<(), FrameAllocError>;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -141,11 +145,11 @@ impl PageTableEntry {
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(4096))]
 pub struct PageTable {
-    pub entries: *const PageTableEntry,
+    pub entries: *mut PageTableEntry,
 }
 
 impl PageTable {
-    pub fn new(base: *const PageTableEntry) -> Self {
+    pub fn new(base: *mut PageTableEntry) -> Self {
         Self { entries: base }
     }
 
@@ -197,5 +201,70 @@ impl PageTable {
         Some(PhysAddr::new(
             pml1_entry.page_addr_4kb() + virt_addr.page_4kb_offset(),
         ))
+    }
+
+    pub fn map_to(
+        &self,
+        virt_addr: VirtAddr,
+        phys_addr: PhysAddr,
+        frame_allocator: &impl FrameAllocator,
+    ) -> bool {
+        // change if already mapped
+        if self.translate(virt_addr).is_some() {
+            return false;
+        }
+
+        // check page align
+        if virt_addr.page_4kb_offset() != 0 {
+            return false;
+        }
+
+        // check page align
+        if phys_addr.0 & 0xfff != 0 {
+            return false;
+        }
+
+        let pml4_index = virt_addr.pml4_index();
+        let pml3_table = if let Some(entry) = self.get_index(pml4_index as _) {
+            entry.page_table()
+        } else {
+            let new_pml3_frame = frame_allocator.allocate_frame().unwrap();
+            let new_entry = PageTableEntry(new_pml3_frame | 0x3);
+            unsafe {
+                *self.entries.offset(pml4_index as _) = new_entry;
+            }
+            new_entry.page_table()
+        };
+
+        let pml3_index = virt_addr.pml3_index();
+        let pml2_table = if let Some(entry) = pml3_table.get_index(pml3_index as _) {
+            entry.page_table()
+        } else {
+            let new_pml2_frame = frame_allocator.allocate_frame().unwrap();
+            let new_entry = PageTableEntry(new_pml2_frame | 0x3);
+            unsafe {
+                *pml3_table.entries.offset(pml3_index as _) = new_entry;
+            }
+            new_entry.page_table()
+        };
+
+        let pml2_index = virt_addr.pml2_index();
+        let pml1_table = if let Some(entry) = pml2_table.get_index(pml2_index as _) {
+            entry.page_table()
+        } else {
+            let new_pml1_frame = frame_allocator.allocate_frame().unwrap();
+            let new_entry = PageTableEntry(new_pml1_frame | 0x3);
+            unsafe {
+                *pml2_table.entries.offset(pml2_index as _) = new_entry;
+            }
+            new_entry.page_table()
+        };
+
+        let pml1_index = virt_addr.pml1_index();
+        unsafe {
+            *pml1_table.entries.offset(pml1_index as _) = PageTableEntry(phys_addr.0 | 0x3);
+        }
+
+        true
     }
 }

@@ -4,6 +4,7 @@ use core::{
 };
 
 use uefi::services::boot::MemoryDescriptor;
+use x86_64::paging::{FrameAllocError, FrameAllocator};
 
 pub struct BumpAllocator {
     memory_map: [Option<MemoryDescriptor>; 128],
@@ -118,5 +119,47 @@ unsafe impl Allocator for BumpAllocator {
 
     unsafe fn deallocate(&self, _ptr: NonNull<u8>, _layout: Layout) {
         // Deallocating is a noop
+    }
+}
+
+impl FrameAllocator for BumpAllocator {
+    fn allocate_frame(&self) -> Result<u64, FrameAllocError> {
+        let inner = unsafe {
+            let inner = (&self.inner) as *const BumpAllocatorInner;
+            let inner = inner as *mut BumpAllocatorInner;
+            &mut *inner
+        };
+
+        loop {
+            let mem_desc = &self.memory_map[inner.descriptor_index].unwrap();
+            let mem_desc_size = mem_desc.number_of_pages * 4096;
+            // align to 4096
+            inner.addr = (inner.addr & !0xfff) + 4096;
+            let mem_left_in_desc = mem_desc.physical_start + mem_desc_size - inner.addr;
+
+            if mem_left_in_desc >= 4096 {
+                let ptr = inner.addr;
+                let frame_slice = unsafe { core::slice::from_raw_parts_mut::<u8>(ptr as _, 4096) };
+                for item in frame_slice {
+                    *item = 0;
+                }
+
+                inner.addr += 4096;
+                return Ok(ptr);
+            }
+
+            if inner.descriptor_index >= self.memory_map_len {
+                return Err(FrameAllocError);
+            }
+
+            inner.descriptor_index += 1;
+            inner.addr = self.memory_map[inner.descriptor_index]
+                .unwrap()
+                .physical_start;
+        }
+    }
+
+    fn deallocate_frame(&self, _frame: u64) -> Result<(), FrameAllocError> {
+        Ok(())
     }
 }

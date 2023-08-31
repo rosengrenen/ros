@@ -4,6 +4,7 @@
 
 mod allocator;
 mod elf;
+mod print;
 
 use alloc::vec::{PushError, Vec};
 use bootloader_api::BootInfo;
@@ -26,9 +27,10 @@ use x86_64::{
     control::{Cr0, Cr2, Cr3, Cr4},
     flags::RFlags,
     idt::read_cs,
+    paging::{FrameAllocator, PageTable, PhysAddr, VirtAddr},
 };
 
-use crate::allocator::BumpAllocator;
+use crate::{allocator::BumpAllocator, print::print_page_table};
 
 #[no_mangle]
 pub extern "efiapi" fn efi_main(
@@ -80,6 +82,18 @@ pub extern "efiapi" fn efi_main(
 
     let idt = bump_allocator.allocate_pages(1).unwrap();
     let gdt = bump_allocator.allocate_pages(1).unwrap();
+
+    let pml4_frame = bump_allocator.allocate_frame().unwrap();
+    let pml4 = PageTable::new(pml4_frame as _);
+    pml4.map_to(
+        VirtAddr::new(0xffff_f000),
+        PhysAddr::new(0x0123_4000),
+        &bump_allocator,
+    );
+
+    // let pml4_active = PageTable::new(Cr3::read().pba_pml4 as _);
+    // print_page_table(&mut serial, &pml4_active);
+    print_page_table(&mut serial, &pml4);
 
     // Allocate stack for the kernel
     const STACK_PAGES: usize = 1;
