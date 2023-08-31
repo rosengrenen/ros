@@ -84,6 +84,7 @@ fn init_gdt(gdt: &mut [u64]) {
     reload_segments();
 }
 
+// TODO: move to x86_64 crate
 fn reload_segments() {
     unsafe {
         core::arch::asm!(
