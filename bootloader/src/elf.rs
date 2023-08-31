@@ -6,6 +6,7 @@ use uefi::services::boot::{AllocateType, BootServices, MemoryType};
 pub struct KernelExecutable {
     pub image_start: u64,
     pub image_end: u64,
+    pub frame_addr: u64,
     pub frames: u64,
     pub entry_point: u64,
 }
@@ -77,6 +78,7 @@ pub fn get_elf_entry_point_offset<A: Allocator>(
     Ok(KernelExecutable {
         image_start,
         image_end,
+        frame_addr: kernel_addr,
         frames: kernel_pages as _,
         entry_point,
     })

@@ -24,6 +24,7 @@ use uefi::{
 };
 use x86_64::{
     control::{Cr0, Cr2, Cr3, Cr4},
+    flags::RFlags,
     idt::read_cs,
 };
 
@@ -185,20 +186,12 @@ fn get_framebuffer(uefi_boot_services: &BootServices) -> bootloader_api::Framebu
     }
 }
 
-fn read_eflags() -> u64 {
-    let flags;
-    unsafe {
-        core::arch::asm!("pushf; pop {}", out(reg) flags);
-    }
-    flags
-}
-
 #[allow(dead_code)]
 fn dump_registers(serial: &mut SerialPort) {
+    writeln!(serial, "{:x?}", RFlags::read()).unwrap();
     writeln!(serial, "{:x?}", Cr0::read()).unwrap();
     writeln!(serial, "{:x?}", Cr2::read()).unwrap();
     writeln!(serial, "{:x?}", Cr3::read()).unwrap();
     writeln!(serial, "{:x?}", Cr4::read()).unwrap();
-    writeln!(serial, "EFLAGS: {:x?}", read_eflags()).unwrap();
     writeln!(serial, "CS: {:x?}", read_cs()).unwrap();
 }
