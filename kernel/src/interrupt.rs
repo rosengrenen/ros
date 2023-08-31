@@ -1,6 +1,6 @@
 use core::fmt::Write;
 use serial::{SerialPort, COM1_BASE};
-use x86_64::idt::IdtEntry;
+use x86_64::{control::Cr2, idt::IdtEntry};
 
 use crate::DescriptorTablePointer;
 
@@ -31,23 +31,35 @@ struct InterruptStackFrame {
     pub stack_segment: u64,
 }
 
-extern "x86-interrupt" fn interrupt_div0(_frame: InterruptStackFrame) {
+extern "x86-interrupt" fn interrupt_div0(frame: InterruptStackFrame) {
     let mut serial = SerialPort::new(COM1_BASE);
-    serial.write_str("Div 0\n").unwrap();
+    writeln!(serial, "Div 0, frame: {:#x?}", frame).unwrap();
     loop {}
 }
 
-extern "x86-interrupt" fn interrupt_breakpoint(_frame: InterruptStackFrame) {
+extern "x86-interrupt" fn interrupt_breakpoint(frame: InterruptStackFrame) {
     let mut serial = SerialPort::new(COM1_BASE);
-    serial.write_str("Breakpoint\n").unwrap();
+    writeln!(serial, "Breakpoint, frame: {:#x?}", frame).unwrap();
 }
 
-extern "x86-interrupt" fn interrupt_dbl(_frame: InterruptStackFrame, _code: u64) {
+extern "x86-interrupt" fn interrupt_dbl(frame: InterruptStackFrame, code: u64) {
     let mut serial = SerialPort::new(COM1_BASE);
-    serial.write_str("Double fault\n").unwrap();
+    writeln!(
+        serial,
+        "Double fault, frame: {:#x?}. code: {:#x}",
+        frame, code
+    )
+    .unwrap();
 }
 
-extern "x86-interrupt" fn interrupt_page_fault(_frame: InterruptStackFrame, _code: u64) {
+extern "x86-interrupt" fn interrupt_page_fault(frame: InterruptStackFrame, code: u64) {
     let mut serial = SerialPort::new(COM1_BASE);
-    serial.write_str("Page fault\n").unwrap();
+    writeln!(
+        serial,
+        "Page fault, frame: {:#x?}, code: {:#x}, trying to access: {:#x?}",
+        frame,
+        code,
+        Cr2::read()
+    )
+    .unwrap();
 }

@@ -203,7 +203,7 @@ impl PageTable {
         ))
     }
 
-    pub fn map_to(
+    pub fn map(
         &self,
         virt_addr: VirtAddr,
         phys_addr: PhysAddr,
@@ -266,5 +266,9 @@ impl PageTable {
         }
 
         true
+    }
+
+    pub fn map_ident(&self, virt_addr: VirtAddr, frame_allocator: &impl FrameAllocator) -> bool {
+        self.map(virt_addr, PhysAddr(virt_addr.0), frame_allocator)
     }
 }

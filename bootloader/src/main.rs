@@ -17,9 +17,9 @@ use serial::{SerialPort, COM1_BASE};
 use uefi::{
     allocator::UefiAllocator,
     services::{
-        boot::{BootServices, MemoryDescriptor, MemoryMap},
+        boot::{BootServices, MemoryDescriptor, MemoryMap, MemoryType},
         filesystem::FileSystem,
-        graphics::Graphics,
+        graphics::{BltPixel, Graphics},
     },
     string::String16,
 };
@@ -40,11 +40,14 @@ pub extern "efiapi" fn efi_main(
     let system_table = system_table.init();
     let uefi_allocator = UefiAllocator::new(system_table.boot_services());
     system_table.con_out().reset(false).unwrap();
+    let mut serial = SerialPort::new(COM1_BASE);
+    serial.configure(1);
 
     // This is what the bootloader needs to do:
     // 1. Read the kernel file
     let kernel_executable =
         read_kernel_executable(system_table.boot_services(), &uefi_allocator).unwrap();
+    writeln!(serial, "{:#x?}", kernel_executable);
 
     // 2. Retrieve kernel args from UEFI boot services before it goes out of scope
     let framebuffer = get_framebuffer(system_table.boot_services());
@@ -71,35 +74,67 @@ pub extern "efiapi" fn efi_main(
     let bump_allocator = BumpAllocator::new(memory_map.iter());
     let memory_map_key = memory_map.key;
     let _kernel_mem_regions = get_kernel_mem_regions(&memory_map, &bump_allocator).unwrap();
+    // writeln!(serial, "{:#x?}", _kernel_mem_regions);
     core::mem::forget(memory_map);
 
     // Exit UEFI boot services
     let system_table = system_table
         .exit_boot_services(image_handle, memory_map_key)
         .unwrap();
-
-    let mut serial = SerialPort::new(COM1_BASE);
-
     let idt = bump_allocator.allocate_pages(1).unwrap();
     let gdt = bump_allocator.allocate_pages(1).unwrap();
 
     let pml4_frame = bump_allocator.allocate_frame().unwrap();
     let pml4 = PageTable::new(pml4_frame as _);
-    pml4.map_to(
-        VirtAddr::new(0xffff_f000),
-        PhysAddr::new(0x0123_4000),
-        &bump_allocator,
-    );
 
-    // let pml4_active = PageTable::new(Cr3::read().pba_pml4 as _);
-    // print_page_table(&mut serial, &pml4_active);
-    print_page_table(&mut serial, &pml4);
+    // Identity map all boot service regions so that bootloader continues working
+    for desc in _kernel_mem_regions.iter() {
+        if desc.ty == MemoryType::EfiBootServicesCode || desc.ty == MemoryType::EfiBootServicesData
+        {
+            for frame_index in 0..desc.number_of_pages {
+                pml4.map_ident(
+                    VirtAddr::new(desc.physical_start + frame_index * 4096),
+                    &bump_allocator,
+                );
+            }
+        }
+    }
 
-    // Allocate stack for the kernel
-    const STACK_PAGES: usize = 1;
-    let stack = bump_allocator.allocate_pages(STACK_PAGES as _).unwrap();
-    let stack_start = stack;
-    let stack_end = stack_start + 4096 * STACK_PAGES as u64;
+    // Map kernel to virtual addresses
+    for page in 0..kernel_executable.frames {
+        pml4.map(
+            VirtAddr::new(kernel_executable.image_start + page * 4096),
+            PhysAddr::new(kernel_executable.frame_addr + page * 4096),
+            &bump_allocator,
+        );
+    }
+
+    // Identity map framebuffer
+    let framebuffer_frames =
+        framebuffer.height * framebuffer.width * core::mem::size_of::<BltPixel>() / 4096;
+    for page in 0..framebuffer_frames {
+        pml4.map_ident(
+            VirtAddr::new((framebuffer.base + page * 4096) as u64),
+            &bump_allocator,
+        );
+    }
+
+    // Allocate stack for the kernel and map it to virtual addresses
+    let stack_pages = 8;
+    let stack_end: u64 = 0xffff_ffff_ffff_fff8;
+    let stack_start = (stack_end & !0xfff) - (stack_pages - 1) * 4096;
+    for page in 0..stack_pages {
+        let frame = bump_allocator.allocate_frame().unwrap();
+        pml4.map(
+            VirtAddr::new(stack_start + page * 4096),
+            PhysAddr::new(frame),
+            &bump_allocator,
+        );
+    }
+
+    // print_page_table(&mut serial, &pml4);
+
+    Cr3::write(pml4_frame);
 
     // Populate memory regions
     let memory_regions_addr = boot_info_addr + memory_regions_offset;
@@ -133,7 +168,12 @@ pub extern "efiapi" fn efi_main(
     let info_ptr = &info as *const BootInfo;
 
     writeln!(serial, "launching kernel!!").unwrap();
-    writeln!(serial, "jumping to {:x}", kernel_executable.entry_point).unwrap();
+    writeln!(
+        serial,
+        "jumping to {:#x}, new stack {:#x}",
+        kernel_executable.entry_point, stack_end
+    )
+    .unwrap();
 
     // 4. Call the kernel
     unsafe {

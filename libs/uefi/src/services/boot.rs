@@ -118,6 +118,24 @@ impl BootServices {
         Ok(())
     }
 
+    pub fn open_protocol<T: UefiProtocol>(&self, handle: Handle) -> Result<&mut T, usize> {
+        let mut interface = core::ptr::null();
+        let status = (self.open_protocol)(
+            handle,
+            &T::GUID,
+            &mut interface as *mut _,
+            handle,
+            core::ptr::null(),
+            0x20, // EFI_OPEN_PROTOCOL_EXCLUSIVE
+        );
+        if status != 0 {
+            return Err(status);
+        }
+
+        let interface = unsafe { &mut *(interface as *mut T) };
+        Ok(interface)
+    }
+
     pub fn locate_protocol<T: UefiProtocol>(&self) -> Result<&mut T, usize> {
         let mut interface = core::ptr::null();
         let status = (self.locate_protocol)(&T::GUID, core::ptr::null(), &mut interface as *mut _);
@@ -294,7 +312,14 @@ pub struct BootServices {
     pub disconnect_controller: extern "efiapi" fn() -> Status, // EFI 1.1+
 
     // Open and Close Protocol Services
-    pub open_protocol: extern "efiapi" fn() -> Status, // EFI 1.1+
+    pub open_protocol: extern "efiapi" fn(
+        handle: Handle,
+        protocol: &Guid,
+        interface: *mut *const c_void,
+        agent_handle: Handle,
+        controller_handle: Handle,
+        attributes: u32,
+    ) -> Status, // EFI 1.1+
     pub close_protocol: extern "efiapi" fn() -> Status, // EFI 1.1+
     pub open_protocol_information: extern "efiapi" fn() -> Status, // EFI 1.1+
 
@@ -349,7 +374,7 @@ pub enum AllocateType {
 }
 
 /// UEFI Spec 2.10 section 7.2.1
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u32)]
 pub enum MemoryType {
     EfiReservedMemoryType,

@@ -73,14 +73,12 @@ pub fn get_elf_entry_point_offset<A: Allocator>(
             .copy_from_slice(&elf[file_start_addr..(size + file_start_addr)]);
     }
 
-    let entry_point_offset = header.entry - image_start;
-    let entry_point = &page[entry_point_offset as usize] as *const _ as _;
     Ok(KernelExecutable {
         image_start,
         image_end,
         frame_addr: kernel_addr,
         frames: kernel_pages as _,
-        entry_point,
+        entry_point: header.entry,
     })
 }
 

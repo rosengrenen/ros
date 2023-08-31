@@ -22,12 +22,8 @@ pub struct DescriptorTablePointer {
 
 #[no_mangle]
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
-    // let _memory_regions =
-    // unsafe { core::slice::from_raw_parts(info.memory_regions.ptr, info.memory_regions.len) };
     // Set things up
     // * Set up physical frame manager
-    // * Set up paging
-    // * Set up interrupt handlers
     // Load init system
 
     let mut serial = SerialPort::new(COM1_BASE);
@@ -55,7 +51,6 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         core::arch::asm!("int3");
     }
     // divide_by_zero();
-    // doesnt work yet as every page is identity mapped
     // cause_page_fault();
 
     color_loop(info.framebuffer)
