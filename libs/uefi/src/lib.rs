@@ -24,6 +24,8 @@ mod table;
 
 use core::{ffi::c_void, marker::PhantomData};
 
+use services::boot::Guid;
+
 /// UEFI Spec 2.10 section 4.2.1
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
@@ -74,6 +76,15 @@ impl SystemTable<Boot> {
         self.inner.boot_services
     }
 
+    pub fn configuration_table(&self) -> &[ConfigurationTable] {
+        unsafe {
+            core::slice::from_raw_parts(
+                self.inner.configuration_table,
+                self.inner.number_of_table_entries,
+            )
+        }
+    }
+
     pub fn exit_boot_services(
         self,
         image_handle: Handle,
@@ -100,5 +111,12 @@ pub struct SystemTableImpl {
     pub runtime_services: *const c_void,
     boot_services: &'static services::boot::BootServices,
     number_of_table_entries: usize,
-    configuration_table: *const c_void,
+    configuration_table: *const ConfigurationTable,
+}
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct ConfigurationTable {
+    pub vendor_guid: Guid,
+    pub vendor_table: *const c_void,
 }

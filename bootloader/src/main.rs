@@ -1,11 +1,15 @@
 #![no_std]
 #![no_main]
 #![feature(allocator_api)]
+// TODO: think about if this is necessary
+#![deny(unsafe_op_in_unsafe_fn)]
 
+mod acpi;
 mod allocator;
 mod elf;
 mod print;
 
+use acpi::DefinitionHeader;
 use alloc::vec::{PushError, Vec};
 use bootloader_api::BootInfo;
 use core::{
@@ -17,7 +21,7 @@ use serial::{SerialPort, COM1_BASE};
 use uefi::{
     allocator::UefiAllocator,
     services::{
-        boot::{BootServices, MemoryDescriptor, MemoryMap, MemoryType},
+        boot::{BootServices, Guid, MemoryDescriptor, MemoryMap, MemoryType},
         filesystem::FileSystem,
         graphics::{BltPixel, Graphics},
     },
@@ -30,7 +34,10 @@ use x86_64::{
     paging::{FrameAllocator, PageTable, PhysAddr, VirtAddr},
 };
 
-use crate::{allocator::BumpAllocator, print::print_page_table};
+use crate::{
+    acpi::{Fadt, Rsdp},
+    allocator::BumpAllocator,
+};
 
 #[no_mangle]
 pub extern "efiapi" fn efi_main(
@@ -47,7 +54,7 @@ pub extern "efiapi" fn efi_main(
     // 1. Read the kernel file
     let kernel_executable =
         read_kernel_executable(system_table.boot_services(), &uefi_allocator).unwrap();
-    writeln!(serial, "{:#x?}", kernel_executable);
+    writeln!(serial, "{:#x?}", kernel_executable).unwrap();
 
     // 2. Retrieve kernel args from UEFI boot services before it goes out of scope
     let framebuffer = get_framebuffer(system_table.boot_services());
@@ -62,6 +69,22 @@ pub extern "efiapi" fn efi_main(
     let (_boot_info_layout, reserved_memory_regions_offset) = boot_info_layout
         .extend(reserved_memory_regions_layout)
         .unwrap();
+
+    const EFI_ACPI_TABLE_GUID: Guid = Guid(
+        0x8868e871,
+        0xe4f1,
+        0x11d3,
+        [0xbc, 0x22, 0x00, 0x80, 0xc7, 0x3c, 0x88, 0x81],
+    );
+
+    let acpi_entry = system_table
+        .configuration_table()
+        .iter()
+        .find(|entry| entry.vendor_guid == EFI_ACPI_TABLE_GUID)
+        .unwrap();
+    writeln!(serial, "{:x?}", acpi_entry).unwrap();
+
+    let rsdp = unsafe { Rsdp::from_addr(acpi_entry.vendor_table as _) };
 
     // Allocate frames for the boot info
     let boot_info_addr = 0;
@@ -89,7 +112,9 @@ pub extern "efiapi" fn efi_main(
 
     // Identity map all boot service regions so that bootloader continues working
     for desc in _kernel_mem_regions.iter() {
-        if desc.ty == MemoryType::EfiBootServicesCode || desc.ty == MemoryType::EfiBootServicesData
+        if desc.ty == MemoryType::EfiBootServicesCode
+            || desc.ty == MemoryType::EfiBootServicesData
+            || desc.ty == MemoryType::EfiACPIReclaimMemory
         {
             for frame_index in 0..desc.number_of_pages {
                 pml4.map_ident(
@@ -135,6 +160,31 @@ pub extern "efiapi" fn efi_main(
     // print_page_table(&mut serial, &pml4);
 
     Cr3::write(pml4_frame);
+
+    for hdr_ptr in rsdp.table_ptrs() {
+        let hdr = unsafe { hdr_ptr.read() };
+        if &hdr.signature == b"FACP" {
+            let ptr = *hdr_ptr as *const Fadt;
+            let fadt = unsafe { ptr.read() };
+            let dsdt_addr = fadt.dsdt;
+            writeln!(
+                serial,
+                "{} {:#x?}",
+                core::str::from_utf8(&hdr.signature).unwrap(),
+                fadt
+            );
+        } else if &hdr.signature == b"APIC" {
+            // TODO: print the entries
+            print_apic(&mut serial, *hdr_ptr);
+        } else {
+            writeln!(
+                serial,
+                "{} {:?}",
+                core::str::from_utf8(&hdr.signature).unwrap(),
+                hdr
+            );
+        }
+    }
 
     // Populate memory regions
     let memory_regions_addr = boot_info_addr + memory_regions_offset;
@@ -248,4 +298,82 @@ fn dump_registers(serial: &mut SerialPort) {
     writeln!(serial, "{:x?}", Cr3::read()).unwrap();
     writeln!(serial, "{:x?}", Cr4::read()).unwrap();
     writeln!(serial, "CS: {:x?}", read_cs()).unwrap();
+}
+
+fn print_apic(serial: &mut SerialPort, hdr_ptr: *const DefinitionHeader) {
+    let hdr = unsafe { hdr_ptr.read() };
+    let byte_ptr = unsafe { hdr_ptr.add(1) }.cast::<u8>();
+    let local_interrupts_controller_address = unsafe { byte_ptr.cast::<u32>().read() };
+    let flags = unsafe { byte_ptr.add(1).cast::<u32>().read() };
+    writeln!(
+        serial,
+        "{:#x?}, local interrupts controller addr: {:x}, flags: {:x}",
+        hdr, local_interrupts_controller_address, flags
+    );
+
+    let mut entry_start = unsafe { byte_ptr.add(8) };
+    loop {
+        let ty = unsafe { entry_start.read() };
+        let len = unsafe { entry_start.add(1).read() };
+        match ty {
+            0 => {
+                #[derive(Debug)]
+                #[repr(C, packed)]
+                struct LocalApic {
+                    processor_uid: u8,
+                    apic_id: u8,
+                    flags: u32,
+                }
+                writeln!(serial, "{:x?}", unsafe {
+                    entry_start.add(2).cast::<LocalApic>().read()
+                });
+            }
+            1 => {
+                #[derive(Debug)]
+                #[repr(C, packed)]
+                struct IoApic {
+                    apic_id: u8,
+                    _reserved: u8,
+                    apic_addr: u32,
+                    global_system_interrupt_base: u32,
+                }
+                writeln!(serial, "{:x?}", unsafe {
+                    entry_start.add(2).cast::<IoApic>().read()
+                });
+            }
+            2 => {
+                #[derive(Debug)]
+                #[repr(C, packed)]
+                struct InterruptSourceOverride {
+                    bus: u8,
+                    source: u8,
+                    global_system_interrupts: u32,
+                    flags: u16,
+                }
+                writeln!(serial, "{:x?}", unsafe {
+                    entry_start.add(2).cast::<InterruptSourceOverride>().read()
+                });
+            }
+            4 => {
+                #[derive(Debug)]
+                #[repr(C, packed)]
+                struct LocalApicNmi {
+                    processor_uid: u8,
+                    flags: u16,
+                    local_apic_lint: u8,
+                }
+                writeln!(serial, "{:x?}", unsafe {
+                    entry_start.add(2).cast::<LocalApicNmi>().read()
+                });
+            }
+            _ => {
+                writeln!(serial, "{:x?} {:x} {:x}", entry_start, ty, len);
+            }
+        }
+
+        entry_start = unsafe { entry_start.add(len as _) };
+        if entry_start as usize >= hdr_ptr as usize + hdr.length as usize {
+            break;
+        }
+    }
 }

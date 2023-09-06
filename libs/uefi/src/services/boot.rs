@@ -344,8 +344,25 @@ pub struct BootServices {
     pub create_event_ex: extern "efiapi" fn() -> Status, // UEFI 2.0+
 }
 
+#[derive(Clone, Copy, PartialEq)]
 #[repr(C)]
 pub struct Guid(pub u32, pub u16, pub u16, pub [u8; 8]);
+
+impl core::fmt::Debug for Guid {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("Guid")
+            .field(&format_args!(
+                "{:08x}-{:04x}-{:04x}-{:04x}-{:04x}{:08x}",
+                self.0,
+                self.1,
+                self.2,
+                u16::from_be_bytes([self.3[0], self.3[1]]),
+                u16::from_be_bytes([self.3[2], self.3[3]]),
+                u32::from_be_bytes([self.3[4], self.3[5], self.3[6], self.3[7]]),
+            ))
+            .finish()
+    }
+}
 
 /// UEFI Spec 2.10 section 7.3.2
 #[repr(C)]

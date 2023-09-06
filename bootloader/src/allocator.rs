@@ -2,7 +2,6 @@ use core::{
     alloc::{AllocError, Allocator, Layout},
     ptr::NonNull,
 };
-
 use uefi::services::boot::MemoryDescriptor;
 use x86_64::paging::{FrameAllocError, FrameAllocator};
 
@@ -134,7 +133,9 @@ impl FrameAllocator for BumpAllocator {
             let mem_desc = &self.memory_map[inner.descriptor_index].unwrap();
             let mem_desc_size = mem_desc.number_of_pages * 4096;
             // align to 4096
-            inner.addr = (inner.addr & !0xfff) + 4096;
+            if inner.addr & 0xfff != 0 {
+                inner.addr = (inner.addr & !0xfff) + 4096;
+            }
             let mem_left_in_desc = mem_desc.physical_start + mem_desc_size - inner.addr;
 
             if mem_left_in_desc >= 4096 {
