@@ -2,8 +2,10 @@
 
 use x86_64::paging::{PageTable, PhysAddr, VirtAddr};
 
+use crate::sprintln;
+
 #[allow(dead_code)]
-pub fn print_page_table(w: &mut impl core::fmt::Write, pml4: &PageTable) {
+pub fn print_page_table(pml4: &PageTable) {
     let mut num_1gb_pages: u64 = 0;
     let mut num_2mb_pages: u64 = 0;
     let mut num_4kb_pages: u64 = 0;
@@ -11,7 +13,7 @@ pub fn print_page_table(w: &mut impl core::fmt::Write, pml4: &PageTable) {
     // level 4 page
     let mut total_size_bytes: u64 = 4096;
 
-    writeln!(w, "---- Page table ----").unwrap();
+    sprintln!("---- Page table ----");
 
     for pml4_index in 0..512 {
         if let Some(entry) = pml4.get_index(pml4_index) {
@@ -22,13 +24,11 @@ pub fn print_page_table(w: &mut impl core::fmt::Write, pml4: &PageTable) {
                 if let Some(entry) = pml3.get_index(pml3_index) {
                     if entry.is_page() {
                         num_1gb_pages += 1;
-                        writeln!(
-                            w,
+                        sprintln!(
                             "{} => {} (1gb)",
                             VirtAddr::new((pml4_index << 39 | pml3_index << 30) as _),
                             PhysAddr::new(entry.page_addr_1gb() as _)
-                        )
-                        .unwrap();
+                        );
                         continue;
                     }
 
@@ -40,16 +40,14 @@ pub fn print_page_table(w: &mut impl core::fmt::Write, pml4: &PageTable) {
                         if let Some(entry) = pml2.get_index(pml2_index) {
                             if entry.is_page() {
                                 num_2mb_pages += 1;
-                                writeln!(
-                                    w,
+                                sprintln!(
                                     "{} => {} (2mb)",
                                     VirtAddr::new(
                                         (pml4_index << 39 | pml3_index << 30 | pml2_index << 21)
                                             as _
                                     ),
                                     PhysAddr::new(entry.page_addr_2mb() as _)
-                                )
-                                .unwrap();
+                                );
                                 continue;
                             }
 
@@ -60,8 +58,7 @@ pub fn print_page_table(w: &mut impl core::fmt::Write, pml4: &PageTable) {
                             for pml1_index in 0..512 {
                                 if let Some(page) = pml1.get_index(pml1_index) {
                                     num_4kb_pages += 1;
-                                    writeln!(
-                                        w,
+                                    sprintln!(
                                         "{} => {} (4kb)",
                                         VirtAddr::new(
                                             (pml4_index << 39
@@ -71,8 +68,7 @@ pub fn print_page_table(w: &mut impl core::fmt::Write, pml4: &PageTable) {
                                                 as _
                                         ),
                                         PhysAddr::new(page.page_addr_4kb() as _)
-                                    )
-                                    .unwrap()
+                                    );
                                 }
                             }
                         }
@@ -82,14 +78,12 @@ pub fn print_page_table(w: &mut impl core::fmt::Write, pml4: &PageTable) {
         }
     }
 
-    writeln!(
-        w,
+    sprintln!(
         "Paging uses {}kb, num pages {}/1gb, {}/2mb, {}/4kb",
         total_size_bytes / 1024,
         num_1gb_pages,
         num_2mb_pages,
         num_4kb_pages
-    )
-    .unwrap();
-    writeln!(w, "--------------------").unwrap();
+    );
+    sprintln!("--------------------");
 }

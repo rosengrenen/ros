@@ -13,7 +13,7 @@ impl SerialPort {
         Self { base }
     }
 
-    fn configure_baud_rate(&self, divisor: u16) {
+    fn configure_baud_rate(&mut self, divisor: u16) {
         unsafe {
             outb(self.line_command_port(), LINE_ENABLE_DLAB);
             outb(self.data_port(), ((divisor >> 8) & 0x00FF) as _);
@@ -21,7 +21,7 @@ impl SerialPort {
         }
     }
 
-    fn configure_line(&self) {
+    fn configure_line(&mut self) {
         /* Bit:     | 7 | 6 | 5 4 3 | 2 | 1 0 |
          * Content: | d | b | prty  | s | dl  |
          * Value:   | 0 | 0 | 0 0 0 | 0 | 1 1 | = 0x03
@@ -31,7 +31,7 @@ impl SerialPort {
         }
     }
 
-    fn configure_fifo_buffer(&self) {
+    fn configure_fifo_buffer(&mut self) {
         /* Bit:     | 7 6 | 5  | 4 | 3   | 2   | 1   | 0 |
          * Content: | lvl | bs | r | dma | clt | clr | e |
          * Value:   | 1 1 | 0  | 0 | 0   | 1   | 1   | 1 | = 0xC7
@@ -41,7 +41,7 @@ impl SerialPort {
         }
     }
 
-    fn configure_modem(&self) {
+    fn configure_modem(&mut self) {
         /* Bit:     | 7 | 6 | 5  | 4  | 3   | 2   | 1   | 0   |
          * Content: | r | r | af | lb | ao2 | ao1 | rts | dtr |
          * Value:   | 0 | 0 | 0  | 0  | 0   | 0   | 1   | 1 | = 0x03
@@ -70,7 +70,7 @@ impl SerialPort {
         }
     }
 
-    pub fn configure(&self, baud_rate: u16) {
+    pub fn configure(&mut self, baud_rate: u16) {
         self.configure_baud_rate(baud_rate);
         self.configure_line();
         self.configure_fifo_buffer();
