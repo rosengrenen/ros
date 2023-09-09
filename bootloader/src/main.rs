@@ -11,9 +11,15 @@ mod aml;
 mod elf;
 mod print;
 
+use crate::{
+    acpi::{Fadt, Rsdp},
+    allocator::BumpAllocator,
+    aml::name_path,
+};
 use acpi::DefinitionHeader;
 use alloc::vec::{PushError, Vec};
 use bootloader_api::BootInfo;
+use byte_parser::input::Input;
 use core::{
     alloc::{Allocator, Layout},
     fmt::{Arguments, Write},
@@ -47,12 +53,6 @@ fn serial_print(args: Arguments) {
     let mut serial = SerialPort::new(COM1_BASE);
     serial.write_fmt(args).unwrap();
 }
-
-use crate::{
-    acpi::{Fadt, Rsdp},
-    allocator::BumpAllocator,
-    aml::parser::{combinator::map, primitive::take_const, ParserState},
-};
 
 #[no_mangle]
 pub extern "efiapi" fn efi_main(
@@ -697,9 +697,14 @@ fn print_dsdt(dsdt_addr: u64) {
         91, 39, 92, 47, 3, 95, 83, 66, 95, 80, 67, 73, 48, 66, 76, 67, 75,
     ];
     let aml_len = aml_slice.len();
-    let input: &[u8] = &[1, 2, 3, 4, 5, 6];
-    let state = ParserState::new(input);
-    sprintln!("{:?}", map(take_const::<4>(), u32::from_le_bytes)(state));
+    let input: &[u8] = &[b'_', b'A', b'M', b'L', 5, 6];
+    let input = Input::new(input);
+    let res = name_path(input);
+    sprintln!("{:?}", res);
+
+    // let (input, output, span) = take(4).parse(input).unwrap();
+    // let (input, output2, span) = take(2).parse(input).unwrap();
+    // sprintln!("{:?} {:?}", output, output2);
     loop {}
     sprintln!(
         "{} {:?} {} {:?}",
@@ -708,5 +713,5 @@ fn print_dsdt(dsdt_addr: u64) {
         aml_len,
         aml_slice
     );
-    aml::parse_definition_block(&aml_slice);
+    // aml::parse_definition_block(&aml_slice);
 }

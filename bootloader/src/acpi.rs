@@ -127,9 +127,9 @@ pub struct Fadt {
 #[derive(Clone, Copy, Debug)]
 #[repr(C, packed)]
 pub struct GenericAddressStructure {
-    AddressSpace: u8,
-    BitWidth: u8,
-    BitOffset: u8,
-    AccessSize: u8,
-    Address: u64,
+    address_space: u8,
+    bit_width: u8,
+    bit_offset: u8,
+    access_size: u8,
+    address: u64,
 }

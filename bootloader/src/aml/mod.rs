@@ -1,181 +1,160 @@
-pub mod parser;
+use byte_parser::{
+    branch::alt,
+    combinator::{map, map_res},
+    input::Input,
+    parser::Parser,
+    primitive::{byte, satisfy, take, take_one, take_while},
+    sequence::tuple,
+    ParserResult,
+};
 
-use crate::sprintln;
+// pub fn parse_definition_block(mut input: &[u8]) {
+//     // let mut offset = 0;
+//     // take many of some things
+//     loop {
+//         let (new_input, ty) = parse_block_type(input);
+//         input = new_input;
+//         // sprintln!("Block type {:x} at offset {:x}", ty, offset);
+//         match ty {
+//             0x10 => {
+//                 let (new_input, _) = parse_def_scope(input);
+//                 input = new_input;
+//             }
+//             _ => {
+//                 panic!("unknown block type {:x}", ty);
+//             }
+//         }
+//     }
+// }
 
-pub fn parse_definition_block(mut input: &[u8]) {
-    // let mut offset = 0;
-    // take many of some things
-    loop {
-        let (new_input, ty) = parse_block_type(input);
-        input = new_input;
-        // sprintln!("Block type {:x} at offset {:x}", ty, offset);
-        match ty {
-            0x10 => {
-                let (new_input, _) = parse_def_scope(input);
-                input = new_input;
-            }
-            _ => {
-                panic!("unknown block type {:x}", ty);
-            }
-        }
-    }
-}
+// fn parse_block_type(input: &[u8]) -> ParseResult<u8> {
+//     (&input[1..], input[0])
+// }
 
-fn parse_block_type(input: &[u8]) -> ParseResult<u8> {
-    (&input[1..], input[0])
-}
+// fn parse_def_scope(input: &[u8]) -> ParseResult<()> {
+//     let (input, pkg_length) = parse_pkg_length(input);
+//     parse_name_string(input);
+//     (&input[pkg_length..], ())
+// }
 
-fn parse_def_scope(input: &[u8]) -> ParseResult<()> {
-    let (input, pkg_length) = parse_pkg_length(input);
-    parse_name_string(input);
-    (&input[pkg_length..], ())
-}
-
-fn parse_pkg_length(input: &[u8]) -> ParseResult<usize> {
-    let extra_bytes_count = (input[0] >> 6) as usize;
-    let pkg_length = if extra_bytes_count == 0 {
-        input[0] as usize
-    } else {
-        assert_eq!(input[0] & 0b0011_0000, 0);
-        let mut pkg_length = (input[0] & 0xf) as usize;
-        for i in 1..=extra_bytes_count {
-            pkg_length |= (input[i] as usize) << (i * 8 - 4);
-        }
-
-        pkg_length
-    };
-    (
-        &input[extra_bytes_count + 1..],
-        pkg_length - (extra_bytes_count + 1),
-    )
-}
-
-fn parse_name_string(input: &[u8]) -> ParseResult<()> {
-    if let Some((input, _)) = parse_root_char(input) {
-        return parse_name_path(input);
-    } else {
-        let (input, _) = parse_prefix_path(input);
-        return parse_name_path(input);
-    }
-}
-
-fn parse_root_char(input: &[u8]) -> Option<ParseResult<()>> {
-    if input[0] == b'\\' {
-        return Some((&input[1..], ()));
+pub fn pkg_length<'input>(input: Input<'input>) -> ParserResult<'input, usize> {
+    let (input, lead_byte, span) = take_one().parse(input)?;
+    let extra_bytes = (lead_byte >> 6) as usize;
+    if extra_bytes == 0 {
+        return Ok((input, lead_byte as usize, span));
     }
 
-    None
-}
-
-fn parse_prefix_path(mut input: &[u8]) -> ParseResult<usize> {
-    let mut i = 0;
-    loop {
-        if input[i] == b'^' {
-            i += 1;
-            input = &input[1..];
-            continue;
+    map_res(take(extra_bytes as usize), move |extra_bytes| {
+        if lead_byte & 0b0011_0000 != 0 {
+            return Err(());
         }
 
-        break;
-    }
+        let mut pkg_length = (lead_byte & 0xf) as usize;
+        for (i, &b) in extra_bytes.iter().enumerate() {
+            pkg_length |= (b as usize) << (i * 8 + 4);
+        }
 
-    (input, i)
+        Ok(pkg_length)
+    })
+    .parse(input)
 }
 
-fn parse_name_path(input: &[u8]) -> ParseResult<()> {
-    if let Some((input, name_seg)) = parse_name_seg(input) {
-        sprintln!("{}", core::str::from_utf8(&name_seg).unwrap());
-        return (input, ());
-    }
+// fn parse_name_string(input: &[u8]) -> ParseResult<()> {
+//     if let Some((input, _)) = parse_root_char(input) {
+//         return parse_name_path(input);
+//     } else {
+//         let (input, _) = parse_prefix_path(input);
+//         return parse_name_path(input);
+//     }
+// }
 
-    if let Some((input, name_seg)) = parse_dual_name_path(input) {
-        sprintln!("{}", core::str::from_utf8(&name_seg).unwrap());
-        return (input, ());
-    }
+// fn parse_root_char(input: &[u8]) -> Option<ParseResult<()>> {
+//     if input[0] == b'\\' {
+//         return Some((&input[1..], ()));
+//     }
 
-    if let Some((input, _)) = parse_null_name(input) {
-        return (input, ());
-    }
+//     None
+// }
 
-    unimplemented!();
+#[derive(Debug)]
+pub struct PrefixPath(usize);
+
+pub fn prefix_path<'input>(input: Input<'input>) -> ParserResult<'input, PrefixPath> {
+    map(take_while(|b| b == b'^'), |value| PrefixPath(value.len())).parse(input)
 }
 
-fn parse_dual_name_path(mut input: &[u8]) -> Option<ParseResult<[u8; 8]>> {
-    let mut total_bytes_read = 1;
-    if input[0] != b'.' {
-        return None;
-    }
-
-    input = &input[1..];
-
-    let mut name_path = [0u8; 8];
-    if let Some((new_input, name_seg)) = parse_name_seg(input) {
-        name_path[0] = name_seg[0];
-        name_path[1] = name_seg[1];
-        name_path[2] = name_seg[2];
-        name_path[3] = name_seg[3];
-        input = new_input;
-    }
-
-    if let Some((new_input, name_seg)) = parse_name_seg(input) {
-        name_path[4] = name_seg[0];
-        name_path[5] = name_seg[1];
-        name_path[6] = name_seg[2];
-        name_path[7] = name_seg[3];
-        input = new_input;
-    }
-
-    Some((input, name_path))
+#[derive(Debug)]
+pub enum NamePath {
+    NameSeg(NameSeg),
+    DualNamePath(DualNamePath),
+    NullName(NullName),
 }
 
-fn parse_null_name(input: &[u8]) -> Option<ParseResult<()>> {
-    if input[0] == 0 {
-        return Some((&input[1..], ()));
+pub fn name_path<'input>(input: Input<'input>) -> ParserResult<'input, NamePath> {
+    alt((
+        map(name_seg, |value| NamePath::NameSeg(value)),
+        map(dual_name_path, |value| NamePath::DualNamePath(value)),
+        map(null_name, |value| NamePath::NullName(value)),
+    ))
+    .parse(input)
+}
+
+pub struct DualNamePath([u8; 8]);
+
+impl core::fmt::Debug for DualNamePath {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("DualNamePath")
+            .field(unsafe { &core::str::from_utf8_unchecked(&self.0) })
+            .finish()
     }
-
-    None
 }
 
-fn parse_name_seg(input: &[u8]) -> Option<ParseResult<[u8; 4]>> {
-    let mut name_seg = [0; 4];
-
-    let (input, char) = parse_lead_name_char(input)?;
-    name_seg[0] = char;
-    let (input, char) = parse_name_char(input)?;
-    name_seg[1] = char;
-    let (input, char) = parse_name_char(input)?;
-    name_seg[2] = char;
-    let (input, char) = parse_name_char(input)?;
-    name_seg[3] = char;
-
-    Some((input, name_seg))
+fn dual_name_path<'input>(input: Input<'input>) -> ParserResult<'input, DualNamePath> {
+    let (input, _, _) = byte(b'.').parse(input)?;
+    let (input, (NameSeg(seg0), NameSeg(seg1)), span) = tuple((name_seg, name_seg)).parse(input)?;
+    Ok((input, DualNamePath(concat_arrays(seg0, seg1)), span))
 }
 
-fn parse_lead_name_char(input: &[u8]) -> Option<ParseResult<u8>> {
-    let b = input[0];
-    if b == b'_' || (b >= b'A' && b <= b'Z') {
-        return Some((&input[1..], b));
+fn concat_arrays<T, const A: usize, const B: usize, const C: usize>(
+    a: [T; A],
+    b: [T; B],
+) -> [T; C] {
+    assert_eq!(A + B, C);
+    let mut iter = a.into_iter().chain(b);
+    core::array::from_fn(|_| iter.next().unwrap())
+}
+
+#[derive(Debug)]
+pub struct NullName;
+
+fn null_name<'input>(input: Input<'input>) -> ParserResult<'input, NullName> {
+    map(byte(0), |_| NullName).parse(input)
+}
+
+pub struct NameSeg([u8; 4]);
+
+impl core::fmt::Debug for NameSeg {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("NameSeg")
+            .field(unsafe { &core::str::from_utf8_unchecked(&self.0) })
+            .finish()
     }
-
-    None
 }
 
-fn parse_digit_char(input: &[u8]) -> Option<ParseResult<u8>> {
-    // What do we want to do? We want to take one byte, and then check if it's between 0 and 9
-    let b = input[0];
-    if b >= b'0' && b <= b'9' {
-        return Some((&input[1..], b));
-    }
-
-    None
+fn name_seg<'input>(input: Input<'input>) -> ParserResult<'input, NameSeg> {
+    let (input, (lead, c0, c1, c2), span) =
+        tuple((lead_name_char, name_char, name_char, name_char)).parse(input)?;
+    Ok((input, NameSeg([lead, c0, c1, c2]), span))
 }
 
-fn parse_name_char(input: &[u8]) -> Option<ParseResult<u8>> {
-    if let Some(r) = parse_digit_char(input) {
-        return Some(r);
-    };
-
-    parse_lead_name_char(input)
+fn lead_name_char<'input>(input: Input<'input>) -> ParserResult<'input, u8> {
+    satisfy(|b| b == b'_' || (b'0'..=b'9').contains(&b)).parse(input)
 }
 
-type ParseResult<'a, T> = (&'a [u8], T);
+fn digit_char<'input>(input: Input<'input>) -> ParserResult<'input, u8> {
+    satisfy(|b| (b'A'..=b'Z').contains(&b)).parse(input)
+}
+
+fn name_char<'input>(input: Input<'input>) -> ParserResult<'input, u8> {
+    alt((digit_char, lead_name_char)).parse(input)
+}
