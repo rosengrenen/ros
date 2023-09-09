@@ -1,8 +1,6 @@
-use crate::{input::Input, ParserResult};
+use crate::{input::Input, ParserFn, ParserResult};
 
-use super::parser::Parser;
-
-pub fn alt<'input, O, A: Alt<'input, O>>(list: A) -> impl Parser<'input, O> {
+pub fn alt<'input, O, A: Alt<'input, O>>(list: A) -> impl ParserFn<'input, O> {
     move |input| list.parse(input)
 }
 
@@ -12,10 +10,10 @@ pub trait Alt<'input, Out> {
 
 impl<'input, Out, F1> Alt<'input, Out> for (F1,)
 where
-    F1: Parser<'input, Out>,
+    F1: ParserFn<'input, Out>,
 {
     fn parse(&self, input: Input<'input>) -> ParserResult<'input, Out> {
-        self.0.parse(input)
+        self.0(input)
     }
 }
 
@@ -37,7 +35,7 @@ macro_rules! alt_trait_impl {
     ($($f:ident),+) => {
         impl<'input, Out, $($f),+> Alt<'input, Out> for ($($f),+,)
         where
-            $($f: Parser<'input, Out>),+
+            $($f: ParserFn<'input, Out>),+
         {
             fn parse(&self, input: Input<'input>) -> ParserResult<'input, Out> {
                 alt_trait_inner!(0, self, input, $($f)+)
@@ -48,13 +46,13 @@ macro_rules! alt_trait_impl {
 
 macro_rules! alt_trait_inner(
   ($iter:tt, $self:expr, $input:expr, $head:ident $($f:ident)+) => ({
-    match $self.$iter.parse($input.clone()) {
+    match $self.$iter($input.clone()) {
       Ok(inner) => return Ok(inner),
       Err(_) => succ!($iter, alt_trait_inner!($self, $input, $($f)+))
     }
   });
   ($iter:tt, $self:expr, $input:expr, $head:ident) => ({
-    $self.$iter.parse($input.clone())
+    $self.$iter($input.clone())
   });
 );
 

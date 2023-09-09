@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(trait_alias)]
 
 #[macro_use]
 pub mod macros;
@@ -7,13 +8,16 @@ pub mod branch;
 pub mod combinator;
 pub mod error;
 pub mod input;
-pub mod parser;
 pub mod primitive;
 pub mod sequence;
 
-use self::{error::ParserError, input::Input};
+use error::ParseError;
 
-pub type ParserResult<'input, O> = Result<(Input<'input>, O, Span), ParserError<'input>>;
+use self::input::Input;
+
+pub type ParserResult<'input, O> = Result<(Input<'input>, O, Span), ParseError<'input>>;
+
+pub trait ParserFn<'input, O> = Fn(Input<'input>) -> ParserResult<'input, O>;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Span {

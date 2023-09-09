@@ -1,26 +1,47 @@
-use super::{error::ParserError, parser::Parser};
+use crate::{error::ParseError, ParserFn};
 
-pub fn map<'input, O1, O2>(
-    parser: impl Parser<'input, O1>,
-    f: impl Fn(O1) -> O2,
-) -> impl Parser<'input, O2> {
+use super::error::ParserError;
+
+pub fn map<'input, Out1, Out2>(
+    parser: impl ParserFn<'input, Out1>,
+    f: impl Fn(Out1) -> Out2,
+) -> impl ParserFn<'input, Out2> {
     move |input| {
-        let (input, value, span) = parser.parse(input)?;
+        let (input, value, span) = parser(input)?;
         let value = f(value);
         Ok((input, value, span))
     }
 }
 
 pub fn map_res<'input, Out1, Out2, E>(
-    parser: impl Parser<'input, Out1>,
+    parser: impl ParserFn<'input, Out1>,
     f: impl Fn(Out1) -> Result<Out2, E>,
-) -> impl Parser<'input, Out2> {
+) -> impl ParserFn<'input, Out2> {
     move |input| {
-        let (input, value, span) = parser.parse(input)?;
+        let (input, value, span) = parser(input)?;
         let value = {
             let input = input.clone();
-            f(value).map_err(move |_| ParserError::new(input))?
+            f(value).map_err(move |_| ParseError::Error(ParserError::new(input)))?
         };
         Ok((input, value, span))
+    }
+}
+
+pub fn opt<'input, Out>(parser: impl ParserFn<'input, Out>) -> impl ParserFn<'input, Option<Out>> {
+    move |input| match parser(input) {
+        Ok((input, output, span)) => Ok((input, Some(output), span)),
+        Err(ParseError::Error(error)) => {
+            // TOOD: fix span
+            let span = error.input.span;
+            Ok((error.input, None, span))
+        }
+        Err(ParseError::Failure(error)) => Err(ParseError::Failure(error)),
+    }
+}
+
+pub fn cut<'input, Out>(parser: impl ParserFn<'input, Out>) -> impl ParserFn<'input, Out> {
+    move |input| match parser(input) {
+        Err(ParseError::Error(error)) => Err(ParseError::Failure(error)),
+        result => result,
     }
 }

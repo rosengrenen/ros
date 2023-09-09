@@ -14,7 +14,7 @@ mod print;
 use crate::{
     acpi::{Fadt, Rsdp},
     allocator::BumpAllocator,
-    aml::name_path,
+    aml::{definition_blocks, name_path},
 };
 use acpi::DefinitionHeader;
 use alloc::vec::{PushError, Vec};
@@ -698,8 +698,8 @@ fn print_dsdt(dsdt_addr: u64) {
     ];
     let aml_len = aml_slice.len();
     let input: &[u8] = &[b'_', b'A', b'M', b'L', 5, 6];
-    let input = Input::new(input);
-    let res = name_path(input);
+    let input = Input::new(&aml_slice);
+    let res = definition_blocks(input);
     sprintln!("{:?}", res);
 
     // let (input, output, span) = take(4).parse(input).unwrap();

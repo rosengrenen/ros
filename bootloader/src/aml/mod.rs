@@ -1,47 +1,44 @@
+use crate::sprintln;
 use byte_parser::{
     branch::alt,
-    combinator::{map, map_res},
+    combinator::{cut, map, map_res, opt},
+    error::ParseError,
     input::Input,
-    parser::Parser,
-    primitive::{byte, satisfy, take, take_one, take_while},
+    primitive::{byte, satisfy, take, take_one, take_while1},
     sequence::tuple,
     ParserResult,
 };
 
-// pub fn parse_definition_block(mut input: &[u8]) {
-//     // let mut offset = 0;
-//     // take many of some things
-//     loop {
-//         let (new_input, ty) = parse_block_type(input);
-//         input = new_input;
-//         // sprintln!("Block type {:x} at offset {:x}", ty, offset);
-//         match ty {
-//             0x10 => {
-//                 let (new_input, _) = parse_def_scope(input);
-//                 input = new_input;
-//             }
-//             _ => {
-//                 panic!("unknown block type {:x}", ty);
-//             }
-//         }
-//     }
-// }
+pub fn definition_blocks<'input>(mut input: Input<'input>) -> ParserResult<'input, ()> {
+    loop {
+        match def_scope(input) {
+            Ok((new_input, output, span)) => {
+                sprintln!("{:?} {:?}", output, span);
+                input = new_input;
+            }
+            Err(ParseError::Error(error)) => {
+                // return accumulated items
+                return Err(ParseError::Error(error));
+            }
+            Err(ParseError::Failure(error)) => return Err(ParseError::Failure(error)),
+        }
+    }
+}
 
-// fn parse_block_type(input: &[u8]) -> ParseResult<u8> {
-//     (&input[1..], input[0])
-// }
-
-// fn parse_def_scope(input: &[u8]) -> ParseResult<()> {
-//     let (input, pkg_length) = parse_pkg_length(input);
-//     parse_name_string(input);
-//     (&input[pkg_length..], ())
-// }
+pub fn def_scope<'input>(input: Input<'input>) -> ParserResult<'input, NameString> {
+    // TODO: write prefix helper
+    let (input, _, _) = byte(0x10)(input)?;
+    let (input, len, _) = pkg_length(input)?;
+    let (input, rest) = input.split_at_index(len);
+    let (_, output, span) = name_string(input)?;
+    Ok((rest, output, span))
+}
 
 pub fn pkg_length<'input>(input: Input<'input>) -> ParserResult<'input, usize> {
-    let (input, lead_byte, span) = take_one().parse(input)?;
+    let (input, lead_byte, span) = take_one()(input)?;
     let extra_bytes = (lead_byte >> 6) as usize;
     if extra_bytes == 0 {
-        return Ok((input, lead_byte as usize, span));
+        return Ok((input, lead_byte as usize - 1, span));
     }
 
     map_res(take(extra_bytes as usize), move |extra_bytes| {
@@ -54,33 +51,59 @@ pub fn pkg_length<'input>(input: Input<'input>) -> ParserResult<'input, usize> {
             pkg_length |= (b as usize) << (i * 8 + 4);
         }
 
-        Ok(pkg_length)
-    })
-    .parse(input)
+        Ok(pkg_length - 1 - extra_bytes.len())
+    })(input)
 }
 
-// fn parse_name_string(input: &[u8]) -> ParseResult<()> {
-//     if let Some((input, _)) = parse_root_char(input) {
-//         return parse_name_path(input);
-//     } else {
-//         let (input, _) = parse_prefix_path(input);
-//         return parse_name_path(input);
-//     }
-// }
+#[derive(Debug)]
+pub struct NameString {
+    prefix: NameStringPrefix,
+    name_path: NamePath,
+}
 
-// fn parse_root_char(input: &[u8]) -> Option<ParseResult<()>> {
-//     if input[0] == b'\\' {
-//         return Some((&input[1..], ()));
-//     }
+#[derive(Debug)]
+pub enum NameStringPrefix {
+    RootChar(RootChar),
+    PrefixPath(PrefixPath),
+    None,
+}
 
-//     None
-// }
+pub fn name_string<'input>(input: Input<'input>) -> ParserResult<'input, NameString> {
+    let root_prefixed = map(
+        tuple((root_char, cut(name_path))),
+        |(root_char, name_path)| NameString {
+            prefix: NameStringPrefix::RootChar(root_char),
+            name_path,
+        },
+    );
+    let path_prefixed = map(
+        tuple((prefix_path, cut(name_path))),
+        |(prefix_path, name_path)| NameString {
+            prefix: match prefix_path {
+                Some(prefix_path) => NameStringPrefix::PrefixPath(prefix_path),
+                None => NameStringPrefix::None,
+            },
+            name_path,
+        },
+    );
+
+    alt((root_prefixed, path_prefixed))(input)
+}
+
+#[derive(Debug)]
+pub struct RootChar;
+
+pub fn root_char<'input>(input: Input<'input>) -> ParserResult<'input, RootChar> {
+    map(byte(b'\\'), |_| RootChar)(input)
+}
 
 #[derive(Debug)]
 pub struct PrefixPath(usize);
 
-pub fn prefix_path<'input>(input: Input<'input>) -> ParserResult<'input, PrefixPath> {
-    map(take_while(|b| b == b'^'), |value| PrefixPath(value.len())).parse(input)
+pub fn prefix_path<'input>(input: Input<'input>) -> ParserResult<'input, Option<PrefixPath>> {
+    opt(map(take_while1(|b| b == b'^'), |value| {
+        PrefixPath(value.len())
+    }))(input)
 }
 
 #[derive(Debug)]
@@ -95,8 +118,7 @@ pub fn name_path<'input>(input: Input<'input>) -> ParserResult<'input, NamePath>
         map(name_seg, |value| NamePath::NameSeg(value)),
         map(dual_name_path, |value| NamePath::DualNamePath(value)),
         map(null_name, |value| NamePath::NullName(value)),
-    ))
-    .parse(input)
+    ))(input)
 }
 
 pub struct DualNamePath([u8; 8]);
@@ -110,8 +132,8 @@ impl core::fmt::Debug for DualNamePath {
 }
 
 fn dual_name_path<'input>(input: Input<'input>) -> ParserResult<'input, DualNamePath> {
-    let (input, _, _) = byte(b'.').parse(input)?;
-    let (input, (NameSeg(seg0), NameSeg(seg1)), span) = tuple((name_seg, name_seg)).parse(input)?;
+    let (input, _, _) = byte(b'.')(input)?;
+    let (input, (NameSeg(seg0), NameSeg(seg1)), span) = tuple((name_seg, name_seg))(input)?;
     Ok((input, DualNamePath(concat_arrays(seg0, seg1)), span))
 }
 
@@ -128,7 +150,7 @@ fn concat_arrays<T, const A: usize, const B: usize, const C: usize>(
 pub struct NullName;
 
 fn null_name<'input>(input: Input<'input>) -> ParserResult<'input, NullName> {
-    map(byte(0), |_| NullName).parse(input)
+    map(byte(0), |_| NullName)(input)
 }
 
 pub struct NameSeg([u8; 4]);
@@ -143,18 +165,18 @@ impl core::fmt::Debug for NameSeg {
 
 fn name_seg<'input>(input: Input<'input>) -> ParserResult<'input, NameSeg> {
     let (input, (lead, c0, c1, c2), span) =
-        tuple((lead_name_char, name_char, name_char, name_char)).parse(input)?;
+        tuple((lead_name_char, name_char, name_char, name_char))(input)?;
     Ok((input, NameSeg([lead, c0, c1, c2]), span))
 }
 
 fn lead_name_char<'input>(input: Input<'input>) -> ParserResult<'input, u8> {
-    satisfy(|b| b == b'_' || (b'0'..=b'9').contains(&b)).parse(input)
+    satisfy(|b| b == b'_' || (b'0'..=b'9').contains(&b))(input)
 }
 
 fn digit_char<'input>(input: Input<'input>) -> ParserResult<'input, u8> {
-    satisfy(|b| (b'A'..=b'Z').contains(&b)).parse(input)
+    satisfy(|b| (b'A'..=b'Z').contains(&b))(input)
 }
 
 fn name_char<'input>(input: Input<'input>) -> ParserResult<'input, u8> {
-    alt((digit_char, lead_name_char)).parse(input)
+    alt((digit_char, lead_name_char))(input)
 }

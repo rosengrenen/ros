@@ -10,3 +10,9 @@ impl<'input> ParserError<'input> {
         Self { input }
     }
 }
+
+#[derive(Debug)]
+pub enum ParseError<'input> {
+    Error(ParserError<'input>),
+    Failure(ParserError<'input>),
+}
