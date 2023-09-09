@@ -132,8 +132,8 @@ impl core::fmt::Debug for DualNamePath {
 }
 
 fn dual_name_path<'input>(input: Input<'input>) -> ParserResult<'input, DualNamePath> {
-    let (input, _, _) = byte(b'.')(input)?;
-    let (input, (NameSeg(seg0), NameSeg(seg1)), span) = tuple((name_seg, name_seg))(input)?;
+    let (input, _, _) = byte(0x2e)(input)?;
+    let (input, (NameSeg(seg0), NameSeg(seg1)), span) = cut(tuple((name_seg, name_seg)))(input)?;
     Ok((input, DualNamePath(concat_arrays(seg0, seg1)), span))
 }
 
@@ -170,11 +170,11 @@ fn name_seg<'input>(input: Input<'input>) -> ParserResult<'input, NameSeg> {
 }
 
 fn lead_name_char<'input>(input: Input<'input>) -> ParserResult<'input, u8> {
-    satisfy(|b| b == b'_' || (b'0'..=b'9').contains(&b))(input)
+    satisfy(|b| b == b'_' || (b'A'..=b'Z').contains(&b))(input)
 }
 
 fn digit_char<'input>(input: Input<'input>) -> ParserResult<'input, u8> {
-    satisfy(|b| (b'A'..=b'Z').contains(&b))(input)
+    satisfy(|b| (b'0'..=b'9').contains(&b))(input)
 }
 
 fn name_char<'input>(input: Input<'input>) -> ParserResult<'input, u8> {
