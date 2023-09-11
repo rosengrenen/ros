@@ -12,7 +12,7 @@ version = "0.0.0"
 dependencies = [
  "alloc",
  "bootloader_api",
- "byte_parser",
+ "parser",
  "serial",
  "uefi",
  "x86_64",
@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "byte_parser"
+name = "parser"
 version = "0.0.0"
 
 [[package]]

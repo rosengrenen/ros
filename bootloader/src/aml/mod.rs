@@ -2,7 +2,7 @@ use core::alloc::Allocator;
 
 use crate::sprintln;
 use alloc::vec::Vec;
-use byte_parser::{
+use parser::{
     branch::alt,
     error::{FromExternalError, ParseError, ParseResult},
     input::Input,

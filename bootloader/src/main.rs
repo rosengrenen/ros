@@ -19,12 +19,12 @@ use crate::{
 use acpi::DefinitionHeader;
 use alloc::vec::{PushError, Vec};
 use bootloader_api::BootInfo;
-use byte_parser::error::{FromExternalError, ParseError, ParseErrorKind};
 use core::{
     alloc::{Allocator, Layout},
     fmt::{Arguments, Write},
 };
 use elf::{get_elf_entry_point_offset, KernelExecutable};
+use parser::error::{FromExternalError, ParseError, ParseErrorKind};
 use serial::{SerialPort, COM1_BASE};
 use uefi::{
     allocator::UefiAllocator,

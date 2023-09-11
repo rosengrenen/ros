@@ -1,5 +1,5 @@
 [package]
-name = "byte_parser"
+name = "parser"
 version = "0.0.0"
 edition = "2021"
 
