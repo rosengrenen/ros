@@ -1,68 +1,78 @@
-use crate::{
-    error::{ParseError, ParserError},
-    ParserResult,
-};
+use crate::error::{ParseError, ParseErrorKind, ParseResult, ParserError};
+use core::{iter::Copied, slice::Iter};
 
-use super::Span;
+pub trait Input: Clone {
+    type Item;
 
-#[derive(Clone, Debug)]
-pub struct Input<'input> {
-    bytes: &'input [u8],
-    pub(crate) span: Span,
+    type ItemIter: Iterator<Item = Self::Item>;
+
+    fn input_len(&self) -> usize;
+
+    fn item_iter(&self) -> Self::ItemIter;
+
+    fn split_at_index(&self, index: usize) -> (Self, Self);
+
+    fn position<P>(&self, pred: P) -> Option<usize>
+    where
+        P: Fn(Self::Item) -> bool;
+
+    fn split_at_position0<P, E>(&self, pred: P) -> ParseResult<Self, Self, E>
+    where
+        P: Fn(Self::Item) -> bool,
+        E: ParseError<Self>,
+    {
+        match self.position(pred) {
+            Some(n) => {
+                let (output, input) = self.split_at_index(n);
+                Ok((input, output))
+            }
+            None => {
+                let (output, input) = self.split_at_index(self.input_len());
+                Ok((input, output))
+            }
+        }
+    }
+
+    fn split_at_position1<P, E>(&self, pred: P, kind: ParseErrorKind) -> ParseResult<Self, Self, E>
+    where
+        P: Fn(Self::Item) -> bool,
+        E: ParseError<Self>,
+    {
+        match self.position(pred) {
+            Some(0) => Err(ParserError::Error(E::from_error_kind(self.clone(), kind))),
+            Some(n) => {
+                let (output, input) = self.split_at_index(n);
+                Ok((input, output))
+            }
+            None => {
+                let (output, input) = self.split_at_index(self.input_len());
+                Ok((input, output))
+            }
+        }
+    }
 }
 
-impl<'input> Input<'input> {
-    pub fn new(bytes: &'input [u8]) -> Self {
-        Self::with_span(bytes, Span::new(0, bytes.len()))
+impl<'input> Input for &'input [u8] {
+    type Item = u8;
+
+    type ItemIter = Copied<Iter<'input, Self::Item>>;
+
+    fn input_len(&self) -> usize {
+        self.len()
     }
 
-    pub(crate) fn with_span(bytes: &'input [u8], span: Span) -> Self {
-        Self { bytes, span }
+    fn item_iter(&self) -> Self::ItemIter {
+        self.iter().copied()
     }
 
-    pub(crate) fn as_slice(&self) -> &'input [u8] {
-        self.bytes
-    }
-
-    pub fn split_at_index(&self, index: usize) -> (Self, Self) {
-        let (left, right) = self.bytes.split_at(index);
-        let (left_span, right_span) = self.span.split_at(index);
-        (
-            Self::with_span(left, left_span),
-            Self::with_span(right, right_span),
-        )
+    fn split_at_index(&self, index: usize) -> (Self, Self) {
+        self.split_at(index)
     }
 
     fn position<P>(&self, pred: P) -> Option<usize>
     where
         P: Fn(u8) -> bool,
     {
-        self.bytes.iter().position(|&b| pred(b))
-    }
-
-    pub(crate) fn split_at_position0<P>(&self, pred: P) -> ParserResult<'input, &'input [u8]>
-    where
-        P: Fn(u8) -> bool,
-    {
-        match self.position(pred) {
-            Some(n) => {
-                let (output, input) = self.split_at_index(n);
-                Ok((input, output.bytes, output.span))
-            }
-            None => Err(ParseError::Error(ParserError::new(self.clone()))),
-        }
-    }
-
-    pub(crate) fn split_at_position1<P>(&self, pred: P) -> ParserResult<'input, &'input [u8]>
-    where
-        P: Fn(u8) -> bool,
-    {
-        match self.position(pred) {
-            Some(n) if n > 0 => {
-                let (output, input) = self.split_at_index(n);
-                Ok((input, output.bytes, output.span))
-            }
-            _ => Err(ParseError::Error(ParserError::new(self.clone()))),
-        }
+        self.iter().position(|&b| pred(b))
     }
 }

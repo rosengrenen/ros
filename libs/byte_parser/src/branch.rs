@@ -1,59 +1,109 @@
-use crate::{input::Input, ParserFn, ParserResult};
+use crate::{
+    error::{ParseError, ParseErrorKind, ParseResult, ParserError},
+    parser::Parser,
+};
 
-pub fn alt<'input, O, A: Alt<'input, O>>(list: A) -> impl ParserFn<'input, O> {
-    move |input| list.parse(input)
-}
-
-pub trait Alt<'input, Out> {
-    fn parse(&self, input: Input<'input>) -> ParserResult<'input, Out>;
-}
-
-impl<'input, Out, F1> Alt<'input, Out> for (F1,)
+pub fn alt<I, O, E, P>(parsers: P) -> impl Parser<I, Output = O, Error = E>
 where
-    F1: ParserFn<'input, Out>,
+    E: ParseError<I>,
+    Alt<P>: Parser<I, Output = O, Error = E>,
 {
-    fn parse(&self, input: Input<'input>) -> ParserResult<'input, Out> {
-        self.0(input)
+    Alt { parsers }
+}
+
+pub struct Alt<P> {
+    parsers: P,
+}
+
+impl<I, O, E, P1> Parser<I> for Alt<(P1,)>
+where
+    I: Clone,
+    E: ParseError<I>,
+    P1: Parser<I, Output = O, Error = E>,
+{
+    type Output = O;
+
+    type Error = E;
+
+    fn parse(&self, input: I) -> ParseResult<I, Self::Output, Self::Error> {
+        match self.parsers.0.parse(input.clone()) {
+            Ok(result) => Ok(result),
+            Err(ParserError::Error(_)) => Err(ParserError::Error(E::from_error_kind(
+                input,
+                ParseErrorKind::None,
+            ))),
+            Err(ParserError::Failure(error)) => Err(ParserError::Failure(error)),
+        }
     }
 }
 
 macro_rules! alt_trait(
-  ($f1:ident, $f2:ident, $($f:ident),*) => (
-    alt_trait!(__impl $f1, $f2; $($f),*);
-  );
-  (__impl $($f: ident),+; $f1:ident, $($f2:ident),*) => (
-    alt_trait_impl!($($f),+);
-    alt_trait!(__impl $($f),+ , $f1; $($f2),*);
-  );
-  (__impl $($f: ident),+; $f1:ident) => (
-    alt_trait_impl!($($f),+);
-    alt_trait_impl!($($f),+, $f1);
-  );
+    ($parser1:ident, $parser2:ident, $($parser:ident),*) => (
+        alt_trait!(__impl $parser1, $parser2; $($parser),*);
+    );
+    (__impl $($parser: ident),+; $parser1:ident, $($parser2:ident),*) => (
+        alt_trait_impl!($($parser),+);
+        alt_trait!(__impl $($parser),+, $parser1; $($parser2),*);
+    );
+    (__impl $($parser: ident),+; $parser1:ident) => (
+        alt_trait_impl!($($parser),+);
+        alt_trait_impl!($($parser),+, $parser1);
+    );
 );
 
 macro_rules! alt_trait_impl {
-    ($($f:ident),+) => {
-        impl<'input, Out, $($f),+> Alt<'input, Out> for ($($f),+,)
+    ($($parsers:ident),+) => {
+        impl<I, O, E, $($parsers),+> Parser<I> for Alt<($($parsers),+)>
         where
-            $($f: ParserFn<'input, Out>),+
+            I: Clone,
+            E: ParseError<I>,
+            $(
+                $parsers: Parser<I, Output = O, Error = E>,
+            )+
         {
-            fn parse(&self, input: Input<'input>) -> ParserResult<'input, Out> {
-                alt_trait_inner!(0, self, input, $($f)+)
+            type Output = O;
+
+            type Error = E;
+
+            fn parse(&self, input: I) -> ParseResult<I, Self::Output, Self::Error> {
+                alt_trait_inner!(0, self, input, $($parsers)+)
             }
         }
     };
 }
 
 macro_rules! alt_trait_inner(
-  ($iter:tt, $self:expr, $input:expr, $head:ident $($f:ident)+) => ({
-    match $self.$iter($input.clone()) {
-      Ok(inner) => return Ok(inner),
-      Err(_) => succ!($iter, alt_trait_inner!($self, $input, $($f)+))
-    }
-  });
-  ($iter:tt, $self:expr, $input:expr, $head:ident) => ({
-    $self.$iter($input.clone())
-  });
+    ($iter:tt, $self:expr, $input:expr, $head:ident $($parsers:ident)+) => ({
+        match $self.parsers.$iter.parse($input.clone()) {
+            Ok(result) => return Ok(result),
+            Err(ParserError::Error(_)) => succ!($iter, alt_trait_inner!($self, $input, $($parsers)+)),
+            Err(ParserError::Failure(error)) => Err(ParserError::Failure(error)),
+        }
+    });
+    ($iter:tt, $self:expr, $input:expr, $head:ident) => ({
+        match $self.parsers.$iter.parse($input.clone()) {
+            Ok(result) => Ok(result),
+            Err(ParserError::Error(_)) => Err(ParserError::Error(E::from_error_kind(
+                $input,
+                ParseErrorKind::None,
+            ))),
+            Err(ParserError::Failure(error)) => Err(ParserError::Failure(error)),
+        }
+    });
 );
 
-alt_trait!(F1, F2, F3, F4, F5, F6, F7, F8);
+alt_trait!(P1, P2, P3, P4, P5, P6, P7, P8);
+
+impl<I, O, E, F> Parser<I> for F
+where
+    E: ParseError<I>,
+    F: Fn(I) -> ParseResult<I, O, E>,
+{
+    type Output = O;
+
+    type Error = E;
+
+    fn parse(&self, input: I) -> ParseResult<I, Self::Output, Self::Error> {
+        self(input)
+    }
+}

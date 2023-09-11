@@ -1,63 +1,44 @@
-use super::{input::Input, ParserFn, ParserResult};
+use crate::{
+    error::{ParseError, ParserError},
+    parser::Parser,
+};
 
-pub fn tuple<'input, O, T: Tuple<'input, O>>(list: T) -> impl ParserFn<'input, O> {
-    move |input| list.parse(input)
-}
-
-pub trait Tuple<'input, Out> {
-    fn parse(&self, input: Input<'input>) -> ParserResult<'input, Out>;
-}
-
-impl<'input, Out1, F1> Tuple<'input, (Out1,)> for (F1,)
+pub fn preceded<I, O1, O2, E, P1, P2>(
+    first: P1,
+    second: P2,
+) -> impl Parser<I, Output = O2, Error = E>
 where
-    F1: ParserFn<'input, Out1>,
+    E: ParseError<I>,
+    P1: Parser<I, Output = O1, Error = E>,
+    P2: Parser<I, Output = O2, Error = E>,
 {
-    fn parse(&self, input: Input<'input>) -> ParserResult<'input, (Out1,)> {
-        let (input, output, span) = self.0(input)?;
-        Ok((input, (output,), span))
+    Preceded { first, second }
+}
+
+pub struct Preceded<P1, P2> {
+    first: P1,
+    second: P2,
+}
+
+impl<I, O1, O2, E, P1, P2> Parser<I> for Preceded<P1, P2>
+where
+    E: ParseError<I>,
+    P1: Parser<I, Output = O1, Error = E>,
+    P2: Parser<I, Output = O2, Error = E>,
+{
+    type Output = P2::Output;
+
+    type Error = E;
+
+    fn parse(&self, input0: I) -> crate::error::ParseResult<I, Self::Output, Self::Error> {
+        match self.first.parse(input0) {
+            Ok((input1, _)) => match self.second.parse(input1) {
+                Ok(result) => Ok(result),
+                Err(ParserError::Error(error)) => Err(ParserError::Error(error)),
+                Err(ParserError::Failure(error)) => Err(ParserError::Failure(error)),
+            },
+            Err(ParserError::Error(error)) => Err(ParserError::Error(error)),
+            Err(ParserError::Failure(error)) => Err(ParserError::Failure(error)),
+        }
     }
 }
-
-macro_rules! tuple_trait(
-    ($out1:ident $f1:ident, $out2: ident $f2:ident, $($out:ident $f:ident),*) => (
-        tuple_trait!(__impl $out1 $f1, $out2 $f2; $($out $f),*);
-    );
-    (__impl $($out:ident $f: ident),+; $out1:ident $f1:ident, $($out2:ident $f2:ident),*) => (
-        tuple_trait_impl!($($out $f),+);
-        tuple_trait!(__impl $($out $f),+ , $out1 $f1; $($out2 $f2),*);
-    );
-    (__impl $($out:ident $f: ident),+; $out1:ident $f1:ident) => (
-        tuple_trait_impl!($($out $f),+);
-        tuple_trait_impl!($($out $f),+, $out1 $f1);
-    );
-);
-
-macro_rules! tuple_trait_impl {
-    ($($out:ident $f:ident),+) => {
-        impl<'input, $($out),+, $($f),+> Tuple<'input, ($($out),+,)> for ($($f),+,)
-        where
-            $($f: ParserFn<'input, $out>),+
-        {
-            fn parse(&self, input: Input<'input>) -> ParserResult<'input, ($($out),+,)> {
-                tuple_trait_inner!(0, self, input, (), (), $($f)+)
-            }
-        }
-    };
-}
-
-macro_rules! tuple_trait_inner(
-    ($iter:tt, $self:expr, $input:expr, (), (), $head:ident $($f:ident)+) => ({
-        let (input, output, span) = $self.$iter($input)?;
-        succ!($iter, tuple_trait_inner!($self, input, (output), (span), $($f)+))
-    });
-    ($iter:tt, $self:expr, $input:expr, ($($output:tt)*), ($($span:tt)*), $head:ident $($f:ident)+) => ({
-        let (input, output, span) = $self.$iter($input.clone())?;
-        succ!($iter, tuple_trait_inner!($self, input, ($($output)*, output), ($($span)*, span), $($f)+))
-    });
-    ($iter:tt, $self:expr, $input:expr, ($($output:tt)*), ($($span:tt)*), $head:ident) => ({
-        let (input, output, span) = $self.$iter($input.clone())?;
-        Ok((input, ($($output)*, output), crate::Span::combine_many(&[$($span)*, span])))
-    });
-);
-
-tuple_trait!(Out1 F1, Out2 F2, Out3 F3, Out4 F4, Out5 F5, Out6 F6, Out7 F7, Out8 F8);
