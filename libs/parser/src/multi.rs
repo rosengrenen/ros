@@ -53,3 +53,62 @@ where
         }
     }
 }
+
+pub fn fold1<I, O, E, P, F, Init, Acc>(
+    parser: P,
+    init: Init,
+    f: F,
+) -> impl Parser<I, Output = Acc, Error = E>
+where
+    I: Clone,
+    E: ParseError<I>,
+    P: Parser<I, Output = O, Error = E>,
+    F: Fn(Acc, O) -> Acc,
+    Init: Fn() -> Acc,
+{
+    Fold1 { parser, init, f }
+}
+
+pub struct Fold1<P, Init, F> {
+    parser: P,
+    init: Init,
+    f: F,
+}
+
+impl<I, O, E, P, Init, Acc, F> Parser<I> for Fold1<P, Init, F>
+where
+    I: Clone,
+    E: ParseError<I>,
+    P: Parser<I, Output = O, Error = E>,
+    F: Fn(Acc, O) -> Acc,
+    Init: Fn() -> Acc,
+{
+    type Output = Acc;
+
+    type Error = E;
+
+    fn parse(&self, input: I) -> crate::error::ParseResult<I, Self::Output, Self::Error> {
+        let mut folded_output = (self.init)();
+        match self.parser.parse(input) {
+            Ok((mut input, output)) => {
+                folded_output = (self.f)(folded_output, output);
+                loop {
+                    match self.parser.parse(input.clone()) {
+                        Ok((next_input, output)) => {
+                            folded_output = (self.f)(folded_output, output);
+                            input = next_input;
+                        }
+                        Err(ParserError::Error(_)) => {
+                            return Ok((input, folded_output));
+                        }
+                        Err(ParserError::Failure(error)) => {
+                            return Err(ParserError::Failure(error))
+                        }
+                    }
+                }
+            }
+            Err(ParserError::Error(error)) => return Err(ParserError::Error(error)),
+            Err(ParserError::Failure(error)) => return Err(ParserError::Failure(error)),
+        }
+    }
+}
