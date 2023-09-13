@@ -28,6 +28,9 @@ dependencies = [
 [[package]]
 name = "parser"
 version = "0.0.0"
+dependencies = [
+ "alloc",
+]
 
 [[package]]
 name = "serial"

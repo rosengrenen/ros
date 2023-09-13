@@ -1,10 +1,10 @@
 #![no_std]
+#![feature(allocator_api)]
 #![feature(error_in_core)]
 
-#[macro_use]
-pub mod macros;
-
+pub mod alloc;
 pub mod branch;
+pub mod combinator;
 pub mod error;
 pub mod input;
 pub mod multi;

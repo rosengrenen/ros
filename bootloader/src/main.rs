@@ -394,8 +394,8 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
     let ptr = dsdt_addr as *const DefinitionHeader;
     let hdr = unsafe { ptr.read() };
     let aml_ptr = unsafe { ptr.add(1) }.cast::<u8>();
-    let aml_len = hdr.length - 36;
-    let aml_slice = unsafe { core::slice::from_raw_parts(aml_ptr, aml_len as _) };
+    let aml_len = hdr.length as usize - core::mem::size_of::<DefinitionHeader>();
+    let aml_slice = unsafe { core::slice::from_raw_parts(aml_ptr, aml_len) };
     let res = definition_blocks::<SimpleError<&[u8]>, _>(aml_slice, alloc);
     sprintln!("{:?}", res);
     loop {}

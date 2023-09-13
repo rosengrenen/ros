@@ -12,43 +12,36 @@ pub trait Input: Clone {
 
     fn split_at_index(&self, index: usize) -> (Self, Self);
 
-    fn position<P>(&self, pred: P) -> Option<usize>
+    fn split_at_position_m_n<E, P>(
+        &self,
+        min: usize,
+        max: usize,
+        pred: P,
+        kind: ParseErrorKind,
+    ) -> ParseResult<Self, Self, E>
     where
-        P: Fn(Self::Item) -> bool;
-
-    fn split_at_position0<P, E>(&self, pred: P) -> ParseResult<Self, Self, E>
-    where
-        P: Fn(Self::Item) -> bool,
         E: ParseError<Self>,
+        P: Fn(Self::Item) -> bool,
     {
-        match self.position(pred) {
-            Some(n) => {
-                let (output, input) = self.split_at_index(n);
-                Ok((input, output))
-            }
-            None => {
-                let (output, input) = self.split_at_index(self.input_len());
-                Ok((input, output))
+        let mut n = 0;
+        let mut iter = self.item_iter();
+        while n <= max {
+            match iter.next() {
+                Some(item) => match pred(item) {
+                    true => break,
+                    false => {
+                        n += 1;
+                    }
+                },
+                None => break,
             }
         }
-    }
 
-    fn split_at_position1<P, E>(&self, pred: P, kind: ParseErrorKind) -> ParseResult<Self, Self, E>
-    where
-        P: Fn(Self::Item) -> bool,
-        E: ParseError<Self>,
-    {
-        match self.position(pred) {
-            Some(0) => Err(ParserError::Error(E::from_error_kind(self.clone(), kind))),
-            Some(n) => {
-                let (output, input) = self.split_at_index(n);
-                Ok((input, output))
-            }
-            None => {
-                let (output, input) = self.split_at_index(self.input_len());
-                Ok((input, output))
-            }
+        if n < min {
+            return Err(ParserError::Error(E::from_error_kind(self.clone(), kind)));
         }
+
+        Ok(self.split_at_index(n))
     }
 }
 
@@ -67,12 +60,5 @@ impl<'input> Input for &'input [u8] {
 
     fn split_at_index(&self, index: usize) -> (Self, Self) {
         self.split_at(index)
-    }
-
-    fn position<P>(&self, pred: P) -> Option<usize>
-    where
-        P: Fn(u8) -> bool,
-    {
-        self.iter().position(|&b| pred(b))
     }
 }

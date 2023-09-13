@@ -6,7 +6,7 @@ use core::{
     ptr::Unique,
 };
 
-pub struct Box<'alloc, T, A: Allocator> {
+pub struct Box<'alloc, T: ?Sized, A: Allocator> {
     ptr: Unique<T>,
     alloc: &'alloc A,
 }
@@ -48,7 +48,7 @@ impl<'alloc, T: fmt::Debug, A: Allocator> Debug for Box<'alloc, T, A> {
     }
 }
 
-impl<'alloc, T, A: Allocator> Deref for Box<'alloc, T, A> {
+impl<'alloc, T: ?Sized, A: Allocator> Deref for Box<'alloc, T, A> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -56,15 +56,17 @@ impl<'alloc, T, A: Allocator> Deref for Box<'alloc, T, A> {
     }
 }
 
-impl<'alloc, T, A: Allocator> DerefMut for Box<'alloc, T, A> {
+impl<'alloc, T: ?Sized, A: Allocator> DerefMut for Box<'alloc, T, A> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { self.ptr.as_mut() }
     }
 }
 
-impl<'alloc, T, A: Allocator> Drop for Box<'alloc, T, A> {
+impl<'alloc, T: ?Sized, A: Allocator> Drop for Box<'alloc, T, A> {
     fn drop(&mut self) {
-        let layout = Layout::new::<T>();
-        unsafe { self.alloc.deallocate(self.ptr.cast().into(), layout) }
+        unsafe {
+            let layout = Layout::for_value_raw(self.ptr.as_ptr());
+            self.alloc.deallocate(self.ptr.cast().into(), layout)
+        }
     }
 }
