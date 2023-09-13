@@ -2,30 +2,30 @@ use crate::{
     error::{ParseResult, ParserError},
     parser::Parser,
 };
+use core::alloc::Allocator;
 
 pub struct Cut<P> {
     pub(crate) parser: P,
 }
 
-impl<P> Cut<P> {
-    pub(crate) fn inner<I, O, E>(result: ParseResult<I, O, E>) -> ParseResult<I, O, E> {
-        match result {
-            Ok(result) => Ok(result),
-            Err(ParserError::Error(error)) => Err(ParserError::Failure(error)),
-            Err(ParserError::Failure(error)) => Err(ParserError::Failure(error)),
-        }
-    }
-}
-
-impl<I, P> Parser<I> for Cut<P>
+impl<'alloc, I, P, A> Parser<'alloc, I, A> for Cut<P>
 where
-    P: Parser<I>,
+    P: Parser<'alloc, I, A>,
+    A: Allocator,
 {
     type Output = P::Output;
 
     type Error = P::Error;
 
-    fn parse(&self, input: I) -> ParseResult<I, Self::Output, Self::Error> {
-        Self::inner(self.parser.parse(input))
+    fn parse(
+        &self,
+        input: I,
+        alloc: &'alloc A,
+    ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
+        match self.parser.parse(input, alloc) {
+            Ok(result) => Ok(result),
+            Err(ParserError::Error(error)) => Err(ParserError::Failure(error)),
+            Err(ParserError::Failure(error)) => Err(ParserError::Failure(error)),
+        }
     }
 }

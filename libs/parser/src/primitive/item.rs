@@ -4,13 +4,14 @@ use crate::{
     input::Input,
     parser::Parser,
 };
-use core::marker::PhantomData;
+use core::{alloc::Allocator, marker::PhantomData};
 
-pub fn take_one<I, E>() -> impl Parser<I, Output = I::Item, Error = E>
+pub fn take_one<'alloc, I, E, A>() -> impl Parser<'alloc, I, A, Output = I::Item, Error = E>
 where
     I: Input,
     I::Item: Clone,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
+    A: Allocator,
 {
     Satisfy {
         pred: |_: &I::Item| true,
@@ -18,11 +19,14 @@ where
     }
 }
 
-pub fn item<I, E>(item: I::Item) -> impl Parser<I, Output = I::Item, Error = E>
+pub fn item<'alloc, I, E, A>(
+    item: I::Item,
+) -> impl Parser<'alloc, I, A, Output = I::Item, Error = E>
 where
     I: Input,
     I::Item: Clone + PartialEq,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
+    A: Allocator,
 {
     Satisfy {
         pred: move |i: &I::Item| i == &item,
@@ -30,12 +34,15 @@ where
     }
 }
 
-pub fn satisfy<I, E, P>(pred: P) -> impl Parser<I, Output = I::Item, Error = E>
+pub fn satisfy<'alloc, I, E, P, A>(
+    pred: P,
+) -> impl Parser<'alloc, I, A, Output = I::Item, Error = E>
 where
     I: Input,
     I::Item: Clone,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
     P: Fn(&I::Item) -> bool,
+    A: Allocator,
 {
     Satisfy {
         pred,
@@ -48,26 +55,31 @@ pub struct Satisfy<P, E> {
     error: PhantomData<E>,
 }
 
-impl<I, E, P> Parser<I> for Satisfy<P, E>
+impl<'alloc, I, E, P, A> Parser<'alloc, I, A> for Satisfy<P, E>
 where
     I: Input,
     I::Item: Clone,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
     P: Fn(&I::Item) -> bool,
+    A: Allocator,
 {
     type Output = I::Item;
 
     type Error = E;
 
-    fn parse(&self, input: I) -> ParseResult<I, Self::Output, Self::Error> {
+    fn parse(
+        &self,
+        input: I,
+        alloc: &'alloc A,
+    ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
         let input_err = input.clone();
-        take_const::<1, I, E>()
+        take_const::<1, I, E, A>()
             .map(|output| output[0].clone())
             .map_res1(|item| match (self.pred)(&item) {
                 true => Ok(item),
                 false => Err(()),
             })
-            .map_err(|_| E::from_error_kind(input_err.clone(), ParseErrorKind::None))
-            .parse(input)
+            .map_err(|_| E::from_error_kind(input_err.clone(), ParseErrorKind::None, alloc))
+            .parse(input, alloc)
     }
 }

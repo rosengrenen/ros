@@ -4,12 +4,13 @@ use crate::{
     input::Input,
     parser::Parser,
 };
-use core::marker::PhantomData;
+use core::{alloc::Allocator, marker::PhantomData};
 
-pub fn take<I, E>(count: usize) -> impl Parser<I, Output = I, Error = E>
+pub fn take<'alloc, I, E, A>(count: usize) -> impl Parser<'alloc, I, A, Output = I, Error = E>
 where
     I: Input,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
+    A: Allocator,
 {
     Take {
         count,
@@ -22,25 +23,32 @@ pub struct Take<E> {
     error: PhantomData<E>,
 }
 
-impl<I, E> Parser<I> for Take<E>
+impl<'alloc, I, E, A> Parser<'alloc, I, A> for Take<E>
 where
     I: Input,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
+    A: Allocator,
 {
     type Output = I;
 
     type Error = E;
 
-    fn parse(&self, input: I) -> ParseResult<I, Self::Output, Self::Error> {
+    fn parse(
+        &self,
+        input: I,
+        _alloc: &'alloc A,
+    ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
         let (output, input) = input.split_at_index(self.count);
         Ok((input, output))
     }
 }
 
-pub fn take_const<const C: usize, I, E>() -> impl Parser<I, Output = [I::Item; C], Error = E>
+pub fn take_const<'alloc, const C: usize, I, E, A>(
+) -> impl Parser<'alloc, I, A, Output = [I::Item; C], Error = E>
 where
     I: Input,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
+    A: Allocator,
 {
     TakeConst { error: PhantomData }
 }
@@ -49,27 +57,33 @@ pub struct TakeConst<const C: usize, E> {
     error: PhantomData<E>,
 }
 
-impl<const C: usize, I, E> Parser<I> for TakeConst<C, E>
+impl<'alloc, const C: usize, I, E, A> Parser<'alloc, I, A> for TakeConst<C, E>
 where
     I: Input,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
+    A: Allocator,
 {
     type Output = [I::Item; C];
 
     type Error = E;
 
-    fn parse(&self, input: I) -> ParseResult<I, Self::Output, Self::Error> {
+    fn parse(
+        &self,
+        input: I,
+        alloc: &'alloc A,
+    ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
         take(C)
             .map(|output: I| iter_to_array_unchecked(output.item_iter()))
-            .parse(input)
+            .parse(input, alloc)
     }
 }
 
-pub fn take_while<I, E, P>(pred: P) -> impl Parser<I, Output = I, Error = E>
+pub fn take_while<'alloc, I, E, P, A>(pred: P) -> impl Parser<'alloc, I, A, Output = I, Error = E>
 where
     I: Input,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
     P: Fn(I::Item) -> bool,
+    A: Allocator,
 {
     TakeWhileMN {
         min: 0,
@@ -80,11 +94,12 @@ where
     }
 }
 
-pub fn take_while1<I, E, P>(pred: P) -> impl Parser<I, Output = I, Error = E>
+pub fn take_while1<'alloc, I, E, P, A>(pred: P) -> impl Parser<'alloc, I, A, Output = I, Error = E>
 where
     I: Input,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
     P: Fn(I::Item) -> bool,
+    A: Allocator,
 {
     TakeWhileMN {
         min: 1,
@@ -95,11 +110,15 @@ where
     }
 }
 
-pub fn take_while_n<I, E, P>(n: usize, pred: P) -> impl Parser<I, Output = I, Error = E>
+pub fn take_while_n<'alloc, I, E, P, A>(
+    n: usize,
+    pred: P,
+) -> impl Parser<'alloc, I, A, Output = I, Error = E>
 where
     I: Input,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
     P: Fn(I::Item) -> bool,
+    A: Allocator,
 {
     TakeWhileMN {
         min: n,
@@ -110,15 +129,16 @@ where
     }
 }
 
-pub fn take_while1_m_n<I, E, P>(
+pub fn take_while1_m_n<'alloc, I, E, P, A>(
     min: usize,
     max: usize,
     pred: P,
-) -> impl Parser<I, Output = I, Error = E>
+) -> impl Parser<'alloc, I, A, Output = I, Error = E>
 where
     I: Input,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
     P: Fn(I::Item) -> bool,
+    A: Allocator,
 {
     TakeWhileMN {
         min,
@@ -137,17 +157,28 @@ pub struct TakeWhileMN<P, E> {
     error: PhantomData<E>,
 }
 
-impl<I, E, P> Parser<I> for TakeWhileMN<P, E>
+impl<'alloc, I, E, P, A> Parser<'alloc, I, A> for TakeWhileMN<P, E>
 where
     I: Input,
-    E: ParseError<I>,
+    E: ParseError<'alloc, I, A>,
     P: Fn(I::Item) -> bool,
+    A: Allocator,
 {
     type Output = I;
 
     type Error = E;
 
-    fn parse(&self, input: I) -> ParseResult<I, Self::Output, Self::Error> {
-        input.split_at_position_m_n(self.min, self.max, |item| !(self.pred)(item), self.kind)
+    fn parse(
+        &self,
+        input: I,
+        alloc: &'alloc A,
+    ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
+        input.split_at_position_m_n(
+            self.min,
+            self.max,
+            |item| !(self.pred)(item),
+            self.kind,
+            alloc,
+        )
     }
 }

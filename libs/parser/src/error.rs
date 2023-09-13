@@ -1,4 +1,6 @@
-pub type ParseResult<I, O, E> = Result<(I, O), ParserError<E>>;
+use core::alloc::Allocator;
+
+pub type ParseResult<'alloc, I, O, E> = Result<(I, O), ParserError<E>>;
 
 #[derive(Debug)]
 pub enum ParserError<I> {
@@ -6,18 +8,14 @@ pub enum ParserError<I> {
     Failure(I),
 }
 
-pub trait ParseError<I> {
-    fn from_error_kind(input: I, kind: ParseErrorKind) -> Self;
+pub trait ParseError<'alloc, I, A: Allocator> {
+    fn from_error_kind(input: I, kind: ParseErrorKind, alloc: &'alloc A) -> Self;
 
-    fn append(self, other: Self) -> Self;
+    fn append(self, input: I, kind: ParseErrorKind) -> Self;
 }
 
-pub trait FromExternalError<I, E> {
-    fn from_external_error(input: I, kind: ParseErrorKind, error: E) -> Self;
-}
-
-impl<I, E> FromExternalError<I, E> for () {
-    fn from_external_error(_input: I, _kind: ParseErrorKind, _e: E) -> Self {}
+pub trait FromExternalError<'alloc, I, E, A: Allocator> {
+    fn from_external_error(input: I, kind: ParseErrorKind, error: E, alloc: &'alloc A) -> Self;
 }
 
 #[derive(Clone, Copy, Debug)]

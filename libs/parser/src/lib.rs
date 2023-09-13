@@ -2,7 +2,6 @@
 #![feature(allocator_api)]
 #![feature(error_in_core)]
 
-pub mod alloc;
 pub mod branch;
 pub mod combinator;
 pub mod error;

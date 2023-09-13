@@ -1,4 +1,5 @@
 use crate::{error::ParseResult, parser::Parser};
+use core::alloc::Allocator;
 
 pub struct Map<P, F> {
     pub(crate) parser: P,
@@ -6,7 +7,10 @@ pub struct Map<P, F> {
 }
 
 impl<P, F> Map<P, F> {
-    pub(crate) fn inner<I, O1, O2, E>(&self, result: ParseResult<I, O1, E>) -> ParseResult<I, O2, E>
+    pub(crate) fn inner<'alloc, I, O1, O2, E>(
+        &self,
+        result: ParseResult<'alloc, I, O1, E>,
+    ) -> ParseResult<'alloc, I, O2, E>
     where
         F: Fn(O1) -> O2,
     {
@@ -14,16 +18,21 @@ impl<P, F> Map<P, F> {
     }
 }
 
-impl<I, O, P, F> Parser<I> for Map<P, F>
+impl<'alloc, I, O, P, F, A> Parser<'alloc, I, A> for Map<P, F>
 where
-    P: Parser<I>,
+    P: Parser<'alloc, I, A>,
     F: Fn(P::Output) -> O,
+    A: Allocator,
 {
     type Output = O;
 
     type Error = P::Error;
 
-    fn parse(&self, input: I) -> ParseResult<I, Self::Output, Self::Error> {
-        self.inner(self.parser.parse(input))
+    fn parse(
+        &self,
+        input: I,
+        alloc: &'alloc A,
+    ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
+        self.inner(self.parser.parse(input, alloc))
     }
 }

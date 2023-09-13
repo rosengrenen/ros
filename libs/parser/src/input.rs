@@ -1,5 +1,5 @@
 use crate::error::{ParseError, ParseErrorKind, ParseResult, ParserError};
-use core::{iter::Copied, slice::Iter};
+use core::{alloc::Allocator, iter::Copied, slice::Iter};
 
 pub trait Input: Clone {
     type Item;
@@ -12,16 +12,18 @@ pub trait Input: Clone {
 
     fn split_at_index(&self, index: usize) -> (Self, Self);
 
-    fn split_at_position_m_n<E, P>(
+    fn split_at_position_m_n<'alloc, E, P, A>(
         &self,
         min: usize,
         max: usize,
         pred: P,
         kind: ParseErrorKind,
+        alloc: &'alloc A,
     ) -> ParseResult<Self, Self, E>
     where
-        E: ParseError<Self>,
+        E: ParseError<'alloc, Self, A>,
         P: Fn(Self::Item) -> bool,
+        A: Allocator,
     {
         let mut n = 0;
         let mut iter = self.item_iter();
@@ -38,7 +40,11 @@ pub trait Input: Clone {
         }
 
         if n < min {
-            return Err(ParserError::Error(E::from_error_kind(self.clone(), kind)));
+            return Err(ParserError::Error(E::from_error_kind(
+                self.clone(),
+                kind,
+                alloc,
+            )));
         }
 
         Ok(self.split_at_index(n))

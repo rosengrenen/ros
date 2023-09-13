@@ -1,8 +1,4 @@
-use core::{alloc::Allocator, marker::PhantomData};
-
 use crate::{
-    alloc::parser::ParserAlloc,
-    branch::alt::{Alt, AltHelper},
     combinator::{
         cut::Cut,
         map::Map,
@@ -13,13 +9,23 @@ use crate::{
     },
     error::{FromExternalError, ParseError, ParseResult},
 };
+use core::{alloc::Allocator, marker::PhantomData};
 
-pub trait Parser<I> {
+use crate::branch::alt::{Alt, AltHelper};
+
+pub trait Parser<'alloc, I, A>
+where
+    A: Allocator,
+{
     type Output;
 
-    type Error: ParseError<I>;
+    type Error: ParseError<'alloc, I, A>;
 
-    fn parse(&self, input: I) -> ParseResult<I, Self::Output, Self::Error>;
+    fn parse(
+        &self,
+        input: I,
+        alloc: &'alloc A,
+    ) -> ParseResult<'alloc, I, Self::Output, Self::Error>;
 
     fn map<F, O2>(self, f: F) -> Map<Self, F>
     where
@@ -32,7 +38,7 @@ pub trait Parser<I> {
     fn map_res<O2, E2, F>(self, f: F) -> MapRes<Self, F, E2>
     where
         Self: Sized,
-        Self::Error: FromExternalError<I, E2>,
+        Self::Error: FromExternalError<'alloc, I, E2, A>,
         F: Fn(Self::Output) -> Result<O2, E2>,
     {
         MapRes {
@@ -65,7 +71,7 @@ pub trait Parser<I> {
     fn or<P>(self, parser: P) -> Or<Self, P>
     where
         Self: Sized,
-        P: Parser<I, Output = Self::Output, Error = Self::Error>,
+        P: Parser<'alloc, I, A, Output = Self::Output, Error = Self::Error>,
     {
         Or {
             first: self,
@@ -87,58 +93,32 @@ pub trait Parser<I> {
         Cut { parser: self }
     }
 
-    fn alt(self) -> Alt<Self>
+    fn alt(self) -> Alt<Self, A>
     where
-        Self: Sized + AltHelper<I>,
+        Self: Sized + AltHelper<'alloc, I, A>,
     {
-        Alt { parsers: self }
-    }
-
-    fn into_alloc<A>(self) -> IntoAlloc<Self, A>
-    where
-        Self: Sized,
-        A: Allocator,
-    {
-        IntoAlloc {
-            parser: self,
+        Alt {
+            parsers: self,
             alloc: PhantomData,
         }
     }
 }
 
-impl<I, O, E, F> Parser<I> for F
+impl<'alloc, I, O, E, F, A> Parser<'alloc, I, A> for F
 where
-    E: ParseError<I>,
-    F: Fn(I) -> ParseResult<I, O, E>,
+    E: ParseError<'alloc, I, A>,
+    F: Fn(I, &'alloc A) -> ParseResult<'alloc, I, O, E>,
+    A: Allocator + 'alloc,
 {
     type Output = O;
 
     type Error = E;
 
-    fn parse(&self, input: I) -> ParseResult<I, Self::Output, Self::Error> {
-        self(input)
-    }
-}
-
-pub struct IntoAlloc<P, A> {
-    parser: P,
-    alloc: PhantomData<A>,
-}
-
-impl<'alloc, I, P, A> ParserAlloc<'alloc, I, A> for IntoAlloc<P, A>
-where
-    P: Parser<I>,
-    A: Allocator,
-{
-    type Output = P::Output;
-
-    type Error = P::Error;
-
-    fn parse_alloc(
+    fn parse(
         &self,
         input: I,
-        _alloc: &'alloc A,
-    ) -> ParseResult<I, Self::Output, Self::Error> {
-        self.parser.parse(input)
+        alloc: &'alloc A,
+    ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
+        self(input, alloc)
     }
 }

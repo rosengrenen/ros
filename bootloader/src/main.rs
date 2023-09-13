@@ -396,29 +396,50 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
     let aml_ptr = unsafe { ptr.add(1) }.cast::<u8>();
     let aml_len = hdr.length as usize - core::mem::size_of::<DefinitionHeader>();
     let aml_slice = unsafe { core::slice::from_raw_parts(aml_ptr, aml_len) };
-    let res = definition_blocks::<SimpleError<&[u8]>, _>(aml_slice, alloc);
+    let res = definition_blocks::<SimpleError<&[u8], _>, _>(aml_slice, alloc);
     sprintln!("{:?}", res);
     loop {}
 }
 
-#[derive(Debug)]
-struct SimpleError<I> {
-    input: I,
-    kind: ParseErrorKind,
+struct SimpleError<'alloc, I, A: Allocator> {
+    errors: Vec<'alloc, (I, ParseErrorKind), A>,
 }
 
-impl<I> ParseError<I> for SimpleError<I> {
-    fn from_error_kind(input: I, kind: ParseErrorKind) -> Self {
-        Self { input, kind }
+impl<'alloc, I, A> core::fmt::Debug for SimpleError<'alloc, I, A>
+where
+    I: core::fmt::Debug,
+    A: Allocator,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("SimpleError")
+            .field("errors", &self.errors)
+            .finish()
+    }
+}
+
+impl<'alloc, I, A> ParseError<'alloc, I, A> for SimpleError<'alloc, I, A>
+where
+    A: Allocator,
+{
+    fn from_error_kind(input: I, kind: ParseErrorKind, alloc: &'alloc A) -> Self {
+        let mut errors = Vec::new(alloc);
+        errors.push((input, kind)).unwrap();
+        Self { errors }
     }
 
-    fn append(self, _other: Self) -> Self {
+    fn append(mut self, input: I, kind: ParseErrorKind) -> Self {
+        self.errors.push((input, kind)).unwrap();
         self
     }
 }
 
-impl<I, E> FromExternalError<I, E> for SimpleError<I> {
-    fn from_external_error(input: I, kind: ParseErrorKind, _error: E) -> Self {
-        Self { input, kind }
+impl<'alloc, I, E, A> FromExternalError<'alloc, I, E, A> for SimpleError<'alloc, I, A>
+where
+    A: Allocator,
+{
+    fn from_external_error(input: I, kind: ParseErrorKind, _error: E, alloc: &'alloc A) -> Self {
+        let mut errors = Vec::new(alloc);
+        errors.push((input, kind)).unwrap();
+        Self { errors }
     }
 }

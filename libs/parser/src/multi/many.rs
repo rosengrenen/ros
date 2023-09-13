@@ -1,18 +1,17 @@
-use core::alloc::Allocator;
-
+use crate::{
+    error::{ParseError, ParserError},
+    parser::Parser,
+};
 use alloc::vec::Vec;
-
-use crate::error::{ParseError, ParserError};
-
-use super::parser::ParserAlloc;
+use core::alloc::Allocator;
 
 pub fn many<'alloc, I, O, E, P, A>(
     parser: P,
-) -> impl ParserAlloc<'alloc, I, A, Output = Vec<'alloc, O, A>, Error = E>
+) -> impl Parser<'alloc, I, A, Output = Vec<'alloc, O, A>, Error = E>
 where
     I: Clone,
-    E: ParseError<I>,
-    P: ParserAlloc<'alloc, I, A, Output = O, Error = E>,
+    E: ParseError<'alloc, I, A>,
+    P: Parser<'alloc, I, A, Output = O, Error = E>,
     A: Allocator + 'alloc,
 {
     ManyMN {
@@ -24,11 +23,11 @@ where
 
 pub fn many1<'alloc, I, O, E, P, A>(
     parser: P,
-) -> impl ParserAlloc<'alloc, I, A, Output = Vec<'alloc, O, A>, Error = E>
+) -> impl Parser<'alloc, I, A, Output = Vec<'alloc, O, A>, Error = E>
 where
     I: Clone,
-    E: ParseError<I>,
-    P: ParserAlloc<'alloc, I, A, Output = O, Error = E>,
+    E: ParseError<'alloc, I, A>,
+    P: Parser<'alloc, I, A, Output = O, Error = E>,
     A: Allocator + 'alloc,
 {
     ManyMN {
@@ -41,11 +40,11 @@ where
 pub fn many_n<'alloc, I, O, E, P, A>(
     count: usize,
     parser: P,
-) -> impl ParserAlloc<'alloc, I, A, Output = Vec<'alloc, O, A>, Error = E>
+) -> impl Parser<'alloc, I, A, Output = Vec<'alloc, O, A>, Error = E>
 where
     I: Clone,
-    E: ParseError<I>,
-    P: ParserAlloc<'alloc, I, A, Output = O, Error = E>,
+    E: ParseError<'alloc, I, A>,
+    P: Parser<'alloc, I, A, Output = O, Error = E>,
     A: Allocator + 'alloc,
 {
     ManyMN {
@@ -59,11 +58,11 @@ pub fn many_m_n<'alloc, I, O, E, P, A>(
     min: usize,
     max: usize,
     parser: P,
-) -> impl ParserAlloc<'alloc, I, A, Output = Vec<'alloc, O, A>, Error = E>
+) -> impl Parser<'alloc, I, A, Output = Vec<'alloc, O, A>, Error = E>
 where
     I: Clone,
-    E: ParseError<I>,
-    P: ParserAlloc<'alloc, I, A, Output = O, Error = E>,
+    E: ParseError<'alloc, I, A>,
+    P: Parser<'alloc, I, A, Output = O, Error = E>,
     A: Allocator + 'alloc,
 {
     ManyMN { min, max, parser }
@@ -76,24 +75,24 @@ pub struct ManyMN<P> {
     parser: P,
 }
 
-impl<'alloc, I, A, P> ParserAlloc<'alloc, I, A> for ManyMN<P>
+impl<'alloc, I, A, P> Parser<'alloc, I, A> for ManyMN<P>
 where
     I: Clone,
-    P: ParserAlloc<'alloc, I, A>,
+    P: Parser<'alloc, I, A>,
     A: Allocator + 'alloc,
 {
     type Output = Vec<'alloc, P::Output, A>;
 
     type Error = P::Error;
 
-    fn parse_alloc(
+    fn parse(
         &self,
         mut input: I,
         alloc: &'alloc A,
-    ) -> crate::error::ParseResult<I, Self::Output, Self::Error> {
+    ) -> crate::error::ParseResult<'alloc, I, Self::Output, Self::Error> {
         let mut outputs = Vec::new(alloc);
         for count in 0..self.max {
-            match self.parser.parse_alloc(input.clone(), alloc) {
+            match self.parser.parse(input.clone(), alloc) {
                 Ok((next_input, output)) => {
                     // TOOD: remove this unwrap
                     outputs.push(output).unwrap();

@@ -3,9 +3,9 @@ mod name;
 use crate::sprintln;
 use core::alloc::Allocator;
 use parser::{
-    alloc::{multi::many, parser::ParserAlloc},
     error::{FromExternalError, ParseError, ParseResult},
     input::Input,
+    multi::many::many,
     parser::Parser,
     primitive::{
         item::{item, take_one},
@@ -23,37 +23,41 @@ pub enum AmlError {
 pub fn definition_blocks<'i, 'alloc, E, A>(
     input: &'i [u8],
     alloc: &'alloc A,
-) -> ParseResult<&'i [u8], (), E>
+) -> ParseResult<'alloc, &'i [u8], (), E>
 where
-    E: ParseError<&'i [u8]> + FromExternalError<&'i [u8], AmlError>,
+    E: ParseError<'alloc, &'i [u8], A> + FromExternalError<'alloc, &'i [u8], AmlError, A>,
     A: Allocator,
 {
     many(def_scope)
         .map(|output| {
             sprintln!("{:#?}", output);
         })
-        .parse_alloc(input, alloc)
+        .parse(input, alloc)
 }
 
 pub fn def_scope<'i, 'alloc, E, A>(
     input: &'i [u8],
     alloc: &'alloc A,
-) -> ParseResult<&'i [u8], NameString<'alloc, A>, E>
+) -> ParseResult<'alloc, &'i [u8], NameString<'alloc, A>, E>
 where
-    E: ParseError<&'i [u8]> + FromExternalError<&'i [u8], AmlError>,
+    E: ParseError<'alloc, &'i [u8], A> + FromExternalError<'alloc, &'i [u8], AmlError, A>,
     A: Allocator,
 {
-    let (input, pkg_len) = preceded(item(0x10), pkg_length.cut()).parse(input)?;
+    let (input, pkg_len) = preceded(item(0x10), pkg_length.cut()).parse(input, alloc)?;
     let (input, rest) = input.split_at_index(pkg_len);
-    let (_, output) = name_string.cut().parse_alloc(input, alloc)?;
+    let (_, output) = name_string.cut().parse(input, alloc)?;
     Ok((rest, output))
 }
 
-pub fn pkg_length<'i, E>(input: &'i [u8]) -> ParseResult<&'i [u8], usize, E>
+pub fn pkg_length<'i, 'alloc, E, A>(
+    input: &'i [u8],
+    alloc: &'alloc A,
+) -> ParseResult<'alloc, &'i [u8], usize, E>
 where
-    E: ParseError<&'i [u8]> + FromExternalError<&'i [u8], AmlError>,
+    E: ParseError<'alloc, &'i [u8], A> + FromExternalError<'alloc, &'i [u8], AmlError, A>,
+    A: Allocator,
 {
-    let (input, lead_byte) = take_one().parse(input)?;
+    let (input, lead_byte) = take_one().parse(input, alloc)?;
     let extra_bytes = (lead_byte >> 6) as usize;
     if extra_bytes == 0 {
         return Ok((input, lead_byte as usize - 1));
@@ -72,5 +76,5 @@ where
 
             Ok(pkg_length - 1 - extra_bytes.len())
         })
-        .parse(input)
+        .parse(input, alloc)
 }

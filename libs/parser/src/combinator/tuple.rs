@@ -2,6 +2,7 @@ use crate::{
     error::{ParseError, ParseResult},
     parser::Parser,
 };
+use core::alloc::Allocator;
 
 macro_rules! tuple_trait(
     ($output1:ident $parser1:ident, $output2:ident $parser2:ident, $($output:ident $parser:ident),*) => (
@@ -19,21 +20,22 @@ macro_rules! tuple_trait(
 
 macro_rules! tuple_trait_impl {
     ($($outputs:ident $parsers:ident),+) => {
-        impl<I, $($outputs),+, E, $($parsers),+> Parser<I> for ($($parsers),+)
+        impl<'alloc, I, $($outputs),+, E, $($parsers),+, A> Parser<'alloc, I, A> for ($($parsers),+)
         where
-            E: ParseError<I>,
-            $($parsers: Parser<I, Output = $outputs, Error = E>,)+
+            E: ParseError<'alloc, I, A>,
+            $($parsers: Parser<'alloc, I, A, Output = $outputs, Error = E>,)+
+            A: Allocator,
         {
             type Output = ($($outputs),+);
 
             type Error = E;
 
-            fn parse(&self, input: I) -> ParseResult<I, Self::Output, Self::Error> {
+            fn parse(&self, input: I, alloc: &'alloc A) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
                 #[allow(non_snake_case)]
                 let ($($parsers),+) = self;
                 $(
                     #[allow(non_snake_case)]
-                    let (input, $outputs) = $parsers.parse(input)?;
+                    let (input, $outputs) = $parsers.parse(input, alloc)?;
                 )+
 
                 Ok((input, ($($outputs),+)))
