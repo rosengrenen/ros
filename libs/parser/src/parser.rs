@@ -2,7 +2,6 @@ use crate::{
     combinator::{
         cut::Cut,
         map::Map,
-        map_err::MapErr,
         map_res::{MapRes, MapRes1},
         opt::Opt,
         or::Or,
@@ -58,14 +57,6 @@ where
             f,
             error: PhantomData,
         }
-    }
-
-    fn map_err<F>(self, f: F) -> MapErr<Self, F>
-    where
-        Self: Sized,
-        F: Fn(Self::Error) -> Self::Error,
-    {
-        MapErr { parser: self, f }
     }
 
     fn or<P>(self, parser: P) -> Or<Self, P>

@@ -3,9 +3,28 @@ use core::alloc::Allocator;
 pub type ParseResult<'alloc, I, O, E> = Result<(I, O), ParserError<E>>;
 
 #[derive(Debug)]
-pub enum ParserError<I> {
-    Error(I),
-    Failure(I),
+pub enum ParserError<E> {
+    Error(E),
+    Failure(E),
+}
+
+impl<E> ParserError<E> {
+    pub(crate) fn map<F>(self, f: F) -> Self
+    where
+        F: FnOnce(E) -> E,
+    {
+        match self {
+            ParserError::Error(error) => ParserError::Error(f(error)),
+            ParserError::Failure(error) => ParserError::Failure(error),
+        }
+    }
+
+    pub(crate) fn fail(self) -> Self {
+        match self {
+            ParserError::Error(error) => ParserError::Failure(error),
+            ParserError::Failure(error) => ParserError::Failure(error),
+        }
+    }
 }
 
 pub trait ParseError<'alloc, I, A: Allocator> {

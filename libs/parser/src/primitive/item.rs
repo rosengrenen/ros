@@ -72,14 +72,13 @@ where
         input: I,
         alloc: &'alloc A,
     ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
-        let input_err = input.clone();
         take_const::<1, I, E, A>()
             .map(|output| output[0].clone())
             .map_res1(|item| match (self.pred)(&item) {
                 true => Ok(item),
                 false => Err(()),
             })
-            .map_err(|_| E::from_error_kind(input_err.clone(), ParseErrorKind::None, alloc))
-            .parse(input, alloc)
+            .parse(input.clone(), alloc)
+            .map_err(|error| error.map(|error| error.append(input, ParseErrorKind::None)))
     }
 }

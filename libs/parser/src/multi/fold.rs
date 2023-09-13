@@ -2,7 +2,7 @@ use crate::{
     error::{ParseError, ParserError},
     parser::Parser,
 };
-use core::alloc::Allocator;
+use core::{alloc::Allocator, ops::ControlFlow};
 
 pub fn fold<'alloc, I, O, E, P, F, Init, Acc, A>(
     parser: P,
@@ -119,27 +119,30 @@ where
 
     fn parse(
         &self,
-        mut input: I,
+        input: I,
         alloc: &'alloc A,
     ) -> crate::error::ParseResult<'alloc, I, Self::Output, Self::Error> {
-        let mut folded_output = (self.init)();
-        for count in 0..self.max {
-            match self.parser.parse(input.clone(), alloc) {
-                Ok((next_input, output)) => {
-                    folded_output = (self.f)(folded_output, output);
-                    input = next_input;
-                }
-                Err(ParserError::Error(error)) => {
-                    if count < self.min {
-                        return Err(ParserError::Error(error));
+        let control_flow =
+            (0..self.max).try_fold((input, (self.init)()), |(input, folded_outputs), count| {
+                match self.parser.parse(input.clone(), alloc) {
+                    Ok((input, output)) => {
+                        ControlFlow::Continue((input, (self.f)(folded_outputs, output)))
                     }
-
-                    break;
+                    Err(ParserError::Error(error)) => {
+                        if count < self.min {
+                            ControlFlow::Break(Err(ParserError::Error(error)))
+                        } else {
+                            ControlFlow::Break(Ok((input, folded_outputs)))
+                        }
+                    }
+                    Err(ParserError::Failure(error)) => {
+                        ControlFlow::Break(Err(ParserError::Failure(error)))
+                    }
                 }
-                Err(ParserError::Failure(error)) => return Err(ParserError::Failure(error)),
-            }
+            });
+        match control_flow {
+            ControlFlow::Continue(res) => Ok(res),
+            ControlFlow::Break(res) => res,
         }
-
-        Ok((input, folded_output))
     }
 }

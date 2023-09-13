@@ -3,7 +3,7 @@ use crate::{
     parser::Parser,
 };
 use alloc::vec::Vec;
-use core::alloc::Allocator;
+use core::{alloc::Allocator, ops::ControlFlow};
 
 pub fn many<'alloc, I, O, E, P, A>(
     parser: P,
@@ -87,28 +87,32 @@ where
 
     fn parse(
         &self,
-        mut input: I,
+        input: I,
         alloc: &'alloc A,
     ) -> crate::error::ParseResult<'alloc, I, Self::Output, Self::Error> {
-        let mut outputs = Vec::new(alloc);
-        for count in 0..self.max {
-            match self.parser.parse(input.clone(), alloc) {
-                Ok((next_input, output)) => {
-                    // TOOD: remove this unwrap
-                    outputs.push(output).unwrap();
-                    input = next_input;
-                }
-                Err(ParserError::Error(error)) => {
-                    if count < self.min {
-                        return Err(ParserError::Error(error));
+        let control_flow =
+            (0..self.max).try_fold((input, Vec::new(alloc)), |(input, mut outputs), count| {
+                match self.parser.parse(input.clone(), alloc) {
+                    Ok((input, output)) => {
+                        // TOOD: remove this unwrap
+                        outputs.push(output).unwrap();
+                        ControlFlow::Continue((input, outputs))
                     }
-
-                    break;
+                    Err(ParserError::Error(error)) => {
+                        if count < self.min {
+                            ControlFlow::Break(Err(ParserError::Error(error)))
+                        } else {
+                            ControlFlow::Break(Ok((input, outputs)))
+                        }
+                    }
+                    Err(ParserError::Failure(error)) => {
+                        ControlFlow::Break(Err(ParserError::Failure(error)))
+                    }
                 }
-                Err(ParserError::Failure(error)) => return Err(ParserError::Failure(error)),
-            }
+            });
+        match control_flow {
+            ControlFlow::Continue(res) => Ok(res),
+            ControlFlow::Break(res) => res,
         }
-
-        Ok((input, outputs))
     }
 }
