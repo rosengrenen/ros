@@ -1,5 +1,5 @@
 use crate::{
-    error::{ParseError, ParseResult, ParserError},
+    error::{ParseError, ParseErrorKind, ParseResult, ParserError},
     parser::Parser,
 };
 use core::alloc::Allocator;
@@ -27,7 +27,9 @@ where
         match self.parser.parse(input.clone(), alloc) {
             Ok((input, output)) => Ok((input, Some(output))),
             Err(ParserError::Error(_)) => Ok((input, None)),
-            Err(ParserError::Failure(error)) => Err(ParserError::Failure(error)),
+            Err(ParserError::Failure(error)) => Err(ParserError::Failure(
+                error.append(input, ParseErrorKind::Opt),
+            )),
         }
     }
 }

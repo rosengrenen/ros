@@ -431,6 +431,11 @@ where
         self.errors.push((input, kind)).unwrap();
         self
     }
+
+    fn replace(mut self, input: I, kind: ParseErrorKind) -> Self {
+        *self.errors.last_mut().unwrap() = (input, kind);
+        self
+    }
 }
 
 impl<'alloc, I, E, A> FromExternalError<'alloc, I, E, A> for SimpleError<'alloc, I, A>

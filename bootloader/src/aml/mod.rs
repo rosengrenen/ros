@@ -4,7 +4,6 @@ use crate::sprintln;
 use core::alloc::Allocator;
 use parser::{
     error::{FromExternalError, ParseError, ParseResult},
-    input::Input,
     multi::many::many,
     parser::Parser,
     primitive::{
@@ -44,7 +43,7 @@ where
     A: Allocator,
 {
     let (input, pkg_len) = preceded(item(0x10), pkg_length.cut()).parse(input, alloc)?;
-    let (input, rest) = input.split_at_index(pkg_len);
+    let (rest, input) = take(pkg_len).parse(input, alloc)?;
     let (_, output) = name_string.cut().parse(input, alloc)?;
     Ok((rest, output))
 }

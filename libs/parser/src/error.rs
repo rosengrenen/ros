@@ -9,20 +9,14 @@ pub enum ParserError<E> {
 }
 
 impl<E> ParserError<E> {
-    pub(crate) fn map<F>(self, f: F) -> Self
+    pub(crate) fn append<'alloc, I, A>(self, input: I, kind: ParseErrorKind) -> Self
     where
-        F: FnOnce(E) -> E,
+        E: ParseError<'alloc, I, A>,
+        A: Allocator,
     {
         match self {
-            ParserError::Error(error) => ParserError::Error(f(error)),
-            ParserError::Failure(error) => ParserError::Failure(error),
-        }
-    }
-
-    pub(crate) fn fail(self) -> Self {
-        match self {
-            ParserError::Error(error) => ParserError::Failure(error),
-            ParserError::Failure(error) => ParserError::Failure(error),
+            ParserError::Error(error) => ParserError::Error(error.replace(input, kind)),
+            ParserError::Failure(error) => ParserError::Failure(error.append(input, kind)),
         }
     }
 }
@@ -31,6 +25,8 @@ pub trait ParseError<'alloc, I, A: Allocator> {
     fn from_error_kind(input: I, kind: ParseErrorKind, alloc: &'alloc A) -> Self;
 
     fn append(self, input: I, kind: ParseErrorKind) -> Self;
+
+    fn replace(self, input: I, kind: ParseErrorKind) -> Self;
 }
 
 pub trait FromExternalError<'alloc, I, E, A: Allocator> {
@@ -39,5 +35,31 @@ pub trait FromExternalError<'alloc, I, E, A: Allocator> {
 
 #[derive(Clone, Copy, Debug)]
 pub enum ParseErrorKind {
-    None,
+    Unknown,
+    Alt,
+    Cut,
+    MapRes,
+    MapRes1,
+    Map,
+    Opt,
+    Or,
+    Tuple,
+    Fold,
+    Fold1,
+    FoldN,
+    FoldMN,
+    Many,
+    Many1,
+    ManyN,
+    ManyMN,
+    TakeOne,
+    Item,
+    Satisfy,
+    Take,
+    TakeConst,
+    TakeWhile,
+    TakeWhile1,
+    TakeWhileN,
+    TakeWhileMN,
+    Preceded,
 }

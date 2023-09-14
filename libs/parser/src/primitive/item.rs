@@ -15,6 +15,7 @@ where
 {
     Satisfy {
         pred: |_: &I::Item| true,
+        kind: ParseErrorKind::TakeOne,
         error: PhantomData,
     }
 }
@@ -30,6 +31,7 @@ where
 {
     Satisfy {
         pred: move |i: &I::Item| i == &item,
+        kind: ParseErrorKind::Item,
         error: PhantomData,
     }
 }
@@ -46,12 +48,14 @@ where
 {
     Satisfy {
         pred,
+        kind: ParseErrorKind::Satisfy,
         error: PhantomData,
     }
 }
 
 pub struct Satisfy<P, E> {
     pred: P,
+    kind: ParseErrorKind,
     error: PhantomData<E>,
 }
 
@@ -79,6 +83,6 @@ where
                 false => Err(()),
             })
             .parse(input.clone(), alloc)
-            .map_err(|error| error.map(|error| error.append(input, ParseErrorKind::None)))
+            .map_err(|error| error.append(input, self.kind))
     }
 }

@@ -36,10 +36,9 @@ where
     fn parse(
         &self,
         input: I,
-        _alloc: &'alloc A,
+        alloc: &'alloc A,
     ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
-        let (output, input) = input.split_at_index(self.count);
-        Ok((input, output))
+        input.split_at_index(self.count, ParseErrorKind::Take, alloc)
     }
 }
 
@@ -74,7 +73,8 @@ where
     ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
         take(C)
             .map(|output: I| iter_to_array_unchecked(output.item_iter()))
-            .parse(input, alloc)
+            .parse(input.clone(), alloc)
+            .map_err(|error| error.append(input, ParseErrorKind::TakeConst))
     }
 }
 
@@ -89,7 +89,7 @@ where
         min: 0,
         max: usize::MAX,
         pred,
-        kind: ParseErrorKind::None,
+        kind: ParseErrorKind::TakeWhile,
         error: PhantomData,
     }
 }
@@ -105,7 +105,7 @@ where
         min: 1,
         max: usize::MAX,
         pred,
-        kind: ParseErrorKind::None,
+        kind: ParseErrorKind::TakeWhile1,
         error: PhantomData,
     }
 }
@@ -124,12 +124,12 @@ where
         min: n,
         max: n,
         pred,
-        kind: ParseErrorKind::None,
+        kind: ParseErrorKind::TakeWhileN,
         error: PhantomData,
     }
 }
 
-pub fn take_while1_m_n<'alloc, I, E, P, A>(
+pub fn take_while_m_n<'alloc, I, E, P, A>(
     min: usize,
     max: usize,
     pred: P,
@@ -144,7 +144,7 @@ where
         min,
         max,
         pred,
-        kind: ParseErrorKind::None,
+        kind: ParseErrorKind::TakeWhileMN,
         error: PhantomData,
     }
 }

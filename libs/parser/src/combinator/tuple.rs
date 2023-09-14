@@ -1,5 +1,5 @@
 use crate::{
-    error::{ParseError, ParseResult},
+    error::{ParseError, ParseErrorKind, ParseResult},
     parser::Parser,
 };
 use core::alloc::Allocator;
@@ -22,6 +22,7 @@ macro_rules! tuple_trait_impl {
     ($($outputs:ident $parsers:ident),+) => {
         impl<'alloc, I, $($outputs),+, E, $($parsers),+, A> Parser<'alloc, I, A> for ($($parsers),+)
         where
+            I: Clone,
             E: ParseError<'alloc, I, A>,
             $($parsers: Parser<'alloc, I, A, Output = $outputs, Error = E>,)+
             A: Allocator,
@@ -35,7 +36,8 @@ macro_rules! tuple_trait_impl {
                 let ($($parsers),+) = self;
                 $(
                     #[allow(non_snake_case)]
-                    let (input, $outputs) = $parsers.parse(input, alloc)?;
+                    let (input, $outputs) = $parsers.parse(input.clone(), alloc)
+                        .map_err(|error| error.append(input, ParseErrorKind::Tuple))?;
                 )+
 
                 Ok((input, ($($outputs),+)))

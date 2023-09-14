@@ -10,7 +10,29 @@ pub trait Input: Clone {
 
     fn item_iter(&self) -> Self::ItemIter;
 
-    fn split_at_index(&self, index: usize) -> (Self, Self);
+    fn split_at_index_unchecked(&self, index: usize) -> (Self, Self);
+
+    fn split_at_index<'alloc, E, A>(
+        &self,
+        index: usize,
+        kind: ParseErrorKind,
+        alloc: &'alloc A,
+    ) -> ParseResult<Self, Self, E>
+    where
+        E: ParseError<'alloc, Self, A>,
+        A: Allocator,
+    {
+        if self.input_len() < index {
+            return Err(ParserError::Error(E::from_error_kind(
+                self.clone(),
+                kind,
+                alloc,
+            )));
+        }
+
+        let (output, input) = self.split_at_index_unchecked(index);
+        Ok((input, output))
+    }
 
     fn split_at_position_m_n<'alloc, E, P, A>(
         &self,
@@ -47,7 +69,7 @@ pub trait Input: Clone {
             )));
         }
 
-        Ok(self.split_at_index(n))
+        self.split_at_index(n, kind, alloc)
     }
 }
 
@@ -64,7 +86,7 @@ impl<'input> Input for &'input [u8] {
         self.iter().copied()
     }
 
-    fn split_at_index(&self, index: usize) -> (Self, Self) {
+    fn split_at_index_unchecked(&self, index: usize) -> (Self, Self) {
         self.split_at(index)
     }
 }

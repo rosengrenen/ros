@@ -1,4 +1,7 @@
-use crate::{error::ParseResult, parser::Parser};
+use crate::{
+    error::{ParseError, ParseErrorKind, ParseResult, ParserError},
+    parser::Parser,
+};
 use core::alloc::Allocator;
 
 pub struct Cut<P> {
@@ -7,6 +10,7 @@ pub struct Cut<P> {
 
 impl<'alloc, I, P, A> Parser<'alloc, I, A> for Cut<P>
 where
+    I: Clone,
     P: Parser<'alloc, I, A>,
     A: Allocator,
 {
@@ -20,7 +24,14 @@ where
         alloc: &'alloc A,
     ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
         self.parser
-            .parse(input, alloc)
-            .map_err(|error| error.fail())
+            .parse(input.clone(), alloc)
+            .map_err(|error| match error {
+                ParserError::Error(error) => {
+                    ParserError::Failure(error.append(input, ParseErrorKind::Cut))
+                }
+                ParserError::Failure(error) => {
+                    ParserError::Failure(error.append(input, ParseErrorKind::Cut))
+                }
+            })
     }
 }

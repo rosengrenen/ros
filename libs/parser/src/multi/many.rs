@@ -1,5 +1,5 @@
 use crate::{
-    error::{ParseError, ParserError},
+    error::{ParseError, ParseErrorKind, ParserError},
     parser::Parser,
 };
 use alloc::vec::Vec;
@@ -18,6 +18,7 @@ where
         min: 0,
         max: usize::MAX,
         parser,
+        kind: ParseErrorKind::Many,
     }
 }
 
@@ -34,6 +35,7 @@ where
         min: 1,
         max: usize::MAX,
         parser,
+        kind: ParseErrorKind::Many1,
     }
 }
 
@@ -51,6 +53,7 @@ where
         min: count,
         max: count,
         parser,
+        kind: ParseErrorKind::ManyN,
     }
 }
 
@@ -65,7 +68,12 @@ where
     P: Parser<'alloc, I, A, Output = O, Error = E>,
     A: Allocator + 'alloc,
 {
-    ManyMN { min, max, parser }
+    ManyMN {
+        min,
+        max,
+        parser,
+        kind: ParseErrorKind::ManyMN,
+    }
 }
 
 // TODO: error kind
@@ -73,17 +81,19 @@ pub struct ManyMN<P> {
     min: usize,
     max: usize,
     parser: P,
+    kind: ParseErrorKind,
 }
 
-impl<'alloc, I, A, P> Parser<'alloc, I, A> for ManyMN<P>
+impl<'alloc, I, E, P, A> Parser<'alloc, I, A> for ManyMN<P>
 where
     I: Clone,
-    P: Parser<'alloc, I, A>,
+    E: ParseError<'alloc, I, A>,
+    P: Parser<'alloc, I, A, Error = E>,
     A: Allocator + 'alloc,
 {
     type Output = Vec<'alloc, P::Output, A>;
 
-    type Error = P::Error;
+    type Error = E;
 
     fn parse(
         &self,
@@ -98,16 +108,18 @@ where
                         outputs.push(output).unwrap();
                         ControlFlow::Continue((input, outputs))
                     }
-                    Err(ParserError::Error(error)) => {
+                    Err(ParserError::Error(_)) => {
                         if count < self.min {
-                            ControlFlow::Break(Err(ParserError::Error(error)))
+                            ControlFlow::Break(Err(ParserError::Error(E::from_error_kind(
+                                input, self.kind, alloc,
+                            ))))
                         } else {
                             ControlFlow::Break(Ok((input, outputs)))
                         }
                     }
-                    Err(ParserError::Failure(error)) => {
-                        ControlFlow::Break(Err(ParserError::Failure(error)))
-                    }
+                    Err(ParserError::Failure(error)) => ControlFlow::Break(Err(
+                        ParserError::Failure(error.append(input, self.kind)),
+                    )),
                 }
             });
         match control_flow {

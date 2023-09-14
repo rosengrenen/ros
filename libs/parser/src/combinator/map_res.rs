@@ -27,20 +27,23 @@ where
         input: I,
         alloc: &'alloc A,
     ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
-        self.parser.parse(input, alloc).and_then(|(input, output)| {
-            let output = {
-                let input = input.clone();
-                (self.f)(output).map_err(move |error| {
-                    ParserError::Error(E1::from_external_error(
-                        input,
-                        ParseErrorKind::None,
-                        error,
-                        alloc,
-                    ))
-                })?
-            };
-            Ok((input, output))
-        })
+        self.parser
+            .parse(input.clone(), alloc)
+            .and_then(|(input, output)| {
+                let output = {
+                    let input = input.clone();
+                    (self.f)(output).map_err(move |error| {
+                        ParserError::Error(E1::from_external_error(
+                            input,
+                            ParseErrorKind::Unknown,
+                            error,
+                            alloc,
+                        ))
+                    })?
+                };
+                Ok((input, output))
+            })
+            .map_err(|error| error.append(input, ParseErrorKind::MapRes))
     }
 }
 
@@ -67,14 +70,21 @@ where
         input: I,
         alloc: &'alloc A,
     ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
-        self.parser.parse(input, alloc).and_then(|(input, output)| {
-            let output = {
-                let input = input.clone();
-                (self.f)(output).map_err(|_| {
-                    ParserError::Error(E1::from_error_kind(input, ParseErrorKind::None, alloc))
-                })?
-            };
-            Ok((input, output))
-        })
+        self.parser
+            .parse(input.clone(), alloc)
+            .and_then(|(input, output)| {
+                let output = {
+                    let input = input.clone();
+                    (self.f)(output).map_err(|_| {
+                        ParserError::Error(E1::from_error_kind(
+                            input,
+                            ParseErrorKind::Unknown,
+                            alloc,
+                        ))
+                    })?
+                };
+                Ok((input, output))
+            })
+            .map_err(|error| error.append(input, ParseErrorKind::MapRes1))
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    error::{ParseError, ParserError},
+    error::{ParseError, ParseErrorKind, ParserError},
     parser::Parser,
 };
 use core::{alloc::Allocator, ops::ControlFlow};
@@ -23,6 +23,7 @@ where
         parser,
         init,
         f,
+        kind: ParseErrorKind::Fold,
     }
 }
 
@@ -45,6 +46,7 @@ where
         parser,
         init,
         f,
+        kind: ParseErrorKind::Fold1,
     }
 }
 
@@ -68,6 +70,7 @@ where
         parser,
         init,
         f,
+        kind: ParseErrorKind::FoldN,
     }
 }
 
@@ -92,6 +95,7 @@ where
         parser,
         init,
         f,
+        kind: ParseErrorKind::FoldMN,
     }
 }
 
@@ -102,6 +106,7 @@ pub struct FoldMN<P, Init, F> {
     parser: P,
     init: Init,
     f: F,
+    kind: ParseErrorKind,
 }
 
 impl<'alloc, I, O, E, P, Init, Acc, F, A> Parser<'alloc, I, A> for FoldMN<P, Init, F>
@@ -128,16 +133,18 @@ where
                     Ok((input, output)) => {
                         ControlFlow::Continue((input, (self.f)(folded_outputs, output)))
                     }
-                    Err(ParserError::Error(error)) => {
+                    Err(ParserError::Error(_)) => {
                         if count < self.min {
-                            ControlFlow::Break(Err(ParserError::Error(error)))
+                            ControlFlow::Break(Err(ParserError::Error(E::from_error_kind(
+                                input, self.kind, alloc,
+                            ))))
                         } else {
                             ControlFlow::Break(Ok((input, folded_outputs)))
                         }
                     }
-                    Err(ParserError::Failure(error)) => {
-                        ControlFlow::Break(Err(ParserError::Failure(error)))
-                    }
+                    Err(ParserError::Failure(error)) => ControlFlow::Break(Err(
+                        ParserError::Failure(error.append(input, self.kind)),
+                    )),
                 }
             });
         match control_flow {

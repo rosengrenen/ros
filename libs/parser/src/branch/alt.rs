@@ -1,5 +1,5 @@
 use crate::{
-    error::{ParseError, ParseResult, ParserError},
+    error::{ParseError, ParseErrorKind, ParseResult, ParserError},
     parser::Parser,
 };
 use core::{alloc::Allocator, marker::PhantomData};
@@ -75,13 +75,13 @@ macro_rules! alt_trait_impl {
             ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
                 #[allow(non_snake_case)]
                 let ($($parsers),+) = self;
-                alt_trait_inner!(input, alloc, $($parsers)+)
+                alt_trait_inner!(input.clone(), alloc, $($parsers)+)
+                    .map_err(|error| error.append(input, ParseErrorKind::Alt))
             }
         }
     };
 }
 
-// TODO: use .or() as soon as parsers are references
 macro_rules! alt_trait_inner(
     ($input:expr, $alloc:expr, $head:ident $($parsers:ident)+) => (
         match $head.parse($input.clone(), $alloc) {

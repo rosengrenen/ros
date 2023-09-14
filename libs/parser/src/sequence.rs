@@ -43,6 +43,6 @@ where
         self.first
             .parse(input.clone(), alloc)
             .and_then(|(input, _)| self.second.parse(input, alloc))
-            .map_err(|error| error.map(|error| error.append(input, ParseErrorKind::None)))
+            .map_err(|error| error.append(input, ParseErrorKind::Preceded))
     }
 }

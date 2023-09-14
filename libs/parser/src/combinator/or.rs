@@ -26,14 +26,15 @@ where
         input: I,
         alloc: &'alloc A,
     ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
-        match self.first.parse(input.clone(), alloc) {
-            Ok(result) => Ok(result),
-            Err(ParserError::Error(_)) => {
-                self.second.parse(input.clone(), alloc).map_err(|error| {
-                    error.map(|_| E::from_error_kind(input, ParseErrorKind::None, alloc))
-                })
-            }
-            Err(ParserError::Failure(error)) => Err(ParserError::Failure(error)),
-        }
+        self.first
+            .parse(input.clone(), alloc)
+            .map_or_else(
+                |error| match error {
+                    ParserError::Error(_) => self.second.parse(input.clone(), alloc),
+                    ParserError::Failure(error) => Err(ParserError::Failure(error)),
+                },
+                Ok,
+            )
+            .map_err(|error| error.append(input, ParseErrorKind::Or))
     }
 }
