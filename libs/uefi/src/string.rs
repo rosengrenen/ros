@@ -1,6 +1,5 @@
-use core::alloc::{AllocError, Allocator};
-
 use alloc::{iter::IteratorCollectIn, vec::Vec};
+use core::alloc::{AllocError, Allocator};
 
 pub type RawString16 = *const u16;
 

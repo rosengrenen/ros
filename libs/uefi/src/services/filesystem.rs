@@ -1,9 +1,8 @@
-use crate::Status;
-
 use super::{
     boot::{Guid, UefiProtocol},
     file::File,
 };
+use crate::Status;
 
 impl FileSystem {
     pub fn open_volume(&self) -> Result<&'static File, usize> {

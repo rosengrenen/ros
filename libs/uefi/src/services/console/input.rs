@@ -1,6 +1,5 @@
-use core::ffi::c_void;
-
 use crate::Status;
+use core::ffi::c_void;
 
 impl ConsoleInput {
     pub fn reset(&self, extended_verification: bool) -> Result<(), usize> {

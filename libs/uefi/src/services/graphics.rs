@@ -1,6 +1,5 @@
-use crate::Status;
-
 use super::boot::{Guid, UefiProtocol};
+use crate::Status;
 
 impl Graphics {
     pub fn query_mode(&self, mode_number: u32) -> Result<&'static ModeInfo, usize> {

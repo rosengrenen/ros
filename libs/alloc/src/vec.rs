@@ -1,11 +1,10 @@
+use crate::iter::FromIteratorIn;
 use core::{
     alloc::{AllocError, Allocator, Layout, LayoutError},
     fmt::Debug,
     ops::{Deref, DerefMut},
     ptr::Unique,
 };
-
-use crate::iter::FromIteratorIn;
 
 pub struct Vec<T, A: Allocator> {
     ptr: Unique<T>,
