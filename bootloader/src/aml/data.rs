@@ -1,3 +1,5 @@
+use crate::sprintln;
+
 use super::term::opcodes::expr::{DefBuffer, DefPkg, DefVarPkg};
 use alloc::vec::Vec;
 use core::alloc::Allocator;
@@ -37,6 +39,7 @@ impl<A: Allocator + Clone> ComputationalData<A> {
             DefBuffer::p.map(Self::DefBuffer),
         )
             .alt()
+            .add_context("ComputationalData")
             .parse(input, alloc)
     }
 }
@@ -58,6 +61,7 @@ impl<A: Allocator + Clone> DataObj<A> {
             DefVarPkg::p.map(Self::DefVarPkg),
         )
             .alt()
+            .add_context("DataObj")
             .parse(input, alloc)
     }
 }
@@ -77,7 +81,10 @@ impl<A: Allocator + Clone> DataRefObj<A> {
         //     ObjRef::p.map(Self::ObjRef)
         // )
         //     .alt()
-        DataObj::p.map(Self::DataObj).parse(input, alloc)
+        DataObj::p
+            .map(Self::DataObj)
+            .add_context("DataRefObj")
+            .parse(input, alloc)
     }
 }
 
@@ -91,6 +98,7 @@ impl ByteConst {
         let byte_prefix = item(0x0a);
         preceded(byte_prefix, byte_data)
             .map(Self)
+            .add_context("ByteConst")
             .parse(input, alloc)
     }
 }
@@ -105,6 +113,7 @@ impl WordConst {
         let word_prefix = item(0x0b);
         preceded(word_prefix, word_data)
             .map(Self)
+            .add_context("WordConst")
             .parse(input, alloc)
     }
 }
@@ -119,6 +128,7 @@ impl DWordConst {
         let dword_prefix = item(0x0c);
         preceded(dword_prefix, dword_data)
             .map(Self)
+            .add_context("DWordConst")
             .parse(input, alloc)
     }
 }
@@ -133,6 +143,7 @@ impl QWordConst {
         let qword_prefix = item(0x0e);
         preceded(qword_prefix, qword_data)
             .map(Self)
+            .add_context("QWordConst")
             .parse(input, alloc)
     }
 }
@@ -147,6 +158,7 @@ impl<A: Allocator + Clone> String<A> {
         let string_prefix = item(0x0d);
         preceded(string_prefix, (AsciiCharList::p, null_char))
             .map(|(char_list, _)| Self(char_list))
+            .add_context("String")
             .parse(input, alloc)
     }
 }
@@ -168,6 +180,7 @@ impl ConstObj {
             OnesOp::p.map(Self::OnesOp),
         )
             .alt()
+            .add_context("ConstObj")
             .parse(input, alloc)
     }
 }
@@ -179,7 +192,10 @@ impl<A: Allocator + Clone> ByteList<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        many(take_one()).map(Self).parse(input, alloc)
+        many(take_one())
+            .map(Self)
+            .add_context("ByteList")
+            .parse(input, alloc)
     }
 }
 
@@ -187,7 +203,7 @@ pub fn byte_data<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>
     input: I,
     alloc: A,
 ) -> ParseResult<I, u8, E> {
-    take_one().parse(input, alloc)
+    take_one().add_context("byte_data").parse(input, alloc)
 }
 
 pub fn word_data<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
@@ -196,6 +212,7 @@ pub fn word_data<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>
 ) -> ParseResult<I, u16, E> {
     (byte_data, byte_data)
         .map(|(lower, higher)| ((higher as u16) << 8) | lower as u16)
+        .add_context("word_data")
         .parse(input, alloc)
 }
 
@@ -205,6 +222,7 @@ pub fn dword_data<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone
 ) -> ParseResult<I, u32, E> {
     (word_data, word_data)
         .map(|(lower, higher)| ((higher as u32) << 16) | lower as u32)
+        .add_context("dword_data")
         .parse(input, alloc)
 }
 
@@ -214,6 +232,7 @@ pub fn qword_data<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone
 ) -> ParseResult<I, u64, E> {
     (dword_data, dword_data)
         .map(|(lower, higher)| ((higher as u64) << 32) | lower as u64)
+        .add_context("qword_data")
         .parse(input, alloc)
 }
 
@@ -226,6 +245,7 @@ impl<A: Allocator + Clone> AsciiCharList<A> {
     ) -> ParseResult<I, Self, E> {
         many(satisfy(|b: &u8| (0x01..=0x7f).contains(b)))
             .map(Self)
+            .add_context("AsciiCharList")
             .parse(input, alloc)
     }
 }
@@ -238,17 +258,23 @@ where
     E: ParseError<I, A>,
     A: Allocator + Clone,
 {
-    item(0x00).map(|_| ()).parse(input, alloc)
+    item(0x00)
+        .map(|_| ())
+        .add_context("null_char")
+        .parse(input, alloc)
 }
 
-struct ZeroOp;
+pub struct ZeroOp;
 
 impl ZeroOp {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        item(0x00).map(|_| Self).parse(input, alloc)
+        item(0x00)
+            .map(|_| Self)
+            .add_context("ZeroOp")
+            .parse(input, alloc)
     }
 }
 
@@ -259,7 +285,10 @@ impl OneOp {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        item(0x01).map(|_| Self).parse(input, alloc)
+        item(0x01)
+            .map(|_| Self)
+            .add_context("OneOp")
+            .parse(input, alloc)
     }
 }
 
@@ -270,7 +299,10 @@ impl OnesOp {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        item(0xff).map(|_| Self).parse(input, alloc)
+        item(0xff)
+            .map(|_| Self)
+            .add_context("OnesOp")
+            .parse(input, alloc)
     }
 }
 
@@ -283,6 +315,7 @@ impl RevisionOp {
     ) -> ParseResult<I, Self, E> {
         (ExtOpPrefix::p, item(0x30))
             .map(|_| Self)
+            .add_context("RevisionOp")
             .parse(input, alloc)
     }
 }
@@ -294,6 +327,9 @@ impl ExtOpPrefix {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        item(0x5b).map(|_| ExtOpPrefix).parse(input, alloc)
+        item(0x5b)
+            .map(|_| ExtOpPrefix)
+            .add_context("ExtOpPrefix")
+            .parse(input, alloc)
     }
 }

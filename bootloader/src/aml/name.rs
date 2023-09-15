@@ -1,8 +1,10 @@
+use crate::sprintln;
+
 use super::{
     misc::{ArgObj, DebugObj, LocalObj},
     term::opcodes::expr::RefTypeOpcode,
 };
-use alloc::{boxed::Box, vec::Vec};
+use alloc::{boxed::Box, iter::IteratorCollectIn, vec::Vec};
 use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},
@@ -20,30 +22,41 @@ fn lead_name_char<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone
     input: I,
     alloc: A,
 ) -> ParseResult<I, u8, E> {
-    satisfy(|&b: &u8| b == b'_' || b.is_ascii_uppercase()).parse(input, alloc)
+    satisfy(|&b: &u8| b == b'_' || b.is_ascii_uppercase())
+        .add_context("lead_name_char")
+        .parse(input, alloc)
 }
 
 fn digit_char<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, u8, E> {
-    satisfy(|b: &u8| b.is_ascii_digit()).parse(input, alloc)
+    satisfy(|b: &u8| b.is_ascii_digit())
+        .add_context("digit_char")
+        .parse(input, alloc)
 }
 
 fn name_char<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, u8, E> {
-    (digit_char, lead_name_char).alt().parse(input, alloc)
+    (digit_char, lead_name_char)
+        .alt()
+        .add_context("name_char")
+        .parse(input, alloc)
 }
 
 fn root_char<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, (), E> {
-    item(0x5c).map(|_| ()).parse(input, alloc)
+    item(0x5c)
+        .map(|_| ())
+        .add_context("root_char")
+        .parse(input, alloc)
 }
 
+#[derive(Debug)]
 pub struct NameSeg([u8; 4]);
 
 impl NameSeg {
@@ -53,6 +66,7 @@ impl NameSeg {
     ) -> ParseResult<I, Self, E> {
         (lead_name_char, name_char, name_char, name_char)
             .map(|(lead, c1, c2, c3)| Self([lead, c1, c2, c3]))
+            .add_context("NameSeg")
             .parse(input, alloc)
     }
 }
@@ -63,12 +77,25 @@ pub enum NameString<A: Allocator> {
     Relative(NamePath<A>),
 }
 
+impl<A: Allocator> core::fmt::Debug for NameString<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Absolute(arg0) => f.debug_tuple("Absolute").field(arg0).finish(),
+            Self::PathPrefixed(arg0, arg1) => f
+                .debug_tuple("PathPrefixed")
+                .field(arg0)
+                .field(arg1)
+                .finish(),
+            Self::Relative(arg0) => f.debug_tuple("Relative").field(arg0).finish(),
+        }
+    }
+}
+
 impl<A: Allocator + Clone> NameString<A> {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let root_char = item(0x5c);
         (
             preceded(root_char, NamePath::p.cut()).map(Self::Absolute),
             (PrefixPath::p, NamePath::p.cut()).map(|(prefix_path, name_path)| match prefix_path {
@@ -77,6 +104,7 @@ impl<A: Allocator + Clone> NameString<A> {
             }),
         )
             .alt()
+            .add_context("NameString")
             .parse(input, alloc)
     }
 }
@@ -92,6 +120,7 @@ impl PrefixPath {
         take_while1::<I, E, _, A>(|b| b == 0x5e)
             .map(|value| Self(value.input_len()))
             .opt()
+            .add_context("PrefixPath")
             .parse(input, alloc)
     }
 }
@@ -101,6 +130,17 @@ pub enum NamePath<A: Allocator> {
     DualName(DualNamePath),
     MultiName(MultiNamePath<A>),
     NullName(NullName),
+}
+
+impl<A: Allocator> core::fmt::Debug for NamePath<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::NameSeg(arg0) => f.debug_tuple("NameSeg").field(arg0).finish(),
+            Self::DualName(arg0) => f.debug_tuple("DualName").field(arg0).finish(),
+            Self::MultiName(arg0) => f.debug_tuple("MultiName").field(arg0).finish(),
+            Self::NullName(arg0) => f.debug_tuple("NullName").field(arg0).finish(),
+        }
+    }
 }
 
 impl<A: Allocator + Clone> NamePath<A> {
@@ -115,10 +155,12 @@ impl<A: Allocator + Clone> NamePath<A> {
             NullName::p.map(Self::NullName),
         )
             .alt()
+            .add_context("NamePath")
             .parse(input, alloc)
     }
 }
 
+#[derive(Debug)]
 pub struct DualNamePath(NameSeg, NameSeg);
 
 impl DualNamePath {
@@ -132,11 +174,18 @@ impl DualNamePath {
                 .cut()
                 .map(|(seg0, seg1)| Self(seg0, seg1)),
         )
+        .add_context("DualNamePath")
         .parse(input, alloc)
     }
 }
 
 pub struct MultiNamePath<A: Allocator>(Vec<NameSeg, A>);
+
+impl<A: Allocator> core::fmt::Debug for MultiNamePath<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("MultiNamePath").field(&self.0).finish()
+    }
+}
 
 impl<A: Allocator + Clone> MultiNamePath<A> {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
@@ -146,6 +195,7 @@ impl<A: Allocator + Clone> MultiNamePath<A> {
         let (input, seg_count) = preceded(item(0x2e), take_one()).parse(input, alloc.clone())?;
         many_n(seg_count as usize, NameSeg::p)
             .map(MultiNamePath)
+            .add_context("MultiNamePath")
             .parse(input, alloc)
     }
 }
@@ -167,6 +217,7 @@ impl<A: Allocator + Clone> SimpleName<A> {
             LocalObj::p.map(Self::LocalObj),
         )
             .alt()
+            .add_context("SimpleName")
             .parse(input, alloc)
     }
 }
@@ -189,6 +240,7 @@ impl<A: Allocator + Clone> SuperName<A> {
             RefTypeOpcode::p.map(|r| Self::RefTypeOpcode(Box::new(r, box_alloc.clone()).unwrap())),
         )
             .alt()
+            .add_context("SuperName")
             .parse(input, alloc)
     }
 }
@@ -201,7 +253,10 @@ impl NullName {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        item(0).map(|_| Self).parse(input, alloc)
+        item(0)
+            .map(|_| Self)
+            .add_context("NullName")
+            .parse(input, alloc)
     }
 }
 
@@ -220,6 +275,7 @@ impl<A: Allocator + Clone> Target<A> {
             NullName::p.map(Self::NullName),
         )
             .alt()
+            .add_context("Target")
             .parse(input, alloc)
     }
 }

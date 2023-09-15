@@ -36,6 +36,7 @@ impl<A: Allocator + Clone> Obj<A> {
             NamedObj::p.map(Self::NamedObj),
         )
             .alt()
+            .add_context("Obj")
             .parse(input, alloc)
     }
 }
@@ -57,6 +58,7 @@ impl<A: Allocator + Clone> TermObj<A> {
             ExprOpcode::p.map(Self::ExprOpcode),
         )
             .alt()
+            .add_context("TermObj")
             .parse(input, alloc)
     }
 }
@@ -68,7 +70,10 @@ impl<A: Allocator + Clone> TermList<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        many(TermObj::p).map(Self).parse(input, alloc)
+        many(TermObj::p)
+            .map(Self)
+            .add_context("TermList")
+            .parse(input, alloc)
     }
 }
 
@@ -93,6 +98,7 @@ impl<A: Allocator + Clone> TermArg<A> {
             LocalObj::p.map(Self::LocalObj),
         )
             .alt()
+            .add_context("TermArg")
             .parse(input, alloc)
     }
 }
@@ -109,6 +115,7 @@ impl<A: Allocator + Clone> MethodInvocation<A> {
     ) -> ParseResult<I, Self, E> {
         (NameString::p, TermArgList::p)
             .map(|(name, args)| Self { name, args })
+            .add_context("MethodInvocation")
             .parse(input, alloc)
     }
 }
@@ -120,6 +127,9 @@ impl<A: Allocator + Clone> TermArgList<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        many(TermArg::p).map(Self).parse(input, alloc)
+        many(TermArg::p)
+            .map(Self)
+            .add_context("TermArgList")
+            .parse(input, alloc)
     }
 }

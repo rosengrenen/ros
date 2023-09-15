@@ -1,5 +1,6 @@
 use crate::{
     combinator::{
+        add_context::AddContext,
         and_then::AndThen,
         cut::Cut,
         map::Map,
@@ -101,6 +102,16 @@ where
         Alt {
             parsers: self,
             alloc: PhantomData,
+        }
+    }
+
+    fn add_context(self, context: &'static str) -> AddContext<Self>
+    where
+        Self: Sized,
+    {
+        AddContext {
+            parser: self,
+            context,
         }
     }
 }

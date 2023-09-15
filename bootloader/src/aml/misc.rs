@@ -33,6 +33,7 @@ impl ArgObj {
             item(0x6e).map(|_| Self::Arg6),
         )
             .alt()
+            .add_context("ArgObj")
             .parse(input, alloc)
     }
 }
@@ -65,6 +66,7 @@ impl LocalObj {
             item(0x67).map(|_| Self::Local7),
         )
             .alt()
+            .add_context("LocalObj")
             .parse(input, alloc)
     }
 }
@@ -79,6 +81,7 @@ impl DebugObj {
     ) -> ParseResult<I, Self, E> {
         (ExtOpPrefix::p, item(0x32).map(|_| LocalObj::Local0))
             .map(|_| DebugObj)
+            .add_context("DebugObj")
             .parse(input, alloc)
     }
 }

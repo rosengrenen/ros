@@ -18,13 +18,17 @@ use crate::{
 };
 use acpi::DefinitionHeader;
 use alloc::vec::{PushError, Vec};
+use aml::term::TermObj;
 use bootloader_api::BootInfo;
 use core::{
     alloc::{Allocator, Layout},
     fmt::{Arguments, Write},
 };
 use elf::{get_elf_entry_point_offset, KernelExecutable};
-use parser::error::{FromExternalError, ParseError, ParseErrorKind};
+use parser::{
+    error::{FromExternalError, ParseError, ParseErrorKind},
+    input::Input,
+};
 use serial::{SerialPort, COM1_BASE};
 use uefi::{
     allocator::UefiAllocator,
@@ -396,16 +400,16 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
     let aml_ptr = unsafe { ptr.add(1) }.cast::<u8>();
     let aml_len = hdr.length as usize - core::mem::size_of::<DefinitionHeader>();
     let aml_slice = unsafe { core::slice::from_raw_parts(aml_ptr, aml_len) };
-    let res = TermList::p::<&[u8], SimpleError<&[u8], _>>(aml_slice, alloc);
+    sprintln!("{:x?}", &aml_slice[..64]);
+    let input = LocatedInput::new(aml_slice);
+    let res = TermObj::p::<LocatedInput<&[u8]>, SimpleError<LocatedInput<&[u8]>, _>>(input, alloc);
     match res {
         Ok(_) => sprintln!("ok"),
         Err(e) => match e {
             parser::error::ParserError::Error(e) => sprintln!("err"),
             parser::error::ParserError::Failure(e) => {
                 sprintln!("fail");
-                e.errors.iter().for_each(|e| {
-                    sprintln!("{:?}", e.1);
-                })
+                sprintln!("{:#?}", e);
             }
         },
     }
@@ -413,8 +417,14 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
     loop {}
 }
 
+#[derive(Debug)]
+enum SimpleErrorKind {
+    Context(&'static str),
+    Parser(ParseErrorKind),
+}
+
 struct SimpleError<I, A: Allocator> {
-    errors: Vec<(I, ParseErrorKind), A>,
+    errors: Vec<(I, SimpleErrorKind), A>,
 }
 
 impl<I, A> core::fmt::Debug for SimpleError<I, A>
@@ -435,17 +445,26 @@ where
 {
     fn from_error_kind(input: I, kind: ParseErrorKind, alloc: A) -> Self {
         let mut errors = Vec::new(alloc);
-        errors.push((input, kind)).unwrap();
+        errors.push((input, SimpleErrorKind::Parser(kind))).unwrap();
         Self { errors }
     }
 
     fn append(mut self, input: I, kind: ParseErrorKind) -> Self {
-        self.errors.push((input, kind)).unwrap();
+        self.errors
+            .push((input, SimpleErrorKind::Parser(kind)))
+            .unwrap();
         self
     }
 
     fn replace(mut self, input: I, kind: ParseErrorKind) -> Self {
-        *self.errors.last_mut().unwrap() = (input, kind);
+        *self.errors.last_mut().unwrap() = (input, SimpleErrorKind::Parser(kind));
+        self
+    }
+
+    fn add_context(mut self, input: I, context: &'static str) -> Self {
+        self.errors
+            .push((input, SimpleErrorKind::Context(context)))
+            .unwrap();
         self
     }
 }
@@ -456,7 +475,88 @@ where
 {
     fn from_external_error(input: I, kind: ParseErrorKind, _error: E, alloc: A) -> Self {
         let mut errors = Vec::new(alloc);
-        errors.push((input, kind)).unwrap();
+        errors.push((input, SimpleErrorKind::Parser(kind))).unwrap();
         Self { errors }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Span {
+    start: usize,
+    end: usize,
+}
+
+impl Span {
+    fn split_at_index(&self, index: usize) -> (Self, Self) {
+        (
+            Self {
+                start: self.start,
+                end: self.start + index,
+            },
+            Self {
+                start: self.start + index,
+                end: self.end,
+            },
+        )
+    }
+}
+
+#[derive(Clone)]
+pub struct LocatedInput<I> {
+    inner: I,
+    span: Span,
+}
+
+impl<I> core::fmt::Debug for LocatedInput<I>
+where
+    I: Input,
+    I::Item: core::fmt::Debug,
+    I::ItemIter: core::fmt::Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("LocatedInput")
+            // .field("inner", &self.inner.item_iter().take(32))
+            .field("span", &self.span)
+            .finish()
+    }
+}
+
+impl<I> LocatedInput<I>
+where
+    I: Input,
+{
+    pub fn new(input: I) -> Self {
+        let len = input.input_len();
+        Self::with_span(input, Span { start: 0, end: len })
+    }
+
+    fn with_span(input: I, span: Span) -> Self {
+        Self { inner: input, span }
+    }
+}
+
+impl<I> Input for LocatedInput<I>
+where
+    I: Input,
+{
+    type Item = I::Item;
+
+    type ItemIter = I::ItemIter;
+
+    fn input_len(&self) -> usize {
+        self.inner.input_len()
+    }
+
+    fn item_iter(&self) -> Self::ItemIter {
+        self.inner.item_iter()
+    }
+
+    fn split_at_index_unchecked(&self, index: usize) -> (Self, Self) {
+        let (left, right) = self.inner.split_at_index_unchecked(index);
+        let (left_span, right_span) = self.span.split_at_index(index);
+        (
+            Self::with_span(left, left_span),
+            Self::with_span(right, right_span),
+        )
     }
 }

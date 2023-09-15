@@ -86,6 +86,7 @@ impl<A: Allocator + Clone> DefBankField<A> {
             field_flags,
             field_list,
         })
+        .add_context("DefBankField")
         .parse(input, alloc)
     }
 }
@@ -97,7 +98,10 @@ impl FieldFlags {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        byte_data.map(Self).parse(input, alloc)
+        byte_data
+            .map(Self)
+            .add_context("FieldFlags")
+            .parse(input, alloc)
     }
 }
 
@@ -108,7 +112,10 @@ impl<A: Allocator + Clone> FieldList<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        many(FieldElement::p).map(Self).parse(input, alloc)
+        many(FieldElement::p)
+            .map(Self)
+            .add_context("FieldList")
+            .parse(input, alloc)
     }
 }
 
@@ -121,6 +128,7 @@ impl NamedField {
     ) -> ParseResult<I, Self, E> {
         (NameSeg::p, pkg(rest()))
             .map(|(seg, _)| Self(seg))
+            .add_context("NamedField")
             .parse(input, alloc)
     }
 }
@@ -132,7 +140,10 @@ impl ReservedField {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        (item(0x00), pkg(rest())).map(|_| Self).parse(input, alloc)
+        (item(0x00), pkg(rest()))
+            .map(|_| Self)
+            .add_context("ReservedField")
+            .parse(input, alloc)
     }
 }
 
@@ -148,6 +159,7 @@ impl AccessField {
     ) -> ParseResult<I, Self, E> {
         preceded(item(0x01), (AccessType::p, AccessAttrib::p).cut())
             .map(|(ty, attrib)| Self { ty, attrib })
+            .add_context("AccessField")
             .parse(input, alloc)
     }
 }
@@ -159,7 +171,10 @@ impl AccessType {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        byte_data.map(Self).parse(input, alloc)
+        byte_data
+            .map(Self)
+            .add_context("AccessType")
+            .parse(input, alloc)
     }
 }
 
@@ -170,7 +185,10 @@ impl AccessAttrib {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        byte_data.map(Self).parse(input, alloc)
+        byte_data
+            .map(Self)
+            .add_context("AccessAttrib")
+            .parse(input, alloc)
     }
 }
 
@@ -193,6 +211,7 @@ impl<A: Allocator + Clone> ConnectField<A> {
             // .alt()
             NameString::p.map(Self::NameString).cut(),
         )
+        .add_context("ConnectField")
         .parse(input, alloc)
     }
 }
@@ -220,6 +239,7 @@ impl<A: Allocator + Clone> DefCreateBitField<A> {
             bit_index,
             name,
         })
+        .add_context("DefCreateBitField")
         .parse(input, alloc)
     }
 }
@@ -247,6 +267,7 @@ impl<A: Allocator + Clone> DefCreateByteField<A> {
             byte_index: bit_index,
             name,
         })
+        .add_context("DefCreateByteField")
         .parse(input, alloc)
     }
 }
@@ -274,6 +295,7 @@ impl<A: Allocator + Clone> DefCreateDWordField<A> {
             byte_index,
             name,
         })
+        .add_context("DefCreateDWordField")
         .parse(input, alloc)
     }
 }
@@ -304,6 +326,7 @@ impl<A: Allocator + Clone> DefCreateField<A> {
             num_bits,
             name,
         })
+        .add_context("DefCreateField")
         .parse(input, alloc)
     }
 }
@@ -331,6 +354,7 @@ impl<A: Allocator + Clone> DefCreateQWordField<A> {
             byte_index: bit_index,
             name,
         })
+        .add_context("DefCreateQWordField")
         .parse(input, alloc)
     }
 }
@@ -358,6 +382,7 @@ impl<A: Allocator + Clone> DefCreateWordField<A> {
             byte_index,
             name,
         })
+        .add_context("DefCreateWordField")
         .parse(input, alloc)
     }
 }
@@ -385,6 +410,7 @@ impl<A: Allocator + Clone> DefDataRegion<A> {
             term2,
             term3,
         })
+        .add_context("DefDataRegion")
         .parse(input, alloc)
     }
 }
@@ -402,6 +428,7 @@ impl<A: Allocator + Clone> DefDevice<A> {
         let device_op = (ExtOpPrefix::p, item(0x82));
         preceded(device_op, pkg((NameString::p, TermList::p)))
             .map(|(name, terms)| Self { name, terms })
+            .add_context("DefDevice")
             .parse(input, alloc)
     }
 }
@@ -418,6 +445,7 @@ impl<A: Allocator + Clone> DefEvent<A> {
         let event_op = (ExtOpPrefix::p, item(0x02));
         preceded(event_op, NameString::p.cut())
             .map(|name| Self { name })
+            .add_context("DefEvent")
             .parse(input, alloc)
     }
 }
@@ -440,6 +468,7 @@ impl<A: Allocator + Clone> DefExternal<A> {
                 obj_type,
                 argument_count,
             })
+            .add_context("DefExternal")
             .parse(input, alloc)
     }
 }
@@ -462,6 +491,7 @@ impl<A: Allocator + Clone> DefField<A> {
                 flags,
                 fields,
             })
+            .add_context("DefField")
             .parse(input, alloc)
     }
 }
@@ -489,6 +519,7 @@ impl<A: Allocator + Clone> DefIndexField<A> {
             flags,
             fields,
         })
+        .add_context("DefIndexField")
         .parse(input, alloc)
     }
 }
@@ -507,6 +538,7 @@ impl<A: Allocator + Clone> DefMethod<A> {
         let method_op = item(0x14);
         preceded(method_op, pkg((NameString::p, MethodFlags::p, TermList::p)))
             .map(|(name, flags, terms)| Self { name, flags, terms })
+            .add_context("DefMethod")
             .parse(input, alloc)
     }
 }
@@ -518,7 +550,10 @@ impl MethodFlags {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        byte_data.map(Self).parse(input, alloc)
+        byte_data
+            .map(Self)
+            .add_context("MethodFlags")
+            .parse(input, alloc)
     }
 }
 
@@ -535,6 +570,7 @@ impl<A: Allocator + Clone> DefMutex<A> {
         let mutex_op = (ExtOpPrefix::p, item(0x01));
         preceded(mutex_op, (NameString::p, SyncFlags::p).cut())
             .map(|(name, flags)| Self { name, flags })
+            .add_context("DefMutex")
             .parse(input, alloc)
     }
 }
@@ -546,7 +582,10 @@ impl SyncFlags {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        byte_data.map(Self).parse(input, alloc)
+        byte_data
+            .map(Self)
+            .add_context("SyncFlags")
+            .parse(input, alloc)
     }
 }
 
@@ -567,7 +606,7 @@ impl<A: Allocator + Clone> DefOpRegion<A> {
         let region_len = TermArg::p; // => Integer
         preceded(
             op_region_op,
-            pkg((NameString::p, RegionSpace::p, region_offset, region_len)),
+            (NameString::p, RegionSpace::p, region_offset, region_len).cut(),
         )
         .map(|(name, space, offset, len)| Self {
             name,
@@ -575,10 +614,12 @@ impl<A: Allocator + Clone> DefOpRegion<A> {
             offset,
             len,
         })
+        .add_context("DefOpRegion")
         .parse(input, alloc)
     }
 }
 
+#[derive(Debug)]
 pub struct RegionSpace(u8);
 
 impl RegionSpace {
@@ -586,7 +627,10 @@ impl RegionSpace {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        byte_data.map(Self).parse(input, alloc)
+        byte_data
+            .map(Self)
+            .add_context("RegionSpace")
+            .parse(input, alloc)
     }
 }
 
@@ -613,6 +657,7 @@ impl<A: Allocator + Clone> DefPowerRes<A> {
             resource_order,
             terms,
         })
+        .add_context("DefPowerRes")
         .parse(input, alloc)
     }
 }
@@ -621,35 +666,35 @@ fn system_level<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, u8, E> {
-    byte_data.parse(input, alloc)
+    byte_data.add_context("system_level").parse(input, alloc)
 }
 
 fn resource_order<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, u16, E> {
-    word_data.parse(input, alloc)
+    word_data.add_context("resource_order").parse(input, alloc)
 }
 
 fn proc_id<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, u8, E> {
-    byte_data.parse(input, alloc)
+    byte_data.add_context("proc_id").parse(input, alloc)
 }
 
 fn pblk_addr<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, u32, E> {
-    dword_data.parse(input, alloc)
+    dword_data.add_context("pblk_addr").parse(input, alloc)
 }
 
 fn pblk_len<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, u8, E> {
-    byte_data.parse(input, alloc)
+    byte_data.add_context("pblk_len").parse(input, alloc)
 }
 
 pub struct DefThermalZone<A: Allocator> {
@@ -665,6 +710,7 @@ impl<A: Allocator + Clone> DefThermalZone<A> {
         let thermal_zone_op = (ExtOpPrefix::p, item(0x85));
         preceded(thermal_zone_op, pkg((NameString::p, TermList::p)))
             .map(|(name, terms)| Self { name, terms })
+            .add_context("DefThermalZone")
             .parse(input, alloc)
     }
 }
@@ -685,6 +731,7 @@ impl ExtendedAccessField {
             (AccessType::p, ExtendedAccessAttrib::p, AccessLength::p).cut(),
         )
         .map(|(ty, attrib, len)| Self { ty, attrib, len })
+        .add_context("ExtendedAccessField")
         .parse(input, alloc)
     }
 }
@@ -696,7 +743,10 @@ impl ExtendedAccessAttrib {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        byte_data.map(Self).parse(input, alloc)
+        byte_data
+            .map(Self)
+            .add_context("ExtendedAccessAttrib")
+            .parse(input, alloc)
     }
 }
 
@@ -707,7 +757,10 @@ impl AccessLength {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        byte_data.map(Self).parse(input, alloc)
+        byte_data
+            .map(Self)
+            .add_context("AccessLength")
+            .parse(input, alloc)
     }
 }
 
@@ -732,6 +785,7 @@ impl<A: Allocator + Clone> FieldElement<A> {
             ConnectField::p.map(Self::ConnectField),
         )
             .alt()
+            .add_context("FieldElement")
             .parse(input, alloc)
     }
 }

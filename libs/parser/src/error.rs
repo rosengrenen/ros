@@ -27,6 +27,8 @@ pub trait ParseError<I, A: Allocator> {
     fn append(self, input: I, kind: ParseErrorKind) -> Self;
 
     fn replace(self, input: I, kind: ParseErrorKind) -> Self;
+
+    fn add_context(self, input: I, context: &'static str) -> Self;
 }
 
 pub trait FromExternalError<I, E, A: Allocator> {

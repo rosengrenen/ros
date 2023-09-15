@@ -143,6 +143,7 @@ impl<A: Allocator + Clone> ExprOpcode<A> {
             MethodInvocation::p.map(Self::MethodInvocation),
         )
             .alt()
+            .add_context("ExprOpcode")
             .parse(input, alloc)
     }
 }
@@ -166,6 +167,7 @@ impl<A: Allocator + Clone> RefTypeOpcode<A> {
             MethodInvocation::p.map(Self::UserTermObj),
         )
             .alt()
+            .add_context("RefTypeOpcode")
             .parse(input, alloc)
     }
 }
@@ -183,6 +185,7 @@ impl<A: Allocator + Clone> DefAcquire<A> {
         let acquire_op = (ExtOpPrefix::p, item(0x23));
         preceded(acquire_op, (MutexObj::p, Timeout::p).cut())
             .map(|(mutex, timeout)| Self { mutex, timeout })
+            .add_context("DefAcquire")
             .parse(input, alloc)
     }
 }
@@ -194,7 +197,10 @@ impl Timeout {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        byte_data.map(Self).parse(input, alloc)
+        byte_data
+            .map(Self)
+            .add_context("Timeout")
+            .parse(input, alloc)
     }
 }
 
@@ -216,6 +222,7 @@ impl<A: Allocator + Clone> DefAdd<A> {
                 right,
                 target,
             })
+            .add_context("DefAdd")
             .parse(input, alloc)
     }
 }
@@ -227,7 +234,10 @@ impl<A: Allocator + Clone> Operand<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        TermArg::p.map(Self).parse(input, alloc)
+        TermArg::p
+            .map(Self)
+            .add_context("Operand")
+            .parse(input, alloc)
     }
 }
 
@@ -249,6 +259,7 @@ impl<A: Allocator + Clone> DefAnd<A> {
                 right,
                 target,
             })
+            .add_context("DefAnd")
             .parse(input, alloc)
     }
 }
@@ -267,6 +278,7 @@ impl<A: Allocator + Clone> DefBuffer<A> {
         let buffer_size = TermArg::p; // => Integer
         preceded(buffer_op, pkg((buffer_size, ByteList::p)))
             .map(|(len, bytes)| Self { len, bytes })
+            .add_context("DefBuffer")
             .parse(input, alloc)
     }
 }
@@ -290,6 +302,7 @@ impl<A: Allocator + Clone> DefConcat<A> {
                 right,
                 target,
             })
+            .add_context("DefConcat")
             .parse(input, alloc)
     }
 }
@@ -313,6 +326,7 @@ impl<A: Allocator + Clone> DefConcatRes<A> {
                 right,
                 target,
             })
+            .add_context("DefConcatRes")
             .parse(input, alloc)
     }
 }
@@ -330,6 +344,7 @@ impl<A: Allocator + Clone> DefCondRefOf<A> {
         let cond_ref_of_op = (ExtOpPrefix::p, item(0x84));
         preceded(cond_ref_of_op, (SuperName::p, Target::p).cut())
             .map(|(name, target)| Self { name, target })
+            .add_context("DefCondRefOf")
             .parse(input, alloc)
     }
 }
@@ -347,6 +362,7 @@ impl<A: Allocator + Clone> DefCopyObj<A> {
         let copy_obj_op = item(0x9d);
         preceded(copy_obj_op, (TermArg::p, SimpleName::p).cut())
             .map(|(arg, name)| Self { arg, name })
+            .add_context("DefCopyObj")
             .parse(input, alloc)
     }
 }
@@ -363,6 +379,7 @@ impl<A: Allocator + Clone> DefDecrement<A> {
         let decrement_op = item(0x76);
         preceded(decrement_op, SuperName::p.cut())
             .map(|name| Self { name })
+            .add_context("DefDecrement")
             .parse(input, alloc)
     }
 }
@@ -380,6 +397,7 @@ impl<A: Allocator + Clone> DefDerefOf<A> {
         let obj_ref = TermArg::p; // => ObjRef | String
         preceded(decrement_op, obj_ref.cut())
             .map(|obj_ref| Self { obj_ref })
+            .add_context("DefDerefOf")
             .parse(input, alloc)
     }
 }
@@ -406,6 +424,7 @@ impl<A: Allocator + Clone> DefDivide<A> {
                 remainder,
                 quotient,
             })
+            .add_context("DefDivide")
             .parse(input, alloc)
     }
 }
@@ -423,6 +442,7 @@ impl<A: Allocator + Clone> DefFindSetLeftBit<A> {
         let find_set_left_bit_op = item(0x81);
         preceded(find_set_left_bit_op, (Operand::p, Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
+            .add_context("DefFindSetLeftBit")
             .parse(input, alloc)
     }
 }
@@ -440,6 +460,7 @@ impl<A: Allocator + Clone> DefFindSetRightBit<A> {
         let find_set_right_bit_op = item(0x82);
         preceded(find_set_right_bit_op, (Operand::p, Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
+            .add_context("DefFindSetRightBit")
             .parse(input, alloc)
     }
 }
@@ -458,6 +479,7 @@ impl<A: Allocator + Clone> DefFromBcd<A> {
         let bcd_value = TermArg::p; // => Integer
         preceded(from_bcd_op, (bcd_value, Target::p).cut())
             .map(|(value, target)| Self { value, target })
+            .add_context("DefFromBcd")
             .parse(input, alloc)
     }
 }
@@ -474,6 +496,7 @@ impl<A: Allocator + Clone> DefIncrement<A> {
         let increment_op = item(0x75);
         preceded(increment_op, SuperName::p.cut())
             .map(|name| Self { name })
+            .add_context("DefIncrement")
             .parse(input, alloc)
     }
 }
@@ -498,6 +521,7 @@ impl<A: Allocator + Clone> DefIndex<A> {
                 index_value,
                 target,
             })
+            .add_context("DefIndex")
             .parse(input, alloc)
     }
 }
@@ -515,6 +539,7 @@ impl<A: Allocator + Clone> DefLAnd<A> {
         let land_op = item(0x90);
         preceded(land_op, (Operand::p, Operand::p).cut())
             .map(|(left, right)| Self { left, right })
+            .add_context("DefLAnd")
             .parse(input, alloc)
     }
 }
@@ -531,6 +556,7 @@ impl<A: Allocator + Clone> DefLEqual<A> {
     ) -> ParseResult<I, Self, E> {
         preceded(lequal_op, (Operand::p, Operand::p).cut())
             .map(|(left, right)| Self { left, right })
+            .add_context("DefLEqual")
             .parse(input, alloc)
     }
 }
@@ -539,7 +565,10 @@ fn lequal_op<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, (), E> {
-    item(0x93).map(|_| ()).parse(input, alloc)
+    item(0x93)
+        .map(|_| ())
+        .add_context("lequal_op")
+        .parse(input, alloc)
 }
 
 pub struct DefLGreater<A: Allocator> {
@@ -554,6 +583,7 @@ impl<A: Allocator + Clone> DefLGreater<A> {
     ) -> ParseResult<I, Self, E> {
         preceded(lgreater_op, (Operand::p, Operand::p).cut())
             .map(|(left, right)| Self { left, right })
+            .add_context("DefLGreater")
             .parse(input, alloc)
     }
 }
@@ -562,7 +592,10 @@ fn lgreater_op<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, (), E> {
-    item(0x94).map(|_| ()).parse(input, alloc)
+    item(0x94)
+        .map(|_| ())
+        .add_context("lgreater_op")
+        .parse(input, alloc)
 }
 
 pub struct DefLGreaterEqual<A: Allocator> {
@@ -578,6 +611,7 @@ impl<A: Allocator + Clone> DefLGreaterEqual<A> {
         let lgreater_equal_op = (lnot_op, lless_op);
         preceded(lgreater_equal_op, (Operand::p, Operand::p).cut())
             .map(|(left, right)| Self { left, right })
+            .add_context("DefLGreaterEqual")
             .parse(input, alloc)
     }
 }
@@ -594,6 +628,7 @@ impl<A: Allocator + Clone> DefLLess<A> {
     ) -> ParseResult<I, Self, E> {
         preceded(lless_op, (Operand::p, Operand::p).cut())
             .map(|(left, right)| Self { left, right })
+            .add_context("DefLLess")
             .parse(input, alloc)
     }
 }
@@ -602,7 +637,10 @@ fn lless_op<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, (), E> {
-    item(0x95).map(|_| ()).parse(input, alloc)
+    item(0x95)
+        .map(|_| ())
+        .add_context("lless_op")
+        .parse(input, alloc)
 }
 
 pub struct DefLLessEqual<A: Allocator> {
@@ -618,6 +656,7 @@ impl<A: Allocator + Clone> DefLLessEqual<A> {
         let lless_equal_op = (lnot_op, lgreater_op);
         preceded(lless_equal_op, (Operand::p, Operand::p).cut())
             .map(|(left, right)| Self { left, right })
+            .add_context("DefLLessEqual")
             .parse(input, alloc)
     }
 }
@@ -633,6 +672,7 @@ impl<A: Allocator + Clone> DefLNot<A> {
     ) -> ParseResult<I, Self, E> {
         preceded(lnot_op, Operand::p.cut())
             .map(|operand| Self { operand })
+            .add_context("DefLNot")
             .parse(input, alloc)
     }
 }
@@ -641,7 +681,10 @@ fn lnot_op<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, (), E> {
-    item(0x92).map(|_| ()).parse(input, alloc)
+    item(0x92)
+        .map(|_| ())
+        .add_context("lnot_op")
+        .parse(input, alloc)
 }
 
 pub struct DefLNotEqual<A: Allocator> {
@@ -657,6 +700,7 @@ impl<A: Allocator + Clone> DefLNotEqual<A> {
         let lnot_equal_op = (lnot_op, lequal_op);
         preceded(lnot_equal_op, (Operand::p, Operand::p).cut())
             .map(|(left, right)| Self { left, right })
+            .add_context("DefLNotEqual")
             .parse(input, alloc)
     }
 }
@@ -674,6 +718,7 @@ impl<A: Allocator + Clone> DefLoad<A> {
         let load_op = (ExtOpPrefix::p, item(0x20));
         preceded(load_op, (NameString::p, Target::p).cut())
             .map(|(name, target)| Self { name, target })
+            .add_context("DefLoad")
             .parse(input, alloc)
     }
 }
@@ -713,6 +758,7 @@ impl<A: Allocator + Clone> DefLoadTable<A> {
             arg5,
             arg6,
         })
+        .add_context("DefLoadTable")
         .parse(input, alloc)
     }
 }
@@ -730,6 +776,7 @@ impl<A: Allocator + Clone> DefLOr<A> {
         let lor_op = item(0x91);
         preceded(lor_op, (Operand::p, Operand::p).cut())
             .map(|(left, right)| Self { left, right })
+            .add_context("DefLOr")
             .parse(input, alloc)
     }
 }
@@ -771,6 +818,7 @@ impl<A: Allocator + Clone> DefMatch<A> {
                 start_index,
             },
         )
+        .add_context("DefMatch")
         .parse(input, alloc)
     }
 }
@@ -796,6 +844,7 @@ impl<A: Allocator + Clone> DefMid<A> {
                 term2,
                 target,
             })
+            .add_context("DefMid")
             .parse(input, alloc)
     }
 }
@@ -820,6 +869,7 @@ impl<A: Allocator + Clone> DefMod<A> {
                 divisor,
                 target,
             })
+            .add_context("DefMod")
             .parse(input, alloc)
     }
 }
@@ -842,6 +892,7 @@ impl<A: Allocator + Clone> DefMultiply<A> {
                 right,
                 target,
             })
+            .add_context("DefMultiply")
             .parse(input, alloc)
     }
 }
@@ -864,6 +915,7 @@ impl<A: Allocator + Clone> DefNAnd<A> {
                 right,
                 target,
             })
+            .add_context("DefNAnd")
             .parse(input, alloc)
     }
 }
@@ -886,6 +938,7 @@ impl<A: Allocator + Clone> DefNOr<A> {
                 right,
                 target,
             })
+            .add_context("DefNOr")
             .parse(input, alloc)
     }
 }
@@ -903,6 +956,7 @@ impl<A: Allocator + Clone> DefNot<A> {
         let multiply_op = item(0x80);
         preceded(multiply_op, (Operand::p, Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
+            .add_context("DefNot")
             .parse(input, alloc)
     }
 }
@@ -933,6 +987,7 @@ impl<A: Allocator + Clone> DefObjType<A> {
                 .alt()
                 .cut(),
         )
+        .add_context("DefObjType")
         .parse(input, alloc)
     }
 }
@@ -950,6 +1005,7 @@ impl<A: Allocator + Clone> DefOr<A> {
         let or_op = item(0x7d);
         preceded(or_op, (Operand::p, Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
+            .add_context("DefOr")
             .parse(input, alloc)
     }
 }
@@ -971,6 +1027,7 @@ impl<A: Allocator + Clone> DefPkg<A> {
                 len: len as usize,
                 elements,
             })
+            .add_context("DefPkg")
             .parse(input, alloc)
     }
 }
@@ -989,6 +1046,7 @@ impl<A: Allocator + Clone> DefVarPkg<A> {
         let var_num_elements = TermArg::p; // => Integer
         preceded(var_pkg_op, pkg((var_num_elements, PkgElementList::p)))
             .map(|(len, elements)| Self { len, elements })
+            .add_context("DefVarPkg")
             .parse(input, alloc)
     }
 }
@@ -1000,7 +1058,10 @@ impl<A: Allocator + Clone> PkgElementList<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        many(PkgElement::p).map(Self).parse(input, alloc)
+        many(PkgElement::p)
+            .map(Self)
+            .add_context("PkgElementList")
+            .parse(input, alloc)
     }
 }
 
@@ -1019,6 +1080,7 @@ impl<A: Allocator + Clone> PkgElement<A> {
             NameString::p.map(Self::NameString),
         )
             .alt()
+            .add_context("PkgElement")
             .parse(input, alloc)
     }
 }
@@ -1035,6 +1097,7 @@ impl<A: Allocator + Clone> DefRefOf<A> {
         let ref_of_op = item(0x71);
         preceded(ref_of_op, SuperName::p.cut())
             .map(|name| Self { name })
+            .add_context("DefRefOf")
             .parse(input, alloc)
     }
 }
@@ -1058,6 +1121,7 @@ impl<A: Allocator + Clone> DefShiftLeft<A> {
                 shift_count,
                 target,
             })
+            .add_context("DefShiftLeft")
             .parse(input, alloc)
     }
 }
@@ -1081,6 +1145,7 @@ impl<A: Allocator + Clone> DefShiftRight<A> {
                 shift_count,
                 target,
             })
+            .add_context("DefShiftRight")
             .parse(input, alloc)
     }
 }
@@ -1097,6 +1162,7 @@ impl<A: Allocator + Clone> DefSizeOf<A> {
         let size_of_op = item(0x87);
         preceded(size_of_op, SuperName::p.cut())
             .map(|name| Self { name })
+            .add_context("DefSizeOf")
             .parse(input, alloc)
     }
 }
@@ -1114,6 +1180,7 @@ impl<A: Allocator + Clone> DefStore<A> {
         let store_op = item(0x70);
         preceded(store_op, (TermArg::p, SuperName::p).cut())
             .map(|(term, name)| Self { term, name })
+            .add_context("DefStore")
             .parse(input, alloc)
     }
 }
@@ -1136,6 +1203,7 @@ impl<A: Allocator + Clone> DefSubtract<A> {
                 right,
                 target,
             })
+            .add_context("DefSubtract")
             .parse(input, alloc)
     }
 }
@@ -1148,7 +1216,10 @@ impl DefTimer {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         let timer_op = (item(0x5b), item(0x33));
-        timer_op.map(|_| Self).parse(input, alloc)
+        timer_op
+            .map(|_| Self)
+            .add_context("DefTimer")
+            .parse(input, alloc)
     }
 }
 
@@ -1165,6 +1236,7 @@ impl<A: Allocator + Clone> DefToBcd<A> {
         let to_bcd_op = (ExtOpPrefix::p, item(0x29));
         preceded(to_bcd_op, (Operand::p, Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
+            .add_context("DefToBcd")
             .parse(input, alloc)
     }
 }
@@ -1182,6 +1254,7 @@ impl<A: Allocator + Clone> DefToBuffer<A> {
         let to_buffer_op = item(0x96);
         preceded(to_buffer_op, (Operand::p, Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
+            .add_context("DefToBuffer")
             .parse(input, alloc)
     }
 }
@@ -1199,6 +1272,7 @@ impl<A: Allocator + Clone> DefToDecimalString<A> {
         let to_decimal_string_op = item(0x97);
         preceded(to_decimal_string_op, (Operand::p, Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
+            .add_context("DefToDecimalString")
             .parse(input, alloc)
     }
 }
@@ -1216,6 +1290,7 @@ impl<A: Allocator + Clone> DefToHexString<A> {
         let to_hex_string_op = item(0x98);
         preceded(to_hex_string_op, (Operand::p, Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
+            .add_context("DefToHexString")
             .parse(input, alloc)
     }
 }
@@ -1233,6 +1308,7 @@ impl<A: Allocator + Clone> DefToInteger<A> {
         let to_integer_op = item(0x99);
         preceded(to_integer_op, (Operand::p, Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
+            .add_context("DefToInteger")
             .parse(input, alloc)
     }
 }
@@ -1256,6 +1332,7 @@ impl<A: Allocator + Clone> DefToString<A> {
                 length_arg,
                 target,
             })
+            .add_context("DefToString")
             .parse(input, alloc)
     }
 }
@@ -1273,6 +1350,7 @@ impl<A: Allocator + Clone> DefWait<A> {
         let wait_op = (ExtOpPrefix::p, item(0x25));
         preceded(wait_op, (EventObj::p, Operand::p).cut())
             .map(|(event, operand)| Self { event, operand })
+            .add_context("DefWait")
             .parse(input, alloc)
     }
 }
@@ -1295,6 +1373,7 @@ impl<A: Allocator + Clone> DefXOr<A> {
                 right,
                 target,
             })
+            .add_context("DefXOr")
             .parse(input, alloc)
     }
 }

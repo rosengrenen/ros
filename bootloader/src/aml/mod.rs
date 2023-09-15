@@ -96,7 +96,7 @@ where
 
     fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
         let (input, pkg_len) = pkg_length(input, alloc.clone())?;
-        let (input, rest) = take(pkg_len).parse(input, alloc.clone())?;
+        let (rest, input) = take(pkg_len).parse(input, alloc.clone())?;
         let (input, output) = self.parser.parse(input, alloc.clone())?;
         fail().parse(input, alloc)?;
         Ok((rest, output))

@@ -1,3 +1,4 @@
+pub mod add_context;
 pub mod and_then;
 pub mod cut;
 pub mod map;
