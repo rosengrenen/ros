@@ -409,7 +409,14 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
             parser::error::ParserError::Error(e) => sprintln!("err"),
             parser::error::ParserError::Failure(e) => {
                 sprintln!("fail");
-                sprintln!("{:#?}", e);
+                for (i, e) in e.errors.iter() {
+                    match e {
+                        SimpleErrorKind::Context(context) => {
+                            sprintln!("{:x?} {:x?} {:x?}", context, i.span, &i.inner[0..32]);
+                        }
+                        SimpleErrorKind::Parser(_) => (),
+                    }
+                }
             }
         },
     }
