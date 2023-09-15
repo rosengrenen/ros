@@ -1,5 +1,6 @@
 use crate::{
     error::{FromExternalError, ParseError, ParseErrorKind, ParseResult, ParserError},
+    input::Input,
     parser::Parser,
 };
 use core::{alloc::Allocator, marker::PhantomData};
@@ -10,25 +11,21 @@ pub struct MapRes<P, F, E> {
     pub(crate) error: PhantomData<E>,
 }
 
-impl<'alloc, I, O1, O2, E1, E2, P, F, A> Parser<'alloc, I, A> for MapRes<P, F, E2>
+impl<I, O1, O2, E1, E2, P, F, A> Parser<I, A> for MapRes<P, F, E2>
 where
-    I: Clone,
-    E1: ParseError<'alloc, I, A> + FromExternalError<'alloc, I, E2, A>,
-    P: Parser<'alloc, I, A, Output = O1, Error = E1>,
+    I: Input,
+    E1: ParseError<I, A> + FromExternalError<I, E2, A>,
+    P: Parser<I, A, Output = O1, Error = E1>,
     F: Fn(O1) -> Result<O2, E2>,
-    A: Allocator,
+    A: Allocator + Clone,
 {
     type Output = O2;
 
     type Error = P::Error;
 
-    fn parse(
-        &self,
-        input: I,
-        alloc: &'alloc A,
-    ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
+    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
         self.parser
-            .parse(input.clone(), alloc)
+            .parse(input.clone(), alloc.clone())
             .and_then(|(input, output)| {
                 let output = {
                     let input = input.clone();
@@ -53,25 +50,21 @@ pub struct MapRes1<P, F, E> {
     pub(crate) error: PhantomData<E>,
 }
 
-impl<'alloc, I, O1, O2, E1, E2, P, F, A> Parser<'alloc, I, A> for MapRes1<P, F, E2>
+impl<I, O1, O2, E1, E2, P, F, A> Parser<I, A> for MapRes1<P, F, E2>
 where
-    I: Clone,
-    E1: ParseError<'alloc, I, A>,
-    P: Parser<'alloc, I, A, Output = O1, Error = E1>,
+    I: Input,
+    E1: ParseError<I, A>,
+    P: Parser<I, A, Output = O1, Error = E1>,
     F: Fn(O1) -> Result<O2, E2>,
-    A: Allocator,
+    A: Allocator + Clone,
 {
     type Output = O2;
 
     type Error = P::Error;
 
-    fn parse(
-        &self,
-        input: I,
-        alloc: &'alloc A,
-    ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
+    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
         self.parser
-            .parse(input.clone(), alloc)
+            .parse(input.clone(), alloc.clone())
             .and_then(|(input, output)| {
                 let output = {
                     let input = input.clone();

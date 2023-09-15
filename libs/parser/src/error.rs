@@ -1,6 +1,6 @@
 use core::alloc::Allocator;
 
-pub type ParseResult<'alloc, I, O, E> = Result<(I, O), ParserError<E>>;
+pub type ParseResult<I, O, E> = Result<(I, O), ParserError<E>>;
 
 #[derive(Debug)]
 pub enum ParserError<E> {
@@ -9,9 +9,9 @@ pub enum ParserError<E> {
 }
 
 impl<E> ParserError<E> {
-    pub(crate) fn append<'alloc, I, A>(self, input: I, kind: ParseErrorKind) -> Self
+    pub(crate) fn append<I, A>(self, input: I, kind: ParseErrorKind) -> Self
     where
-        E: ParseError<'alloc, I, A>,
+        E: ParseError<I, A>,
         A: Allocator,
     {
         match self {
@@ -21,22 +21,23 @@ impl<E> ParserError<E> {
     }
 }
 
-pub trait ParseError<'alloc, I, A: Allocator> {
-    fn from_error_kind(input: I, kind: ParseErrorKind, alloc: &'alloc A) -> Self;
+pub trait ParseError<I, A: Allocator> {
+    fn from_error_kind(input: I, kind: ParseErrorKind, alloc: A) -> Self;
 
     fn append(self, input: I, kind: ParseErrorKind) -> Self;
 
     fn replace(self, input: I, kind: ParseErrorKind) -> Self;
 }
 
-pub trait FromExternalError<'alloc, I, E, A: Allocator> {
-    fn from_external_error(input: I, kind: ParseErrorKind, error: E, alloc: &'alloc A) -> Self;
+pub trait FromExternalError<I, E, A: Allocator> {
+    fn from_external_error(input: I, kind: ParseErrorKind, error: E, alloc: A) -> Self;
 }
 
 #[derive(Clone, Copy, Debug)]
 pub enum ParseErrorKind {
     Unknown,
     Alt,
+    AndThen,
     Cut,
     MapRes,
     MapRes1,
@@ -52,6 +53,7 @@ pub enum ParseErrorKind {
     Many1,
     ManyN,
     ManyMN,
+    Fail,
     TakeOne,
     Item,
     Satisfy,

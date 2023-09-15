@@ -36,12 +36,9 @@ impl File {
         Ok(bytes_read)
     }
 
-    pub fn get_info<'alloc, A: Allocator>(
-        &self,
-        alloc: &'alloc A,
-    ) -> Result<Box<'alloc, FileInfo, A>, usize> {
+    pub fn get_info<A: Allocator + Clone>(&self, alloc: A) -> Result<Box<FileInfo, A>, usize> {
         let mut buffer_size = core::mem::size_of::<FileInfo>();
-        let mut buffer = Vec::with_elem(0u8, buffer_size, alloc).map_err(|_| 48usize)?;
+        let mut buffer = Vec::with_elem(0u8, buffer_size, alloc.clone()).map_err(|_| 48usize)?;
         loop {
             let status = (self.get_info)(
                 self,
@@ -58,7 +55,7 @@ impl File {
                 return Err(status);
             }
 
-            buffer = Vec::with_elem(0u8, buffer_size, alloc).map_err(|_| 49usize)?;
+            buffer = Vec::with_elem(0u8, buffer_size, alloc.clone()).map_err(|_| 49usize)?;
         }
 
         let file_info = unsafe {

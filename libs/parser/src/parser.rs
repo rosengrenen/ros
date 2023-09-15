@@ -1,5 +1,6 @@
 use crate::{
     combinator::{
+        and_then::AndThen,
         cut::Cut,
         map::Map,
         map_res::{MapRes, MapRes1},
@@ -12,19 +13,15 @@ use core::{alloc::Allocator, marker::PhantomData};
 
 use crate::branch::alt::{Alt, AltHelper};
 
-pub trait Parser<'alloc, I, A>
+pub trait Parser<I, A>
 where
     A: Allocator,
 {
     type Output;
 
-    type Error: ParseError<'alloc, I, A>;
+    type Error: ParseError<I, A>;
 
-    fn parse(
-        &self,
-        input: I,
-        alloc: &'alloc A,
-    ) -> ParseResult<'alloc, I, Self::Output, Self::Error>;
+    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error>;
 
     fn map<F, O2>(self, f: F) -> Map<Self, F>
     where
@@ -37,8 +34,9 @@ where
     fn map_res<O2, E2, F>(self, f: F) -> MapRes<Self, F, E2>
     where
         Self: Sized,
-        Self::Error: FromExternalError<'alloc, I, E2, A>,
+        Self::Error: FromExternalError<I, E2, A>,
         F: Fn(Self::Output) -> Result<O2, E2>,
+        A: Clone,
     {
         MapRes {
             parser: self,
@@ -51,6 +49,7 @@ where
     where
         Self: Sized,
         F: Fn(Self::Output) -> Result<O2, E2>,
+        A: Clone,
     {
         MapRes1 {
             parser: self,
@@ -59,10 +58,21 @@ where
         }
     }
 
+    fn and_then<O, P>(self, parser: P) -> AndThen<Self, P>
+    where
+        Self: Sized,
+        P: Parser<Self::Output, A, Output = O, Error = Self::Error>,
+    {
+        AndThen {
+            first: self,
+            second: parser,
+        }
+    }
+
     fn or<P>(self, parser: P) -> Or<Self, P>
     where
         Self: Sized,
-        P: Parser<'alloc, I, A, Output = Self::Output, Error = Self::Error>,
+        P: Parser<I, A, Output = Self::Output, Error = Self::Error>,
     {
         Or {
             first: self,
@@ -86,7 +96,7 @@ where
 
     fn alt(self) -> Alt<Self, A>
     where
-        Self: Sized + AltHelper<'alloc, I, A>,
+        Self: Sized + AltHelper<I, A>,
     {
         Alt {
             parsers: self,
@@ -95,21 +105,17 @@ where
     }
 }
 
-impl<'alloc, I, O, E, F, A> Parser<'alloc, I, A> for F
+impl<I, O, E, F, A> Parser<I, A> for F
 where
-    E: ParseError<'alloc, I, A>,
-    F: Fn(I, &'alloc A) -> ParseResult<'alloc, I, O, E>,
-    A: Allocator + 'alloc,
+    E: ParseError<I, A>,
+    F: Fn(I, A) -> ParseResult<I, O, E>,
+    A: Allocator,
 {
     type Output = O;
 
     type Error = E;
 
-    fn parse(
-        &self,
-        input: I,
-        alloc: &'alloc A,
-    ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
+    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
         self(input, alloc)
     }
 }

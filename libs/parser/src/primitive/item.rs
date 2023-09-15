@@ -6,12 +6,12 @@ use crate::{
 };
 use core::{alloc::Allocator, marker::PhantomData};
 
-pub fn take_one<'alloc, I, E, A>() -> impl Parser<'alloc, I, A, Output = I::Item, Error = E>
+pub fn take_one<I, E, A>() -> impl Parser<I, A, Output = I::Item, Error = E>
 where
     I: Input,
     I::Item: Clone,
-    E: ParseError<'alloc, I, A>,
-    A: Allocator,
+    E: ParseError<I, A>,
+    A: Allocator + Clone,
 {
     Satisfy {
         pred: |_: &I::Item| true,
@@ -20,14 +20,12 @@ where
     }
 }
 
-pub fn item<'alloc, I, E, A>(
-    item: I::Item,
-) -> impl Parser<'alloc, I, A, Output = I::Item, Error = E>
+pub fn item<I, E, A>(item: I::Item) -> impl Parser<I, A, Output = I::Item, Error = E>
 where
     I: Input,
     I::Item: Clone + PartialEq,
-    E: ParseError<'alloc, I, A>,
-    A: Allocator,
+    E: ParseError<I, A>,
+    A: Allocator + Clone,
 {
     Satisfy {
         pred: move |i: &I::Item| i == &item,
@@ -36,15 +34,13 @@ where
     }
 }
 
-pub fn satisfy<'alloc, I, E, P, A>(
-    pred: P,
-) -> impl Parser<'alloc, I, A, Output = I::Item, Error = E>
+pub fn satisfy<I, E, P, A>(pred: P) -> impl Parser<I, A, Output = I::Item, Error = E>
 where
     I: Input,
     I::Item: Clone,
-    E: ParseError<'alloc, I, A>,
+    E: ParseError<I, A>,
     P: Fn(&I::Item) -> bool,
-    A: Allocator,
+    A: Allocator + Clone,
 {
     Satisfy {
         pred,
@@ -59,23 +55,19 @@ pub struct Satisfy<P, E> {
     error: PhantomData<E>,
 }
 
-impl<'alloc, I, E, P, A> Parser<'alloc, I, A> for Satisfy<P, E>
+impl<I, E, P, A> Parser<I, A> for Satisfy<P, E>
 where
     I: Input,
     I::Item: Clone,
-    E: ParseError<'alloc, I, A>,
+    E: ParseError<I, A>,
     P: Fn(&I::Item) -> bool,
-    A: Allocator,
+    A: Allocator + Clone,
 {
     type Output = I::Item;
 
     type Error = E;
 
-    fn parse(
-        &self,
-        input: I,
-        alloc: &'alloc A,
-    ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
+    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
         take_const::<1, I, E, A>()
             .map(|output| output[0].clone())
             .map_res1(|item| match (self.pred)(&item) {

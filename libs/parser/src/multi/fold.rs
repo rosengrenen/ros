@@ -1,21 +1,22 @@
 use crate::{
     error::{ParseError, ParseErrorKind, ParserError},
+    input::Input,
     parser::Parser,
 };
 use core::{alloc::Allocator, ops::ControlFlow};
 
-pub fn fold<'alloc, I, O, E, P, F, Init, Acc, A>(
+pub fn fold<I, O, E, P, F, Init, Acc, A>(
     parser: P,
     init: Init,
     f: F,
-) -> impl Parser<'alloc, I, A, Output = Acc, Error = E>
+) -> impl Parser<I, A, Output = Acc, Error = E>
 where
-    I: Clone,
-    E: ParseError<'alloc, I, A>,
-    P: Parser<'alloc, I, A, Output = O, Error = E>,
+    I: Input,
+    E: ParseError<I, A>,
+    P: Parser<I, A, Output = O, Error = E>,
     F: Fn(Acc, O) -> Acc,
     Init: Fn() -> Acc,
-    A: Allocator,
+    A: Allocator + Clone,
 {
     FoldMN {
         min: 0,
@@ -27,18 +28,18 @@ where
     }
 }
 
-pub fn fold1<'alloc, I, O, E, P, F, Init, Acc, A>(
+pub fn fold1<I, O, E, P, F, Init, Acc, A>(
     parser: P,
     init: Init,
     f: F,
-) -> impl Parser<'alloc, I, A, Output = Acc, Error = E>
+) -> impl Parser<I, A, Output = Acc, Error = E>
 where
-    I: Clone,
-    E: ParseError<'alloc, I, A>,
-    P: Parser<'alloc, I, A, Output = O, Error = E>,
+    I: Input,
+    E: ParseError<I, A>,
+    P: Parser<I, A, Output = O, Error = E>,
     F: Fn(Acc, O) -> Acc,
     Init: Fn() -> Acc,
-    A: Allocator,
+    A: Allocator + Clone,
 {
     FoldMN {
         min: 1,
@@ -50,19 +51,19 @@ where
     }
 }
 
-pub fn fold_n<'alloc, I, O, E, P, F, Init, Acc, A>(
+pub fn fold_n<I, O, E, P, F, Init, Acc, A>(
     count: usize,
     parser: P,
     init: Init,
     f: F,
-) -> impl Parser<'alloc, I, A, Output = Acc, Error = E>
+) -> impl Parser<I, A, Output = Acc, Error = E>
 where
-    I: Clone,
-    E: ParseError<'alloc, I, A>,
-    P: Parser<'alloc, I, A, Output = O, Error = E>,
+    I: Input,
+    E: ParseError<I, A>,
+    P: Parser<I, A, Output = O, Error = E>,
     F: Fn(Acc, O) -> Acc,
     Init: Fn() -> Acc,
-    A: Allocator,
+    A: Allocator + Clone,
 {
     FoldMN {
         min: count,
@@ -74,20 +75,20 @@ where
     }
 }
 
-pub fn fold_m_n<'alloc, I, O, E, P, F, Init, Acc, A>(
+pub fn fold_m_n<I, O, E, P, F, Init, Acc, A>(
     min: usize,
     max: usize,
     parser: P,
     init: Init,
     f: F,
-) -> impl Parser<'alloc, I, A, Output = Acc, Error = E>
+) -> impl Parser<I, A, Output = Acc, Error = E>
 where
-    I: Clone,
-    E: ParseError<'alloc, I, A>,
-    P: Parser<'alloc, I, A, Output = O, Error = E>,
+    I: Input,
+    E: ParseError<I, A>,
+    P: Parser<I, A, Output = O, Error = E>,
     F: Fn(Acc, O) -> Acc,
     Init: Fn() -> Acc,
-    A: Allocator,
+    A: Allocator + Clone,
 {
     FoldMN {
         min,
@@ -99,7 +100,6 @@ where
     }
 }
 
-// TODO: error kind
 pub struct FoldMN<P, Init, F> {
     min: usize,
     max: usize,
@@ -109,34 +109,32 @@ pub struct FoldMN<P, Init, F> {
     kind: ParseErrorKind,
 }
 
-impl<'alloc, I, O, E, P, Init, Acc, F, A> Parser<'alloc, I, A> for FoldMN<P, Init, F>
+impl<I, O, E, P, Init, Acc, F, A> Parser<I, A> for FoldMN<P, Init, F>
 where
-    I: Clone,
-    E: ParseError<'alloc, I, A>,
-    P: Parser<'alloc, I, A, Output = O, Error = E>,
+    I: Input,
+    E: ParseError<I, A>,
+    P: Parser<I, A, Output = O, Error = E>,
     F: Fn(Acc, O) -> Acc,
     Init: Fn() -> Acc,
-    A: Allocator,
+    A: Allocator + Clone,
 {
     type Output = Acc;
 
     type Error = E;
 
-    fn parse(
-        &self,
-        input: I,
-        alloc: &'alloc A,
-    ) -> crate::error::ParseResult<'alloc, I, Self::Output, Self::Error> {
+    fn parse(&self, input: I, alloc: A) -> crate::error::ParseResult<I, Self::Output, Self::Error> {
         let control_flow =
             (0..self.max).try_fold((input, (self.init)()), |(input, folded_outputs), count| {
-                match self.parser.parse(input.clone(), alloc) {
+                match self.parser.parse(input.clone(), alloc.clone()) {
                     Ok((input, output)) => {
                         ControlFlow::Continue((input, (self.f)(folded_outputs, output)))
                     }
                     Err(ParserError::Error(_)) => {
                         if count < self.min {
                             ControlFlow::Break(Err(ParserError::Error(E::from_error_kind(
-                                input, self.kind, alloc,
+                                input,
+                                self.kind,
+                                alloc.clone(),
                             ))))
                         } else {
                             ControlFlow::Break(Ok((input, folded_outputs)))

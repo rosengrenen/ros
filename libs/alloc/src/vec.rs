@@ -7,21 +7,21 @@ use core::{
 
 use crate::iter::FromIteratorIn;
 
-pub struct Vec<'alloc, T, A: Allocator> {
+pub struct Vec<T, A: Allocator> {
     ptr: Unique<T>,
     cap: usize,
     len: usize,
-    alloc: &'alloc A,
+    alloc: A,
 }
 
-impl<'alloc, T: Debug, A: Allocator> Debug for Vec<'alloc, T, A> {
+impl<T: Debug, A: Allocator> Debug for Vec<T, A> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         Debug::fmt(&**self, f)
     }
 }
 
-impl<'alloc, T, A: Allocator> Vec<'alloc, T, A> {
-    pub fn new(alloc: &'alloc A) -> Self {
+impl<T, A: Allocator> Vec<T, A> {
+    pub fn new(alloc: A) -> Self {
         Self {
             ptr: Unique::dangling(),
             cap: 0,
@@ -87,8 +87,8 @@ impl From<LayoutError> for PushError {
     }
 }
 
-impl<'alloc, T: Clone, A: Allocator> Vec<'alloc, T, A> {
-    pub fn with_elem(value: T, n: usize, alloc: &'alloc A) -> Result<Self, ()> {
+impl<T: Clone, A: Allocator> Vec<T, A> {
+    pub fn with_elem(value: T, n: usize, alloc: A) -> Result<Self, ()> {
         let layout = Layout::array::<T>(n).map_err(|_| ())?;
         let ptr = alloc.allocate(layout).map_err(|_| ())?.cast::<T>();
 
@@ -114,11 +114,8 @@ impl<'alloc, T: Clone, A: Allocator> Vec<'alloc, T, A> {
     }
 }
 
-impl<'alloc, T, A: Allocator> FromIteratorIn<'alloc, T, A> for Vec<'alloc, T, A> {
-    fn from_iter_in<I: IntoIterator<Item = T>>(
-        iter: I,
-        alloc: &'alloc A,
-    ) -> Result<Self, AllocError> {
+impl<T, A: Allocator> FromIteratorIn<T, A> for Vec<T, A> {
+    fn from_iter_in<I: IntoIterator<Item = T>>(iter: I, alloc: A) -> Result<Self, AllocError> {
         let mut vec = Vec::new(alloc);
         for item in iter.into_iter() {
             vec.push(item).unwrap();
@@ -128,7 +125,7 @@ impl<'alloc, T, A: Allocator> FromIteratorIn<'alloc, T, A> for Vec<'alloc, T, A>
     }
 }
 
-impl<'alloc, T, A: Allocator> Deref for Vec<'alloc, T, A> {
+impl<T, A: Allocator> Deref for Vec<T, A> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
@@ -136,13 +133,13 @@ impl<'alloc, T, A: Allocator> Deref for Vec<'alloc, T, A> {
     }
 }
 
-impl<'alloc, T, A: Allocator> DerefMut for Vec<'alloc, T, A> {
+impl<T, A: Allocator> DerefMut for Vec<T, A> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { core::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len) }
     }
 }
 
-impl<'alloc, T, A: Allocator> Drop for Vec<'alloc, T, A> {
+impl<T, A: Allocator> Drop for Vec<T, A> {
     fn drop(&mut self) {
         let layout = Layout::array::<T>(self.cap)
             .expect("layout was used to allocate memory, so should always be valid");
@@ -150,7 +147,7 @@ impl<'alloc, T, A: Allocator> Drop for Vec<'alloc, T, A> {
     }
 }
 
-impl<'alloc, 'vec, T, A: Allocator> IntoIterator for &'vec Vec<'alloc, T, A> {
+impl<'vec, T, A: Allocator> IntoIterator for &'vec Vec<T, A> {
     type Item = &'vec T;
     type IntoIter = core::slice::Iter<'vec, T>;
 
@@ -159,7 +156,7 @@ impl<'alloc, 'vec, T, A: Allocator> IntoIterator for &'vec Vec<'alloc, T, A> {
     }
 }
 
-impl<'alloc, 'vec, T, A: Allocator> IntoIterator for &'vec mut Vec<'alloc, T, A> {
+impl<'vec, T, A: Allocator> IntoIterator for &'vec mut Vec<T, A> {
     type Item = &'vec mut T;
     type IntoIter = core::slice::IterMut<'vec, T>;
 
@@ -168,7 +165,7 @@ impl<'alloc, 'vec, T, A: Allocator> IntoIterator for &'vec mut Vec<'alloc, T, A>
     }
 }
 
-impl<'alloc, A: Allocator> core::fmt::Write for Vec<'alloc, u8, A> {
+impl<A: Allocator> core::fmt::Write for Vec<u8, A> {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         for b in s.bytes() {
             self.push(b).unwrap();
@@ -178,7 +175,7 @@ impl<'alloc, A: Allocator> core::fmt::Write for Vec<'alloc, u8, A> {
     }
 }
 
-impl<'alloc, A: Allocator> core::fmt::Write for Vec<'alloc, char, A> {
+impl<A: Allocator> core::fmt::Write for Vec<char, A> {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         for c in s.chars() {
             self.push(c).unwrap();

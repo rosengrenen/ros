@@ -1,5 +1,6 @@
 use crate::{
     error::{ParseError, ParseErrorKind, ParseResult, ParserError},
+    input::Input,
     parser::Parser,
 };
 use core::{alloc::Allocator, marker::PhantomData};
@@ -9,34 +10,26 @@ pub struct Alt<P, A> {
     pub(crate) alloc: PhantomData<A>,
 }
 
-impl<'alloc, I, P, A> Parser<'alloc, I, A> for Alt<P, A>
+impl<I, P, A> Parser<I, A> for Alt<P, A>
 where
-    P: AltHelper<'alloc, I, A>,
+    P: AltHelper<I, A>,
     A: Allocator,
 {
     type Output = P::Output;
 
     type Error = P::Error;
 
-    fn parse(
-        &self,
-        input: I,
-        alloc: &'alloc A,
-    ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
+    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
         self.parsers.parse_alt(input, alloc)
     }
 }
 
-pub trait AltHelper<'alloc, I, A: Allocator> {
+pub trait AltHelper<I, A: Allocator> {
     type Output;
 
-    type Error: ParseError<'alloc, I, A>;
+    type Error: ParseError<I, A>;
 
-    fn parse_alt(
-        &self,
-        input: I,
-        alloc: &'alloc A,
-    ) -> ParseResult<'alloc, I, Self::Output, Self::Error>;
+    fn parse_alt(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error>;
 }
 
 macro_rules! alt_trait(
@@ -55,14 +48,14 @@ macro_rules! alt_trait(
 
 macro_rules! alt_trait_impl {
     ($($parsers:ident),+) => {
-        impl<'alloc, I, O, E, $($parsers),+, A> AltHelper<'alloc, I, A> for ($($parsers),+)
+        impl< I, O, E, $($parsers),+, A> AltHelper<I, A> for ($($parsers),+)
         where
-            I: Clone,
-            E: ParseError<'alloc, I, A>,
+            I: Input,
+            E: ParseError< I, A>,
             $(
-                $parsers: Parser<'alloc, I, A, Output = O, Error = E>,
+                $parsers: Parser< I, A, Output = O, Error = E>,
             )+
-            A: Allocator,
+            A:Allocator + Clone,
         {
             type Output = O;
 
@@ -71,11 +64,11 @@ macro_rules! alt_trait_impl {
             fn parse_alt(
                 &self,
                 input: I,
-                alloc: &'alloc A,
-            ) -> ParseResult<'alloc, I, Self::Output, Self::Error> {
+                alloc: A,
+            ) -> ParseResult< I, Self::Output, Self::Error> {
                 #[allow(non_snake_case)]
                 let ($($parsers),+) = self;
-                alt_trait_inner!(input.clone(), alloc, $($parsers)+)
+                alt_trait_inner!(input.clone(), alloc.clone(), $($parsers)+)
                     .map_err(|error| error.append(input, ParseErrorKind::Alt))
             }
         }
@@ -95,4 +88,4 @@ macro_rules! alt_trait_inner(
     );
 );
 
-alt_trait!(P1, P2, P3, P4, P5, P6, P7, P8);
+alt_trait!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16);

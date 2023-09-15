@@ -14,7 +14,7 @@ mod print;
 use crate::{
     acpi::{Fadt, Rsdp},
     allocator::BumpAllocator,
-    aml::definition_blocks,
+    aml::term::TermList,
 };
 use acpi::DefinitionHeader;
 use alloc::vec::{PushError, Vec};
@@ -271,10 +271,10 @@ fn read_kernel_executable(
     get_elf_entry_point_offset(uefi_boot_services, &buffer, &uefi_allocator).map_err(|_| 100usize)
 }
 
-fn get_kernel_mem_regions<'alloc, A: Allocator>(
-    memory_map: &MemoryMap<UefiAllocator>,
-    alloc: &'alloc A,
-) -> Result<Vec<'alloc, MemoryDescriptor, A>, PushError> {
+fn get_kernel_mem_regions<'uefi, A: Allocator>(
+    memory_map: &MemoryMap<&'uefi UefiAllocator>,
+    alloc: A,
+) -> Result<Vec<MemoryDescriptor, A>, PushError> {
     let mut kernel_mem_regions: Vec<MemoryDescriptor, _> = Vec::new(alloc);
     for desc in memory_map.iter() {
         if let Some(last) = kernel_mem_regions.last_mut() {
@@ -396,16 +396,28 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
     let aml_ptr = unsafe { ptr.add(1) }.cast::<u8>();
     let aml_len = hdr.length as usize - core::mem::size_of::<DefinitionHeader>();
     let aml_slice = unsafe { core::slice::from_raw_parts(aml_ptr, aml_len) };
-    let res = definition_blocks::<SimpleError<&[u8], _>, _>(aml_slice, alloc);
-    sprintln!("{:?}", res);
+    let res = TermList::p::<&[u8], SimpleError<&[u8], _>>(aml_slice, alloc);
+    match res {
+        Ok(_) => sprintln!("ok"),
+        Err(e) => match e {
+            parser::error::ParserError::Error(e) => sprintln!("err"),
+            parser::error::ParserError::Failure(e) => {
+                sprintln!("fail");
+                e.errors.iter().for_each(|e| {
+                    sprintln!("{:?}", e.1);
+                })
+            }
+        },
+    }
+    // sprintln!("{:?}", res);
     loop {}
 }
 
-struct SimpleError<'alloc, I, A: Allocator> {
-    errors: Vec<'alloc, (I, ParseErrorKind), A>,
+struct SimpleError<I, A: Allocator> {
+    errors: Vec<(I, ParseErrorKind), A>,
 }
 
-impl<'alloc, I, A> core::fmt::Debug for SimpleError<'alloc, I, A>
+impl<I, A> core::fmt::Debug for SimpleError<I, A>
 where
     I: core::fmt::Debug,
     A: Allocator,
@@ -417,11 +429,11 @@ where
     }
 }
 
-impl<'alloc, I, A> ParseError<'alloc, I, A> for SimpleError<'alloc, I, A>
+impl<I, A> ParseError<I, A> for SimpleError<I, A>
 where
     A: Allocator,
 {
-    fn from_error_kind(input: I, kind: ParseErrorKind, alloc: &'alloc A) -> Self {
+    fn from_error_kind(input: I, kind: ParseErrorKind, alloc: A) -> Self {
         let mut errors = Vec::new(alloc);
         errors.push((input, kind)).unwrap();
         Self { errors }
@@ -438,11 +450,11 @@ where
     }
 }
 
-impl<'alloc, I, E, A> FromExternalError<'alloc, I, E, A> for SimpleError<'alloc, I, A>
+impl<I, E, A> FromExternalError<I, E, A> for SimpleError<I, A>
 where
     A: Allocator,
 {
-    fn from_external_error(input: I, kind: ParseErrorKind, _error: E, alloc: &'alloc A) -> Self {
+    fn from_external_error(input: I, kind: ParseErrorKind, _error: E, alloc: A) -> Self {
         let mut errors = Vec::new(alloc);
         errors.push((input, kind)).unwrap();
         Self { errors }

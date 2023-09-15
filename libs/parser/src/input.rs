@@ -12,14 +12,14 @@ pub trait Input: Clone {
 
     fn split_at_index_unchecked(&self, index: usize) -> (Self, Self);
 
-    fn split_at_index<'alloc, E, A>(
+    fn split_at_index<E, A>(
         &self,
         index: usize,
         kind: ParseErrorKind,
-        alloc: &'alloc A,
+        alloc: A,
     ) -> ParseResult<Self, Self, E>
     where
-        E: ParseError<'alloc, Self, A>,
+        E: ParseError<Self, A>,
         A: Allocator,
     {
         if self.input_len() < index {
@@ -34,16 +34,16 @@ pub trait Input: Clone {
         Ok((input, output))
     }
 
-    fn split_at_position_m_n<'alloc, E, P, A>(
+    fn split_at_position_m_n<E, P, A>(
         &self,
         min: usize,
         max: usize,
         pred: P,
         kind: ParseErrorKind,
-        alloc: &'alloc A,
+        alloc: A,
     ) -> ParseResult<Self, Self, E>
     where
-        E: ParseError<'alloc, Self, A>,
+        E: ParseError<Self, A>,
         P: Fn(Self::Item) -> bool,
         A: Allocator,
     {

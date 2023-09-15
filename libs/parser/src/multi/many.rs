@@ -1,18 +1,17 @@
 use crate::{
     error::{ParseError, ParseErrorKind, ParserError},
+    input::Input,
     parser::Parser,
 };
 use alloc::vec::Vec;
 use core::{alloc::Allocator, ops::ControlFlow};
 
-pub fn many<'alloc, I, O, E, P, A>(
-    parser: P,
-) -> impl Parser<'alloc, I, A, Output = Vec<'alloc, O, A>, Error = E>
+pub fn many<I, O, E, P, A>(parser: P) -> impl Parser<I, A, Output = Vec<O, A>, Error = E>
 where
-    I: Clone,
-    E: ParseError<'alloc, I, A>,
-    P: Parser<'alloc, I, A, Output = O, Error = E>,
-    A: Allocator + 'alloc,
+    I: Input,
+    E: ParseError<I, A>,
+    P: Parser<I, A, Output = O, Error = E>,
+    A: Allocator + Clone,
 {
     ManyMN {
         min: 0,
@@ -22,14 +21,12 @@ where
     }
 }
 
-pub fn many1<'alloc, I, O, E, P, A>(
-    parser: P,
-) -> impl Parser<'alloc, I, A, Output = Vec<'alloc, O, A>, Error = E>
+pub fn many1<I, O, E, P, A>(parser: P) -> impl Parser<I, A, Output = Vec<O, A>, Error = E>
 where
-    I: Clone,
-    E: ParseError<'alloc, I, A>,
-    P: Parser<'alloc, I, A, Output = O, Error = E>,
-    A: Allocator + 'alloc,
+    I: Input,
+    E: ParseError<I, A>,
+    P: Parser<I, A, Output = O, Error = E>,
+    A: Allocator + Clone,
 {
     ManyMN {
         min: 1,
@@ -39,15 +36,15 @@ where
     }
 }
 
-pub fn many_n<'alloc, I, O, E, P, A>(
+pub fn many_n<I, O, E, P, A>(
     count: usize,
     parser: P,
-) -> impl Parser<'alloc, I, A, Output = Vec<'alloc, O, A>, Error = E>
+) -> impl Parser<I, A, Output = Vec<O, A>, Error = E>
 where
-    I: Clone,
-    E: ParseError<'alloc, I, A>,
-    P: Parser<'alloc, I, A, Output = O, Error = E>,
-    A: Allocator + 'alloc,
+    I: Input,
+    E: ParseError<I, A>,
+    P: Parser<I, A, Output = O, Error = E>,
+    A: Allocator + Clone,
 {
     ManyMN {
         min: count,
@@ -57,16 +54,16 @@ where
     }
 }
 
-pub fn many_m_n<'alloc, I, O, E, P, A>(
+pub fn many_m_n<I, O, E, P, A>(
     min: usize,
     max: usize,
     parser: P,
-) -> impl Parser<'alloc, I, A, Output = Vec<'alloc, O, A>, Error = E>
+) -> impl Parser<I, A, Output = Vec<O, A>, Error = E>
 where
-    I: Clone,
-    E: ParseError<'alloc, I, A>,
-    P: Parser<'alloc, I, A, Output = O, Error = E>,
-    A: Allocator + 'alloc,
+    I: Input,
+    E: ParseError<I, A>,
+    P: Parser<I, A, Output = O, Error = E>,
+    A: Allocator + Clone,
 {
     ManyMN {
         min,
@@ -84,25 +81,22 @@ pub struct ManyMN<P> {
     kind: ParseErrorKind,
 }
 
-impl<'alloc, I, E, P, A> Parser<'alloc, I, A> for ManyMN<P>
+impl<I, E, P, A> Parser<I, A> for ManyMN<P>
 where
-    I: Clone,
-    E: ParseError<'alloc, I, A>,
-    P: Parser<'alloc, I, A, Error = E>,
-    A: Allocator + 'alloc,
+    I: Input,
+    E: ParseError<I, A>,
+    P: Parser<I, A, Error = E>,
+    A: Allocator + Clone,
 {
-    type Output = Vec<'alloc, P::Output, A>;
+    type Output = Vec<P::Output, A>;
 
     type Error = E;
 
-    fn parse(
-        &self,
-        input: I,
-        alloc: &'alloc A,
-    ) -> crate::error::ParseResult<'alloc, I, Self::Output, Self::Error> {
-        let control_flow =
-            (0..self.max).try_fold((input, Vec::new(alloc)), |(input, mut outputs), count| {
-                match self.parser.parse(input.clone(), alloc) {
+    fn parse(&self, input: I, alloc: A) -> crate::error::ParseResult<I, Self::Output, Self::Error> {
+        let control_flow = (0..self.max).try_fold(
+            (input, Vec::new(alloc.clone())),
+            |(input, mut outputs), count| {
+                match self.parser.parse(input.clone(), alloc.clone()) {
                     Ok((input, output)) => {
                         // TOOD: remove this unwrap
                         outputs.push(output).unwrap();
@@ -111,7 +105,9 @@ where
                     Err(ParserError::Error(_)) => {
                         if count < self.min {
                             ControlFlow::Break(Err(ParserError::Error(E::from_error_kind(
-                                input, self.kind, alloc,
+                                input,
+                                self.kind,
+                                alloc.clone(),
                             ))))
                         } else {
                             ControlFlow::Break(Ok((input, outputs)))
@@ -121,7 +117,8 @@ where
                         ParserError::Failure(error.append(input, self.kind)),
                     )),
                 }
-            });
+            },
+        );
         match control_flow {
             ControlFlow::Continue(res) => Ok(res),
             ControlFlow::Break(res) => res,
