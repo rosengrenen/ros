@@ -1,8 +1,11 @@
 use super::{TermArg, TermList};
-use crate::aml::{
-    data::{byte_data, dword_data, word_data, ExtOpPrefix},
-    name::{NameSeg, NameString},
-    pkg,
+use crate::{
+    aml::{
+        data::{byte_data, dword_data, word_data, ExtOpPrefix},
+        name::{NameSeg, NameString},
+        pkg, pkg_length,
+    },
+    sprintln,
 };
 use alloc::vec::Vec;
 use core::alloc::Allocator;
@@ -28,6 +31,10 @@ pub enum NamedObj<A: Allocator> {
     DefOpRegion(DefOpRegion<A>),
     DefPowerRes(DefPowerRes<A>),
     DefThermalZone(DefThermalZone<A>),
+    // Not in spec, but should probably be here, see: https://forum.osdev.org/viewtopic.php?f=1&t=29070
+    DefField(DefField<A>),
+    // Not in spec, but should probably be here, see: https://forum.osdev.org/viewtopic.php?f=1&t=33186
+    DefMethod(DefMethod<A>),
 }
 
 impl<A: Allocator + Clone> NamedObj<A> {
@@ -48,8 +55,11 @@ impl<A: Allocator + Clone> NamedObj<A> {
             DefOpRegion::p.map(Self::DefOpRegion),
             DefPowerRes::p.map(Self::DefPowerRes),
             DefThermalZone::p.map(Self::DefThermalZone),
+            DefField::p.map(Self::DefField),
+            DefMethod::p.map(Self::DefMethod),
         )
             .alt()
+            .add_context("NamedObj")
             .parse(input, alloc)
     }
 }
@@ -119,15 +129,15 @@ impl<A: Allocator + Clone> FieldList<A> {
     }
 }
 
-pub struct NamedField(NameSeg);
+pub struct NamedField(NameSeg, usize);
 
 impl NamedField {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        (NameSeg::p, pkg(rest()))
-            .map(|(seg, _)| Self(seg))
+        (NameSeg::p, pkg_length.cut())
+            .map(|(seg, len)| Self(seg, len))
             .add_context("NamedField")
             .parse(input, alloc)
     }

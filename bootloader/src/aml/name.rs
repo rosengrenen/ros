@@ -212,9 +212,9 @@ impl<A: Allocator + Clone> SimpleName<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            NameString::p.map(Self::NameString),
             ArgObj::p.map(Self::ArgObj),
             LocalObj::p.map(Self::LocalObj),
+            NameString::p.map(Self::NameString),
         )
             .alt()
             .add_context("SimpleName")

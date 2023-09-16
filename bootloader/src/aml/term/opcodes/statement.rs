@@ -362,9 +362,9 @@ impl<A: Allocator + Clone> DefWhile<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let stall_op = (ExtOpPrefix::p, item(0x21));
+        let while_op = item(0xa2);
         let predicate = TermArg::p; // => Integer
-        preceded(stall_op, pkg((predicate, TermList::p)))
+        preceded(while_op, pkg((predicate, TermList::p)))
             .map(|(predicate, terms)| Self { predicate, terms })
             .add_context("DefWhile")
             .parse(input, alloc)

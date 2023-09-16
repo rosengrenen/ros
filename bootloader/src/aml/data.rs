@@ -1,5 +1,3 @@
-use crate::sprintln;
-
 use super::term::opcodes::expr::{DefBuffer, DefPkg, DefVarPkg};
 use alloc::vec::Vec;
 use core::alloc::Allocator;

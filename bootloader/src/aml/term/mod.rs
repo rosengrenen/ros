@@ -92,10 +92,10 @@ impl<A: Allocator + Clone> TermArg<A> {
         let box_alloc1 = alloc.clone();
         let box_alloc2 = alloc.clone();
         (
-            ExprOpcode::p.map(|e| Self::ExprOpcode(Box::new(e, box_alloc1.clone()).unwrap())),
-            DataObj::p.map(|d| Self::DataObj(Box::new(d, box_alloc2.clone()).unwrap())),
             ArgObj::p.map(Self::ArgObj),
             LocalObj::p.map(Self::LocalObj),
+            DataObj::p.map(|d| Self::DataObj(Box::new(d, box_alloc2.clone()).unwrap())),
+            ExprOpcode::p.map(|e| Self::ExprOpcode(Box::new(e, box_alloc1.clone()).unwrap())),
         )
             .alt()
             .add_context("TermArg")
