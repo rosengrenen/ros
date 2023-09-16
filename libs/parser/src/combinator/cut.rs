@@ -5,11 +5,11 @@ use crate::{
 };
 use core::alloc::Allocator;
 
-pub struct Cut<P> {
-    pub(crate) parser: P,
+pub struct Cut<'p, P> {
+    pub(crate) parser: &'p P,
 }
 
-impl<I, P, A> Parser<I, A> for Cut<P>
+impl<'p, I, P, A> Parser<I, A> for Cut<'p, P>
 where
     I: Input,
     P: Parser<I, A>,

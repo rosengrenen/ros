@@ -6,7 +6,7 @@ use crate::{
 use alloc::vec::Vec;
 use core::{alloc::Allocator, ops::ControlFlow};
 
-pub fn many<I, O, E, P, A>(parser: P) -> impl Parser<I, A, Output = Vec<O, A>, Error = E>
+pub fn many<I, O, E, P, A>(parser: &P) -> impl Parser<I, A, Output = Vec<O, A>, Error = E> + '_
 where
     I: Input,
     E: ParseError<I, A>,
@@ -21,7 +21,7 @@ where
     }
 }
 
-pub fn many1<I, O, E, P, A>(parser: P) -> impl Parser<I, A, Output = Vec<O, A>, Error = E>
+pub fn many1<I, O, E, P, A>(parser: &P) -> impl Parser<I, A, Output = Vec<O, A>, Error = E> + '_
 where
     I: Input,
     E: ParseError<I, A>,
@@ -38,8 +38,8 @@ where
 
 pub fn many_n<I, O, E, P, A>(
     count: usize,
-    parser: P,
-) -> impl Parser<I, A, Output = Vec<O, A>, Error = E>
+    parser: &P,
+) -> impl Parser<I, A, Output = Vec<O, A>, Error = E> + '_
 where
     I: Input,
     E: ParseError<I, A>,
@@ -57,8 +57,8 @@ where
 pub fn many_m_n<I, O, E, P, A>(
     min: usize,
     max: usize,
-    parser: P,
-) -> impl Parser<I, A, Output = Vec<O, A>, Error = E>
+    parser: &P,
+) -> impl Parser<I, A, Output = Vec<O, A>, Error = E> + '_
 where
     I: Input,
     E: ParseError<I, A>,
@@ -74,14 +74,14 @@ where
 }
 
 // TODO: error kind
-pub struct ManyMN<P> {
+pub struct ManyMN<'p, P> {
     min: usize,
     max: usize,
-    parser: P,
+    parser: &'p P,
     kind: ParseErrorKind,
 }
 
-impl<I, E, P, A> Parser<I, A> for ManyMN<P>
+impl<'p, I, E, P, A> Parser<I, A> for ManyMN<'p, P>
 where
     I: Input,
     E: ParseError<I, A>,

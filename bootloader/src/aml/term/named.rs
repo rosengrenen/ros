@@ -1,11 +1,13 @@
 use super::{TermArg, TermList};
-use crate::{
-    aml::{
-        data::{byte_data, dword_data, word_data, ExtOpPrefix},
-        name::{NameSeg, NameString},
-        pkg, pkg_length,
+use crate::aml::{
+    data::{byte_data, dword_data, word_data},
+    name::{NameSeg, NameString},
+    ops::{
+        BankFieldOp, CreateBitFieldOp, CreateByteFieldOp, CreateDWordFieldOp, CreateFieldOp,
+        CreateQWordFieldOp, CreateWordFieldOp, DataRegionOp, DeviceOp, EventOp, ExternalOp,
+        FieldOp, IndexFieldOp, MethodOp, MutexOp, OpRegionOp, PowerResOp, ThermalZoneOp,
     },
-    sprintln,
+    pkg, pkg_length,
 };
 use alloc::vec::Vec;
 use core::alloc::Allocator;
@@ -43,20 +45,20 @@ impl<A: Allocator + Clone> NamedObj<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            DefBankField::p.map(Self::DefBankField),
-            DefCreateBitField::p.map(Self::DefCreateBitField),
-            DefCreateByteField::p.map(Self::DefCreateByteField),
-            DefCreateDWordField::p.map(Self::DefCreateDWordField),
-            DefCreateField::p.map(Self::DefCreateField),
-            DefCreateQWordField::p.map(Self::DefCreateQWordField),
-            DefCreateWordField::p.map(Self::DefCreateWordField),
-            DefDataRegion::p.map(Self::DefDataRegion),
-            DefExternal::p.map(Self::DefExternal),
-            DefOpRegion::p.map(Self::DefOpRegion),
-            DefPowerRes::p.map(Self::DefPowerRes),
-            DefThermalZone::p.map(Self::DefThermalZone),
-            DefField::p.map(Self::DefField),
-            DefMethod::p.map(Self::DefMethod),
+            &DefBankField::p.map(Self::DefBankField),
+            &DefCreateBitField::p.map(Self::DefCreateBitField),
+            &DefCreateByteField::p.map(Self::DefCreateByteField),
+            &DefCreateDWordField::p.map(Self::DefCreateDWordField),
+            &DefCreateField::p.map(Self::DefCreateField),
+            &DefCreateQWordField::p.map(Self::DefCreateQWordField),
+            &DefCreateWordField::p.map(Self::DefCreateWordField),
+            &DefDataRegion::p.map(Self::DefDataRegion),
+            &DefExternal::p.map(Self::DefExternal),
+            &DefOpRegion::p.map(Self::DefOpRegion),
+            &DefPowerRes::p.map(Self::DefPowerRes),
+            &DefThermalZone::p.map(Self::DefThermalZone),
+            &DefField::p.map(Self::DefField),
+            &DefMethod::p.map(Self::DefMethod),
         )
             .alt()
             .add_context("NamedObj")
@@ -77,16 +79,15 @@ impl<A: Allocator + Clone> DefBankField<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let bank_field_op = (ExtOpPrefix::p, item(0x87));
         let bank_value = TermArg::p; // => Integer
         preceded(
-            bank_field_op,
-            pkg((
-                NameString::p,
-                NameString::p,
-                bank_value,
-                FieldFlags::p,
-                FieldList::p,
+            &BankFieldOp::p,
+            &pkg(&(
+                &NameString::p,
+                &NameString::p,
+                &bank_value,
+                &FieldFlags::p,
+                &FieldList::p,
             )),
         )
         .map(|(name1, name2, bank_value, field_flags, field_list)| Self {
@@ -122,7 +123,7 @@ impl<A: Allocator + Clone> FieldList<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        many(FieldElement::p)
+        many(&FieldElement::p)
             .map(Self)
             .add_context("FieldList")
             .parse(input, alloc)
@@ -136,7 +137,7 @@ impl NamedField {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        (NameSeg::p, pkg_length.cut())
+        (&NameSeg::p, &pkg_length.cut())
             .map(|(seg, len)| Self(seg, len))
             .add_context("NamedField")
             .parse(input, alloc)
@@ -150,7 +151,7 @@ impl ReservedField {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        (item(0x00), pkg(rest()))
+        (&item(0x00), &pkg(&rest()))
             .map(|_| Self)
             .add_context("ReservedField")
             .parse(input, alloc)
@@ -167,7 +168,7 @@ impl AccessField {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        preceded(item(0x01), (AccessType::p, AccessAttrib::p).cut())
+        preceded(&item(0x01), &(&AccessType::p, &AccessAttrib::p).cut())
             .map(|(ty, attrib)| Self { ty, attrib })
             .add_context("AccessField")
             .parse(input, alloc)
@@ -213,13 +214,13 @@ impl<A: Allocator + Clone> ConnectField<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         preceded(
-            item(0x02),
+            &item(0x02),
             // (
             // NameString::p.map(Self::NameString),
             // BufferData::p.map(Self::BufferData),
             // )
             // .alt()
-            NameString::p.map(Self::NameString).cut(),
+            &NameString::p.map(Self::NameString).cut(),
         )
         .add_context("ConnectField")
         .parse(input, alloc)
@@ -237,12 +238,11 @@ impl<A: Allocator + Clone> DefCreateBitField<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let create_bit_field_op = item(0x8d);
         let source_buff = TermArg::p; // => Buffer
         let bit_index = TermArg::p; // => Integer
         preceded(
-            create_bit_field_op,
-            (source_buff, bit_index, NameString::p).cut(),
+            &CreateBitFieldOp::p,
+            &(&source_buff, &bit_index, &NameString::p).cut(),
         )
         .map(|(source_buf, bit_index, name)| Self {
             source_buf,
@@ -265,12 +265,11 @@ impl<A: Allocator + Clone> DefCreateByteField<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let create_byte_field_op = item(0x8c);
         let source_buff = TermArg::p; // => Buffer
         let byte_index = TermArg::p; // => Integer
         preceded(
-            create_byte_field_op,
-            (source_buff, byte_index, NameString::p).cut(),
+            &CreateByteFieldOp::p,
+            &(&source_buff, &byte_index, &NameString::p).cut(),
         )
         .map(|(source_buf, bit_index, name)| Self {
             source_buf,
@@ -293,12 +292,11 @@ impl<A: Allocator + Clone> DefCreateDWordField<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let create_dword_field_op = item(0x8a);
         let source_buff = TermArg::p; // => Buffer
         let byte_index = TermArg::p; // => Integer
         preceded(
-            create_dword_field_op,
-            (source_buff, byte_index, NameString::p).cut(),
+            &CreateDWordFieldOp::p,
+            &(&source_buff, &byte_index, &NameString::p).cut(),
         )
         .map(|(source_buf, byte_index, name)| Self {
             source_buf,
@@ -322,13 +320,12 @@ impl<A: Allocator + Clone> DefCreateField<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let create_field_op = (ExtOpPrefix::p, item(0x13));
         let source_buff = TermArg::p; // => Buffer
         let bit_index = TermArg::p; // => Integer
         let num_bits = TermArg::p; // => Integer
         preceded(
-            create_field_op,
-            (source_buff, bit_index, num_bits, NameString::p).cut(),
+            &CreateFieldOp::p,
+            &(&source_buff, &bit_index, &num_bits, &NameString::p).cut(),
         )
         .map(|(source_buf, bit_index, num_bits, name)| Self {
             source_buf,
@@ -352,12 +349,11 @@ impl<A: Allocator + Clone> DefCreateQWordField<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let create_qword_field_op = item(0x8f);
         let source_buff = TermArg::p; // => Buffer
         let byte_index = TermArg::p; // => Integer
         preceded(
-            create_qword_field_op,
-            (source_buff, byte_index, NameString::p).cut(),
+            &CreateQWordFieldOp::p,
+            &(&source_buff, &byte_index, &NameString::p).cut(),
         )
         .map(|(source_buf, bit_index, name)| Self {
             source_buf,
@@ -380,12 +376,11 @@ impl<A: Allocator + Clone> DefCreateWordField<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let create_word_field_op = item(0x8b);
         let source_buff = TermArg::p; // => Buffer
         let byte_index = TermArg::p; // => Integer
         preceded(
-            create_word_field_op,
-            (source_buff, byte_index, NameString::p).cut(),
+            &CreateWordFieldOp::p,
+            &(&source_buff, &byte_index, &NameString::p).cut(),
         )
         .map(|(source_buf, byte_index, name)| Self {
             source_buf,
@@ -409,10 +404,9 @@ impl<A: Allocator + Clone> DefDataRegion<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let data_region_op = (ExtOpPrefix::p, item(0x88));
         preceded(
-            data_region_op,
-            (NameString::p, TermArg::p, TermArg::p, TermArg::p).cut(),
+            &DataRegionOp::p,
+            &(&NameString::p, &TermArg::p, &TermArg::p, &TermArg::p).cut(),
         )
         .map(|(name, term1, term2, term3)| Self {
             name,
@@ -435,8 +429,7 @@ impl<A: Allocator + Clone> DefDevice<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let device_op = (ExtOpPrefix::p, item(0x82));
-        preceded(device_op, pkg((NameString::p, TermList::p)))
+        preceded(&DeviceOp::p, &pkg(&(&NameString::p, &TermList::p)))
             .map(|(name, terms)| Self { name, terms })
             .add_context("DefDevice")
             .parse(input, alloc)
@@ -452,8 +445,7 @@ impl<A: Allocator + Clone> DefEvent<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let event_op = (ExtOpPrefix::p, item(0x02));
-        preceded(event_op, NameString::p.cut())
+        preceded(&EventOp::p, &NameString::p.cut())
             .map(|name| Self { name })
             .add_context("DefEvent")
             .parse(input, alloc)
@@ -471,15 +463,17 @@ impl<A: Allocator + Clone> DefExternal<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let external_op = item(0x15);
-        preceded(external_op, (NameString::p, byte_data, byte_data).cut())
-            .map(|(name, obj_type, argument_count)| Self {
-                name,
-                obj_type,
-                argument_count,
-            })
-            .add_context("DefExternal")
-            .parse(input, alloc)
+        preceded(
+            &ExternalOp::p,
+            &(&NameString::p, &byte_data, &byte_data).cut(),
+        )
+        .map(|(name, obj_type, argument_count)| Self {
+            name,
+            obj_type,
+            argument_count,
+        })
+        .add_context("DefExternal")
+        .parse(input, alloc)
     }
 }
 
@@ -494,15 +488,17 @@ impl<A: Allocator + Clone> DefField<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let field_op = (ExtOpPrefix::p, item(0x81));
-        preceded(field_op, pkg((NameString::p, FieldFlags::p, FieldList::p)))
-            .map(|(name, flags, fields)| Self {
-                name,
-                flags,
-                fields,
-            })
-            .add_context("DefField")
-            .parse(input, alloc)
+        preceded(
+            &FieldOp::p,
+            &pkg(&(&NameString::p, &FieldFlags::p, &FieldList::p)),
+        )
+        .map(|(name, flags, fields)| Self {
+            name,
+            flags,
+            fields,
+        })
+        .add_context("DefField")
+        .parse(input, alloc)
     }
 }
 
@@ -518,10 +514,14 @@ impl<A: Allocator + Clone> DefIndexField<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let index_field_op = (ExtOpPrefix::p, item(0x86));
         preceded(
-            index_field_op,
-            pkg((NameString::p, NameString::p, FieldFlags::p, FieldList::p)),
+            &IndexFieldOp::p,
+            &pkg(&(
+                &NameString::p,
+                &NameString::p,
+                &FieldFlags::p,
+                &FieldList::p,
+            )),
         )
         .map(|(name1, name2, flags, fields)| Self {
             name1,
@@ -545,11 +545,13 @@ impl<A: Allocator + Clone> DefMethod<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let method_op = item(0x14);
-        preceded(method_op, pkg((NameString::p, MethodFlags::p, TermList::p)))
-            .map(|(name, flags, terms)| Self { name, flags, terms })
-            .add_context("DefMethod")
-            .parse(input, alloc)
+        preceded(
+            &MethodOp::p,
+            &pkg(&(&NameString::p, &MethodFlags::p, &TermList::p)),
+        )
+        .map(|(name, flags, terms)| Self { name, flags, terms })
+        .add_context("DefMethod")
+        .parse(input, alloc)
     }
 }
 
@@ -577,8 +579,7 @@ impl<A: Allocator + Clone> DefMutex<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let mutex_op = (ExtOpPrefix::p, item(0x01));
-        preceded(mutex_op, (NameString::p, SyncFlags::p).cut())
+        preceded(&MutexOp::p, &(&NameString::p, &SyncFlags::p).cut())
             .map(|(name, flags)| Self { name, flags })
             .add_context("DefMutex")
             .parse(input, alloc)
@@ -611,12 +612,11 @@ impl<A: Allocator + Clone> DefOpRegion<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let op_region_op = (ExtOpPrefix::p, item(0x80));
         let region_offset = TermArg::p; // => Integer
         let region_len = TermArg::p; // => Integer
         preceded(
-            op_region_op,
-            (NameString::p, RegionSpace::p, region_offset, region_len).cut(),
+            &OpRegionOp::p,
+            &(&NameString::p, &RegionSpace::p, &region_offset, &region_len).cut(),
         )
         .map(|(name, space, offset, len)| Self {
             name,
@@ -656,10 +656,9 @@ impl<A: Allocator + Clone> DefPowerRes<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let power_res_op = (ExtOpPrefix::p, item(0x84));
         preceded(
-            power_res_op,
-            pkg((NameString::p, system_level, resource_order, TermList::p)),
+            &PowerResOp::p,
+            &pkg(&(&NameString::p, &system_level, &resource_order, &TermList::p)),
         )
         .map(|(name, system_level, resource_order, terms)| Self {
             name,
@@ -717,8 +716,7 @@ impl<A: Allocator + Clone> DefThermalZone<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let thermal_zone_op = (ExtOpPrefix::p, item(0x85));
-        preceded(thermal_zone_op, pkg((NameString::p, TermList::p)))
+        preceded(&ThermalZoneOp::p, &pkg(&(&NameString::p, &TermList::p)))
             .map(|(name, terms)| Self { name, terms })
             .add_context("DefThermalZone")
             .parse(input, alloc)
@@ -737,8 +735,8 @@ impl ExtendedAccessField {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         preceded(
-            item(0x13),
-            (AccessType::p, ExtendedAccessAttrib::p, AccessLength::p).cut(),
+            &item(0x13),
+            &(&AccessType::p, &ExtendedAccessAttrib::p, &AccessLength::p).cut(),
         )
         .map(|(ty, attrib, len)| Self { ty, attrib, len })
         .add_context("ExtendedAccessField")
@@ -788,11 +786,11 @@ impl<A: Allocator + Clone> FieldElement<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            NamedField::p.map(Self::NamedField),
-            ReservedField::p.map(Self::ReservedField),
-            AccessField::p.map(Self::AccessField),
-            ExtendedAccessField::p.map(Self::ExtendedAccessField),
-            ConnectField::p.map(Self::ConnectField),
+            &NamedField::p.map(Self::NamedField),
+            &ReservedField::p.map(Self::ReservedField),
+            &AccessField::p.map(Self::AccessField),
+            &ExtendedAccessField::p.map(Self::ExtendedAccessField),
+            &ConnectField::p.map(Self::ConnectField),
         )
             .alt()
             .add_context("FieldElement")

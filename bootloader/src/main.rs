@@ -14,7 +14,6 @@ mod print;
 use crate::{
     acpi::{Fadt, Rsdp},
     allocator::BumpAllocator,
-    aml::term::TermList,
 };
 use acpi::DefinitionHeader;
 use alloc::vec::{PushError, Vec};
@@ -49,7 +48,7 @@ use x86_64::{
 #[macro_export]
 macro_rules! sprintln {
     ($($arg:tt)*) => {
-        $crate::serial_print(format_args_nl!($($arg)*));
+        $crate::serial_print(format_args_nl!($($arg)*))
     }
 }
 
@@ -406,7 +405,7 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
     match res {
         Ok(_) => sprintln!("ok"),
         Err(e) => match e {
-            parser::error::ParserError::Error(e) => sprintln!("err"),
+            parser::error::ParserError::Error(_) => sprintln!("err"),
             parser::error::ParserError::Failure(e) => {
                 sprintln!("fail");
                 for (i, e) in e.errors.iter() {

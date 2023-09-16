@@ -1,10 +1,8 @@
-use crate::sprintln;
-
 use super::{
     misc::{ArgObj, DebugObj, LocalObj},
     term::opcodes::expr::RefTypeOpcode,
 };
-use alloc::{boxed::Box, iter::IteratorCollectIn, vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},
@@ -40,7 +38,7 @@ fn name_char<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     alloc: A,
 ) -> ParseResult<I, u8, E> {
-    (digit_char, lead_name_char)
+    (&digit_char, &lead_name_char)
         .alt()
         .add_context("name_char")
         .parse(input, alloc)
@@ -64,7 +62,7 @@ impl NameSeg {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        (lead_name_char, name_char, name_char, name_char)
+        (&lead_name_char, &name_char, &name_char, &name_char)
             .map(|(lead, c1, c2, c3)| Self([lead, c1, c2, c3]))
             .add_context("NameSeg")
             .parse(input, alloc)
@@ -97,11 +95,13 @@ impl<A: Allocator + Clone> NameString<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            preceded(root_char, NamePath::p.cut()).map(Self::Absolute),
-            (PrefixPath::p, NamePath::p.cut()).map(|(prefix_path, name_path)| match prefix_path {
-                Some(prefix) => Self::PathPrefixed(prefix.0, name_path),
-                None => Self::Relative(name_path),
-            }),
+            &preceded(&root_char, &NamePath::p.cut()).map(Self::Absolute),
+            &(&PrefixPath::p, &NamePath::p.cut()).map(
+                |(prefix_path, name_path)| match prefix_path {
+                    Some(prefix) => Self::PathPrefixed(prefix.0, name_path),
+                    None => Self::Relative(name_path),
+                },
+            ),
         )
             .alt()
             .add_context("NameString")
@@ -149,10 +149,10 @@ impl<A: Allocator + Clone> NamePath<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            NameSeg::p.map(Self::NameSeg),
-            DualNamePath::p.map(Self::DualName),
-            MultiNamePath::p.map(Self::MultiName),
-            NullName::p.map(Self::NullName),
+            &NameSeg::p.map(Self::NameSeg),
+            &DualNamePath::p.map(Self::DualName),
+            &MultiNamePath::p.map(Self::MultiName),
+            &NullName::p.map(Self::NullName),
         )
             .alt()
             .add_context("NamePath")
@@ -169,8 +169,8 @@ impl DualNamePath {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         preceded(
-            item(0x2e),
-            (NameSeg::p, NameSeg::p)
+            &item(0x2e),
+            &(&NameSeg::p, &NameSeg::p)
                 .cut()
                 .map(|(seg0, seg1)| Self(seg0, seg1)),
         )
@@ -192,8 +192,8 @@ impl<A: Allocator + Clone> MultiNamePath<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let (input, seg_count) = preceded(item(0x2e), take_one()).parse(input, alloc.clone())?;
-        many_n(seg_count as usize, NameSeg::p)
+        let (input, seg_count) = preceded(&item(0x2e), &take_one()).parse(input, alloc.clone())?;
+        many_n(seg_count as usize, &NameSeg::p)
             .map(MultiNamePath)
             .add_context("MultiNamePath")
             .parse(input, alloc)
@@ -212,9 +212,9 @@ impl<A: Allocator + Clone> SimpleName<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            ArgObj::p.map(Self::ArgObj),
-            LocalObj::p.map(Self::LocalObj),
-            NameString::p.map(Self::NameString),
+            &ArgObj::p.map(Self::ArgObj),
+            &LocalObj::p.map(Self::LocalObj),
+            &NameString::p.map(Self::NameString),
         )
             .alt()
             .add_context("SimpleName")
@@ -235,9 +235,9 @@ impl<A: Allocator + Clone> SuperName<A> {
     ) -> ParseResult<I, Self, E> {
         let box_alloc = alloc.clone();
         (
-            SimpleName::p.map(Self::SimpleName),
-            DebugObj::p.map(Self::DebugObj),
-            RefTypeOpcode::p.map(|r| Self::RefTypeOpcode(Box::new(r, box_alloc.clone()).unwrap())),
+            &SimpleName::p.map(Self::SimpleName),
+            &DebugObj::p.map(Self::DebugObj),
+            &RefTypeOpcode::p.map(|r| Self::RefTypeOpcode(Box::new(r, box_alloc.clone()).unwrap())),
         )
             .alt()
             .add_context("SuperName")
@@ -271,8 +271,8 @@ impl<A: Allocator + Clone> Target<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            SuperName::p.map(Self::SuperName),
-            NullName::p.map(Self::NullName),
+            &SuperName::p.map(Self::SuperName),
+            &NullName::p.map(Self::NullName),
         )
             .alt()
             .add_context("Target")

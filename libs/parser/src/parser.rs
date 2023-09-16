@@ -1,3 +1,4 @@
+use crate::branch::alt::{Alt, AltHelper};
 use crate::{
     combinator::{
         add_context::AddContext,
@@ -12,8 +13,6 @@ use crate::{
 };
 use core::{alloc::Allocator, marker::PhantomData};
 
-use crate::branch::alt::{Alt, AltHelper};
-
 pub trait Parser<I, A>
 where
     A: Allocator,
@@ -24,7 +23,7 @@ where
 
     fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error>;
 
-    fn map<F, O2>(self, f: F) -> Map<Self, F>
+    fn map<F, O2>(&self, f: F) -> Map<'_, Self, F>
     where
         Self: Sized,
         F: Fn(Self::Output) -> O2,
@@ -32,7 +31,7 @@ where
         Map { parser: self, f }
     }
 
-    fn map_res<O2, E2, F>(self, f: F) -> MapRes<Self, F, E2>
+    fn map_res<O2, E2, F>(&self, f: F) -> MapRes<'_, Self, F, E2>
     where
         Self: Sized,
         Self::Error: FromExternalError<I, E2, A>,
@@ -46,7 +45,7 @@ where
         }
     }
 
-    fn map_res1<O2, E2, F>(self, f: F) -> MapRes1<Self, F, E2>
+    fn map_res1<O2, E2, F>(&self, f: F) -> MapRes1<'_, Self, F, E2>
     where
         Self: Sized,
         F: Fn(Self::Output) -> Result<O2, E2>,
@@ -59,7 +58,7 @@ where
         }
     }
 
-    fn and_then<O, P>(self, parser: P) -> AndThen<Self, P>
+    fn and_then<'p, O, P>(&'p self, parser: &'p P) -> AndThen<'p, Self, P>
     where
         Self: Sized,
         P: Parser<Self::Output, A, Output = O, Error = Self::Error>,
@@ -70,7 +69,7 @@ where
         }
     }
 
-    fn or<P>(self, parser: P) -> Or<Self, P>
+    fn or<'p, P>(&'p self, parser: &'p P) -> Or<'p, Self, P>
     where
         Self: Sized,
         P: Parser<I, A, Output = Self::Output, Error = Self::Error>,
@@ -81,21 +80,21 @@ where
         }
     }
 
-    fn opt(self) -> Opt<Self>
+    fn opt(&self) -> Opt<Self>
     where
         Self: Sized,
     {
         Opt { parser: self }
     }
 
-    fn cut(self) -> Cut<Self>
+    fn cut(&self) -> Cut<Self>
     where
         Self: Sized,
     {
         Cut { parser: self }
     }
 
-    fn alt(self) -> Alt<Self, A>
+    fn alt(&self) -> Alt<'_, Self, A>
     where
         Self: Sized + AltHelper<I, A>,
     {
@@ -105,7 +104,7 @@ where
         }
     }
 
-    fn add_context(self, context: &'static str) -> AddContext<Self>
+    fn add_context(&self, context: &'static str) -> AddContext<Self>
     where
         Self: Sized,
     {

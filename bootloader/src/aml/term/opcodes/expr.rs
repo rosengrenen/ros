@@ -1,8 +1,17 @@
 use super::statement::{EventObj, MutexObj};
 use crate::aml::{
-    data::{byte_data, ByteList, DataRefObj, ExtOpPrefix},
+    data::{byte_data, ByteList, DataRefObj},
     misc::DebugObj,
     name::{NameString, SimpleName, SuperName, Target},
+    ops::{
+        AcquireOp, AddOp, AndOp, BufferOp, ConcatOp, ConcatResOp, CondRefOfOp, CopyObjOp,
+        DecrementOp, DerefOfOp, DivideOp, FindSetLeftBitOp, FindSetRightBitOp, FromBcdOp,
+        IncrementOp, IndexOp, LAndOp, LEqualOp, LGreaterEqualOp, LGreaterOp, LLessEqualOp, LLessOp,
+        LNotEqualOp, LNotOp, LOrOp, LoadOp, LoadTableOp, MatchOp, MidOp, ModOp, MultiplyOp, NandOp,
+        NorOp, NotOp, ObjTypeOp, OrOp, PkgOp, RefOfOp, ShiftLeftOp, ShiftRightOp, SizeOfOp,
+        StoreOp, SubtractOp, TimerOp, ToBcdOp, ToBufferOp, ToDecimalStringOp, ToHexStringOp,
+        ToIntegerOp, ToStringOp, VarPkgOp, WaitOp, XorOp,
+    },
     pkg,
     term::{MethodInvocation, TermArg},
 };
@@ -79,68 +88,68 @@ impl<A: Allocator + Clone> ExprOpcode<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            (
-                DefAcquire::p.map(Self::DefAcquire),
-                DefAdd::p.map(Self::DefAdd),
-                DefAnd::p.map(Self::DefAnd),
-                DefBuffer::p.map(Self::DefBuffer),
-                DefConcat::p.map(Self::DefConcat),
-                DefConcatRes::p.map(Self::DefConcatRes),
-                DefCondRefOf::p.map(Self::DefCondRefOf),
-                DefCopyObj::p.map(Self::DefCopyObj),
-                DefDecrement::p.map(Self::DefDecrement),
-                DefDerefOf::p.map(Self::DefDerefOf),
-                DefDivide::p.map(Self::DefDivide),
-                DefFindSetLeftBit::p.map(Self::DefFindSetLeftBit),
-                DefFindSetRightBit::p.map(Self::DefFindSetRightBit),
-                DefFromBcd::p.map(Self::DefFromBcd),
-                DefIncrement::p.map(Self::DefIncrement),
-                DefIndex::p.map(Self::DefIndex),
+            &(
+                &DefAcquire::p.map(Self::DefAcquire),
+                &DefAdd::p.map(Self::DefAdd),
+                &DefAnd::p.map(Self::DefAnd),
+                &DefBuffer::p.map(Self::DefBuffer),
+                &DefConcat::p.map(Self::DefConcat),
+                &DefConcatRes::p.map(Self::DefConcatRes),
+                &DefCondRefOf::p.map(Self::DefCondRefOf),
+                &DefCopyObj::p.map(Self::DefCopyObj),
+                &DefDecrement::p.map(Self::DefDecrement),
+                &DefDerefOf::p.map(Self::DefDerefOf),
+                &DefDivide::p.map(Self::DefDivide),
+                &DefFindSetLeftBit::p.map(Self::DefFindSetLeftBit),
+                &DefFindSetRightBit::p.map(Self::DefFindSetRightBit),
+                &DefFromBcd::p.map(Self::DefFromBcd),
+                &DefIncrement::p.map(Self::DefIncrement),
+                &DefIndex::p.map(Self::DefIndex),
             )
                 .alt(),
-            (
-                DefLAnd::p.map(Self::DefLAnd),
-                DefLEqual::p.map(Self::DefLEqual),
-                DefLGreater::p.map(Self::DefLGreater),
-                DefLGreaterEqual::p.map(Self::DefLGreaterEqual),
-                DefLLess::p.map(Self::DefLLess),
-                DefLLessEqual::p.map(Self::DefLLessEqual),
-                DefMid::p.map(Self::DefMid),
-                DefLNot::p.map(Self::DefLNot),
-                DefLNotEqual::p.map(Self::DefLNotEqual),
-                DefLoadTable::p.map(Self::DefLoadTable),
-                DefLOr::p.map(Self::DefLOr),
-                DefMatch::p.map(Self::DefMatch),
-                DefMod::p.map(Self::DefMod),
-                DefMultiply::p.map(Self::DefMultiply),
-                DefNAnd::p.map(Self::DefNAnd),
-                DefNOr::p.map(Self::DefNOr),
+            &(
+                &DefLAnd::p.map(Self::DefLAnd),
+                &DefLEqual::p.map(Self::DefLEqual),
+                &DefLGreater::p.map(Self::DefLGreater),
+                &DefLGreaterEqual::p.map(Self::DefLGreaterEqual),
+                &DefLLess::p.map(Self::DefLLess),
+                &DefLLessEqual::p.map(Self::DefLLessEqual),
+                &DefMid::p.map(Self::DefMid),
+                &DefLNot::p.map(Self::DefLNot),
+                &DefLNotEqual::p.map(Self::DefLNotEqual),
+                &DefLoadTable::p.map(Self::DefLoadTable),
+                &DefLOr::p.map(Self::DefLOr),
+                &DefMatch::p.map(Self::DefMatch),
+                &DefMod::p.map(Self::DefMod),
+                &DefMultiply::p.map(Self::DefMultiply),
+                &DefNAnd::p.map(Self::DefNAnd),
+                &DefNOr::p.map(Self::DefNOr),
             )
                 .alt(),
-            (
-                DefNot::p.map(Self::DefNot),
-                DefObjType::p.map(Self::DefObjType),
-                DefOr::p.map(Self::DefOr),
-                DefPkg::p.map(Self::DefPkg),
-                DefVarPkg::p.map(Self::DefVarPkg),
-                DefRefOf::p.map(Self::DefRefOf),
-                DefShiftLeft::p.map(Self::DefShiftLeft),
-                DefShiftRight::p.map(Self::DefShiftRight),
-                DefSizeOf::p.map(Self::DefSizeOf),
-                DefStore::p.map(Self::DefStore),
-                DefSubtract::p.map(Self::DefSubtract),
-                DefTimer::p.map(Self::DefTimer),
-                DefToBcd::p.map(Self::DefToBcd),
-                DefToBuffer::p.map(Self::DefToBuffer),
-                DefToDecimalString::p.map(Self::DefToDecimalString),
-                DefToHexString::p.map(Self::DefToHexString),
+            &(
+                &DefNot::p.map(Self::DefNot),
+                &DefObjType::p.map(Self::DefObjType),
+                &DefOr::p.map(Self::DefOr),
+                &DefPkg::p.map(Self::DefPkg),
+                &DefVarPkg::p.map(Self::DefVarPkg),
+                &DefRefOf::p.map(Self::DefRefOf),
+                &DefShiftLeft::p.map(Self::DefShiftLeft),
+                &DefShiftRight::p.map(Self::DefShiftRight),
+                &DefSizeOf::p.map(Self::DefSizeOf),
+                &DefStore::p.map(Self::DefStore),
+                &DefSubtract::p.map(Self::DefSubtract),
+                &DefTimer::p.map(Self::DefTimer),
+                &DefToBcd::p.map(Self::DefToBcd),
+                &DefToBuffer::p.map(Self::DefToBuffer),
+                &DefToDecimalString::p.map(Self::DefToDecimalString),
+                &DefToHexString::p.map(Self::DefToHexString),
             )
                 .alt(),
-            DefToInteger::p.map(Self::DefToInteger),
-            DefToString::p.map(Self::DefToString),
-            DefWait::p.map(Self::DefWait),
-            DefXOr::p.map(Self::DefXOr),
-            MethodInvocation::p.map(Self::MethodInvocation),
+            &DefToInteger::p.map(Self::DefToInteger),
+            &DefToString::p.map(Self::DefToString),
+            &DefWait::p.map(Self::DefWait),
+            &DefXOr::p.map(Self::DefXOr),
+            &MethodInvocation::p.map(Self::MethodInvocation),
         )
             .alt()
             .add_context("ExprOpcode")
@@ -161,10 +170,10 @@ impl<A: Allocator + Clone> RefTypeOpcode<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            DefRefOf::p.map(Self::DefRefOf),
-            DefDerefOf::p.map(Self::DefDerefOf),
-            DefIndex::p.map(Self::DefIndex),
-            MethodInvocation::p.map(Self::UserTermObj),
+            &DefRefOf::p.map(Self::DefRefOf),
+            &DefDerefOf::p.map(Self::DefDerefOf),
+            &DefIndex::p.map(Self::DefIndex),
+            &MethodInvocation::p.map(Self::UserTermObj),
         )
             .alt()
             .add_context("RefTypeOpcode")
@@ -182,8 +191,7 @@ impl<A: Allocator + Clone> DefAcquire<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let acquire_op = (ExtOpPrefix::p, item(0x23));
-        preceded(acquire_op, (MutexObj::p, Timeout::p).cut())
+        preceded(&AcquireOp::p, &(&MutexObj::p, &Timeout::p).cut())
             .map(|(mutex, timeout)| Self { mutex, timeout })
             .add_context("DefAcquire")
             .parse(input, alloc)
@@ -215,8 +223,7 @@ impl<A: Allocator + Clone> DefAdd<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let add_op = item(0x72);
-        preceded(add_op, (Operand::p, Operand::p, Target::p).cut())
+        preceded(&AddOp::p, &(&Operand::p, &Operand::p, &Target::p).cut())
             .map(|(left, right, target)| Self {
                 left,
                 right,
@@ -252,8 +259,7 @@ impl<A: Allocator + Clone> DefAnd<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let and_op = item(0x7b);
-        preceded(and_op, (Operand::p, Operand::p, Target::p).cut())
+        preceded(&AndOp::p, &(&Operand::p, &Operand::p, &Target::p).cut())
             .map(|(left, right, target)| Self {
                 left,
                 right,
@@ -274,9 +280,8 @@ impl<A: Allocator + Clone> DefBuffer<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let buffer_op = item(0x11);
         let buffer_size = TermArg::p; // => Integer
-        preceded(buffer_op, pkg((buffer_size, ByteList::p)))
+        preceded(&BufferOp::p, &pkg(&(&buffer_size, &ByteList::p)))
             .map(|(len, bytes)| Self { len, bytes })
             .add_context("DefBuffer")
             .parse(input, alloc)
@@ -294,9 +299,8 @@ impl<A: Allocator + Clone> DefConcat<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let concat_op = item(0x73);
         let data = TermArg::p; // => ComputationalData
-        preceded(concat_op, (data, data, Target::p).cut())
+        preceded(&ConcatOp::p, &(&data, &data, &Target::p).cut())
             .map(|(left, right, target)| Self {
                 left,
                 right,
@@ -318,9 +322,8 @@ impl<A: Allocator + Clone> DefConcatRes<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let concat_res_op = item(0x84);
         let buf_data = TermArg::p; // => Buffer
-        preceded(concat_res_op, (buf_data, buf_data, Target::p).cut())
+        preceded(&ConcatResOp::p, &(&buf_data, &buf_data, &Target::p).cut())
             .map(|(left, right, target)| Self {
                 left,
                 right,
@@ -341,8 +344,7 @@ impl<A: Allocator + Clone> DefCondRefOf<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let cond_ref_of_op = (ExtOpPrefix::p, item(0x84));
-        preceded(cond_ref_of_op, (SuperName::p, Target::p).cut())
+        preceded(&CondRefOfOp::p, &(&SuperName::p, &Target::p).cut())
             .map(|(name, target)| Self { name, target })
             .add_context("DefCondRefOf")
             .parse(input, alloc)
@@ -359,8 +361,7 @@ impl<A: Allocator + Clone> DefCopyObj<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let copy_obj_op = item(0x9d);
-        preceded(copy_obj_op, (TermArg::p, SimpleName::p).cut())
+        preceded(&CopyObjOp::p, &(&TermArg::p, &SimpleName::p).cut())
             .map(|(arg, name)| Self { arg, name })
             .add_context("DefCopyObj")
             .parse(input, alloc)
@@ -376,8 +377,7 @@ impl<A: Allocator + Clone> DefDecrement<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let decrement_op = item(0x76);
-        preceded(decrement_op, SuperName::p.cut())
+        preceded(&DecrementOp::p, &SuperName::p.cut())
             .map(|name| Self { name })
             .add_context("DefDecrement")
             .parse(input, alloc)
@@ -393,9 +393,8 @@ impl<A: Allocator + Clone> DefDerefOf<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let decrement_op = item(0x83);
         let obj_ref = TermArg::p; // => ObjRef | String
-        preceded(decrement_op, obj_ref.cut())
+        preceded(&DerefOfOp::p, &obj_ref.cut())
             .map(|obj_ref| Self { obj_ref })
             .add_context("DefDerefOf")
             .parse(input, alloc)
@@ -414,18 +413,20 @@ impl<A: Allocator + Clone> DefDivide<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let divide_op = item(0x78);
         let dividend = TermArg::p; // => Integer
         let divisor = TermArg::p; // => Integer
-        preceded(divide_op, (dividend, divisor, Target::p, Target::p).cut())
-            .map(|(dividend, divisor, remainder, quotient)| Self {
-                dividend,
-                divisor,
-                remainder,
-                quotient,
-            })
-            .add_context("DefDivide")
-            .parse(input, alloc)
+        preceded(
+            &DivideOp::p,
+            &(&dividend, &divisor, &Target::p, &Target::p).cut(),
+        )
+        .map(|(dividend, divisor, remainder, quotient)| Self {
+            dividend,
+            divisor,
+            remainder,
+            quotient,
+        })
+        .add_context("DefDivide")
+        .parse(input, alloc)
     }
 }
 
@@ -439,8 +440,7 @@ impl<A: Allocator + Clone> DefFindSetLeftBit<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let find_set_left_bit_op = item(0x81);
-        preceded(find_set_left_bit_op, (Operand::p, Target::p).cut())
+        preceded(&FindSetLeftBitOp::p, &(&Operand::p, &Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
             .add_context("DefFindSetLeftBit")
             .parse(input, alloc)
@@ -457,8 +457,7 @@ impl<A: Allocator + Clone> DefFindSetRightBit<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let find_set_right_bit_op = item(0x82);
-        preceded(find_set_right_bit_op, (Operand::p, Target::p).cut())
+        preceded(&FindSetRightBitOp::p, &(&Operand::p, &Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
             .add_context("DefFindSetRightBit")
             .parse(input, alloc)
@@ -475,9 +474,8 @@ impl<A: Allocator + Clone> DefFromBcd<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let from_bcd_op = (ExtOpPrefix::p, item(0x28));
         let bcd_value = TermArg::p; // => Integer
-        preceded(from_bcd_op, (bcd_value, Target::p).cut())
+        preceded(&FromBcdOp::p, &(&bcd_value, &Target::p).cut())
             .map(|(value, target)| Self { value, target })
             .add_context("DefFromBcd")
             .parse(input, alloc)
@@ -493,8 +491,7 @@ impl<A: Allocator + Clone> DefIncrement<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let increment_op = item(0x75);
-        preceded(increment_op, SuperName::p.cut())
+        preceded(&IncrementOp::p, &SuperName::p.cut())
             .map(|name| Self { name })
             .add_context("DefIncrement")
             .parse(input, alloc)
@@ -512,17 +509,19 @@ impl<A: Allocator + Clone> DefIndex<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let index_op = item(0x88);
         let buf_pkg_str_obj = TermArg::p; // => Buffer | Pkg | String
         let index_value = TermArg::p; // => Integer
-        preceded(index_op, (buf_pkg_str_obj, index_value, Target::p).cut())
-            .map(|(buf_pkg_str_obj, index_value, target)| Self {
-                buf_pkg_str_obj,
-                index_value,
-                target,
-            })
-            .add_context("DefIndex")
-            .parse(input, alloc)
+        preceded(
+            &IndexOp::p,
+            &(&buf_pkg_str_obj, &index_value, &Target::p).cut(),
+        )
+        .map(|(buf_pkg_str_obj, index_value, target)| Self {
+            buf_pkg_str_obj,
+            index_value,
+            target,
+        })
+        .add_context("DefIndex")
+        .parse(input, alloc)
     }
 }
 
@@ -536,8 +535,7 @@ impl<A: Allocator + Clone> DefLAnd<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let land_op = item(0x90);
-        preceded(land_op, (Operand::p, Operand::p).cut())
+        preceded(&LAndOp::p, &(&Operand::p, &Operand::p).cut())
             .map(|(left, right)| Self { left, right })
             .add_context("DefLAnd")
             .parse(input, alloc)
@@ -554,7 +552,7 @@ impl<A: Allocator + Clone> DefLEqual<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        preceded(lequal_op, (Operand::p, Operand::p).cut())
+        preceded(&LEqualOp::p, &(&Operand::p, &Operand::p).cut())
             .map(|(left, right)| Self { left, right })
             .add_context("DefLEqual")
             .parse(input, alloc)
@@ -581,7 +579,7 @@ impl<A: Allocator + Clone> DefLGreater<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        preceded(lgreater_op, (Operand::p, Operand::p).cut())
+        preceded(&LGreaterOp::p, &(&Operand::p, &Operand::p).cut())
             .map(|(left, right)| Self { left, right })
             .add_context("DefLGreater")
             .parse(input, alloc)
@@ -608,8 +606,7 @@ impl<A: Allocator + Clone> DefLGreaterEqual<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let lgreater_equal_op = (lnot_op, lless_op);
-        preceded(lgreater_equal_op, (Operand::p, Operand::p).cut())
+        preceded(&LGreaterEqualOp::p, &(&Operand::p, &Operand::p).cut())
             .map(|(left, right)| Self { left, right })
             .add_context("DefLGreaterEqual")
             .parse(input, alloc)
@@ -626,7 +623,7 @@ impl<A: Allocator + Clone> DefLLess<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        preceded(lless_op, (Operand::p, Operand::p).cut())
+        preceded(&LLessOp::p, &(&Operand::p, &Operand::p).cut())
             .map(|(left, right)| Self { left, right })
             .add_context("DefLLess")
             .parse(input, alloc)
@@ -653,8 +650,7 @@ impl<A: Allocator + Clone> DefLLessEqual<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let lless_equal_op = (lnot_op, lgreater_op);
-        preceded(lless_equal_op, (Operand::p, Operand::p).cut())
+        preceded(&LLessEqualOp::p, &(&Operand::p, &Operand::p).cut())
             .map(|(left, right)| Self { left, right })
             .add_context("DefLLessEqual")
             .parse(input, alloc)
@@ -670,7 +666,7 @@ impl<A: Allocator + Clone> DefLNot<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        preceded(lnot_op, Operand::p.cut())
+        preceded(&LNotOp::p, &Operand::p.cut())
             .map(|operand| Self { operand })
             .add_context("DefLNot")
             .parse(input, alloc)
@@ -697,8 +693,7 @@ impl<A: Allocator + Clone> DefLNotEqual<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let lnot_equal_op = (lnot_op, lequal_op);
-        preceded(lnot_equal_op, (Operand::p, Operand::p).cut())
+        preceded(&LNotEqualOp::p, &(&Operand::p, &Operand::p).cut())
             .map(|(left, right)| Self { left, right })
             .add_context("DefLNotEqual")
             .parse(input, alloc)
@@ -715,8 +710,7 @@ impl<A: Allocator + Clone> DefLoad<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let load_op = (ExtOpPrefix::p, item(0x20));
-        preceded(load_op, (NameString::p, Target::p).cut())
+        preceded(&LoadOp::p, &(&NameString::p, &Target::p).cut())
             .map(|(name, target)| Self { name, target })
             .add_context("DefLoad")
             .parse(input, alloc)
@@ -737,16 +731,15 @@ impl<A: Allocator + Clone> DefLoadTable<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let load_table_op = (ExtOpPrefix::p, item(0x1f));
         preceded(
-            load_table_op,
-            (
-                TermArg::p,
-                TermArg::p,
-                TermArg::p,
-                TermArg::p,
-                TermArg::p,
-                TermArg::p,
+            &LoadTableOp::p,
+            &(
+                &TermArg::p,
+                &TermArg::p,
+                &TermArg::p,
+                &TermArg::p,
+                &TermArg::p,
+                &TermArg::p,
             )
                 .cut(),
         )
@@ -773,8 +766,7 @@ impl<A: Allocator + Clone> DefLOr<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let lor_op = item(0x91);
-        preceded(lor_op, (Operand::p, Operand::p).cut())
+        preceded(&LOrOp::p, &(&Operand::p, &Operand::p).cut())
             .map(|(left, right)| Self { left, right })
             .add_context("DefLOr")
             .parse(input, alloc)
@@ -795,16 +787,15 @@ impl<A: Allocator + Clone> DefMatch<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let match_op = item(0x89);
         preceded(
-            match_op,
-            (
-                TermArg::p,
-                byte_data,
-                Operand::p,
-                byte_data,
-                Operand::p,
-                TermArg::p,
+            &MatchOp::p,
+            &(
+                &TermArg::p,
+                &byte_data,
+                &Operand::p,
+                &byte_data,
+                &Operand::p,
+                &TermArg::p,
             )
                 .cut(),
         )
@@ -835,17 +826,19 @@ impl<A: Allocator + Clone> DefMid<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let mid_op = item(0x9e);
         let mid_obj = TermArg::p; // => Buffer | String
-        preceded(mid_op, (mid_obj, TermArg::p, TermArg::p, Target::p).cut())
-            .map(|(mid_obj, term1, term2, target)| Self {
-                mid_obj,
-                term1,
-                term2,
-                target,
-            })
-            .add_context("DefMid")
-            .parse(input, alloc)
+        preceded(
+            &MidOp::p,
+            &(&mid_obj, &TermArg::p, &TermArg::p, &Target::p).cut(),
+        )
+        .map(|(mid_obj, term1, term2, target)| Self {
+            mid_obj,
+            term1,
+            term2,
+            target,
+        })
+        .add_context("DefMid")
+        .parse(input, alloc)
     }
 }
 
@@ -860,10 +853,9 @@ impl<A: Allocator + Clone> DefMod<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let mod_op = item(0x85);
         let dividend = TermArg::p; // => Integer
         let divisor = TermArg::p; // => Integer
-        preceded(mod_op, (dividend, divisor, Target::p).cut())
+        preceded(&ModOp::p, &(&dividend, &divisor, &Target::p).cut())
             .map(|(dividend, divisor, target)| Self {
                 dividend,
                 divisor,
@@ -885,15 +877,17 @@ impl<A: Allocator + Clone> DefMultiply<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let multiply_op = item(0x77);
-        preceded(multiply_op, (Operand::p, Operand::p, Target::p).cut())
-            .map(|(left, right, target)| Self {
-                left,
-                right,
-                target,
-            })
-            .add_context("DefMultiply")
-            .parse(input, alloc)
+        preceded(
+            &MultiplyOp::p,
+            &(&Operand::p, &Operand::p, &Target::p).cut(),
+        )
+        .map(|(left, right, target)| Self {
+            left,
+            right,
+            target,
+        })
+        .add_context("DefMultiply")
+        .parse(input, alloc)
     }
 }
 
@@ -908,8 +902,7 @@ impl<A: Allocator + Clone> DefNAnd<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let nand_op = item(0x7c);
-        preceded(nand_op, (Operand::p, Operand::p, Target::p).cut())
+        preceded(&NandOp::p, &(&Operand::p, &Operand::p, &Target::p).cut())
             .map(|(left, right, target)| Self {
                 left,
                 right,
@@ -931,8 +924,7 @@ impl<A: Allocator + Clone> DefNOr<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let multiply_op = item(0x7e);
-        preceded(multiply_op, (Operand::p, Operand::p, Target::p).cut())
+        preceded(&NorOp::p, &(&Operand::p, &Operand::p, &Target::p).cut())
             .map(|(left, right, target)| Self {
                 left,
                 right,
@@ -953,8 +945,7 @@ impl<A: Allocator + Clone> DefNot<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let multiply_op = item(0x80);
-        preceded(multiply_op, (Operand::p, Target::p).cut())
+        preceded(&NotOp::p, &(&Operand::p, &Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
             .add_context("DefNot")
             .parse(input, alloc)
@@ -974,15 +965,14 @@ impl<A: Allocator + Clone> DefObjType<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let obj_type_op = item(0x8e);
         preceded(
-            obj_type_op,
-            (
-                SimpleName::p.map(Self::SimpleName),
-                DebugObj::p.map(Self::DebugObj),
-                DefRefOf::p.map(Self::DefRefOf),
-                DefDerefOf::p.map(Self::DefDerefOf),
-                DefIndex::p.map(Self::DefIndex),
+            &ObjTypeOp::p,
+            &(
+                &SimpleName::p.map(Self::SimpleName),
+                &DebugObj::p.map(Self::DebugObj),
+                &DefRefOf::p.map(Self::DefRefOf),
+                &DefDerefOf::p.map(Self::DefDerefOf),
+                &DefIndex::p.map(Self::DefIndex),
             )
                 .alt()
                 .cut(),
@@ -1002,8 +992,7 @@ impl<A: Allocator + Clone> DefOr<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let or_op = item(0x7d);
-        preceded(or_op, (Operand::p, Target::p).cut())
+        preceded(&OrOp::p, &(&Operand::p, &Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
             .add_context("DefOr")
             .parse(input, alloc)
@@ -1020,9 +1009,8 @@ impl<A: Allocator + Clone> DefPkg<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let pkg_op = item(0x12);
         let num_elements = byte_data;
-        preceded(pkg_op, pkg((num_elements, PkgElementList::p)))
+        preceded(&PkgOp::p, &pkg(&(&num_elements, &PkgElementList::p)))
             .map(|(len, elements)| Self {
                 len: len as usize,
                 elements,
@@ -1042,9 +1030,8 @@ impl<A: Allocator + Clone> DefVarPkg<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let var_pkg_op = item(0x13);
         let var_num_elements = TermArg::p; // => Integer
-        preceded(var_pkg_op, pkg((var_num_elements, PkgElementList::p)))
+        preceded(&VarPkgOp::p, &pkg(&(&var_num_elements, &PkgElementList::p)))
             .map(|(len, elements)| Self { len, elements })
             .add_context("DefVarPkg")
             .parse(input, alloc)
@@ -1058,7 +1045,7 @@ impl<A: Allocator + Clone> PkgElementList<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        many(PkgElement::p)
+        many(&PkgElement::p)
             .map(Self)
             .add_context("PkgElementList")
             .parse(input, alloc)
@@ -1076,8 +1063,8 @@ impl<A: Allocator + Clone> PkgElement<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            DataRefObj::p.map(Self::DataRefObj),
-            NameString::p.map(Self::NameString),
+            &DataRefObj::p.map(Self::DataRefObj),
+            &NameString::p.map(Self::NameString),
         )
             .alt()
             .add_context("PkgElement")
@@ -1094,8 +1081,7 @@ impl<A: Allocator + Clone> DefRefOf<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let ref_of_op = item(0x71);
-        preceded(ref_of_op, SuperName::p.cut())
+        preceded(&RefOfOp::p, &SuperName::p.cut())
             .map(|name| Self { name })
             .add_context("DefRefOf")
             .parse(input, alloc)
@@ -1113,16 +1099,18 @@ impl<A: Allocator + Clone> DefShiftLeft<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let shift_left_op = item(0x79);
         let shift_count = TermArg::p; // => Integer
-        preceded(shift_left_op, (Operand::p, shift_count, Target::p).cut())
-            .map(|(operand, shift_count, target)| Self {
-                operand,
-                shift_count,
-                target,
-            })
-            .add_context("DefShiftLeft")
-            .parse(input, alloc)
+        preceded(
+            &ShiftLeftOp::p,
+            &(&Operand::p, &shift_count, &Target::p).cut(),
+        )
+        .map(|(operand, shift_count, target)| Self {
+            operand,
+            shift_count,
+            target,
+        })
+        .add_context("DefShiftLeft")
+        .parse(input, alloc)
     }
 }
 
@@ -1137,16 +1125,18 @@ impl<A: Allocator + Clone> DefShiftRight<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let shift_left_op = item(0x7a);
         let shift_count = TermArg::p; // => Integer
-        preceded(shift_left_op, (Operand::p, shift_count, Target::p).cut())
-            .map(|(operand, shift_count, target)| Self {
-                operand,
-                shift_count,
-                target,
-            })
-            .add_context("DefShiftRight")
-            .parse(input, alloc)
+        preceded(
+            &ShiftRightOp::p,
+            &(&Operand::p, &shift_count, &Target::p).cut(),
+        )
+        .map(|(operand, shift_count, target)| Self {
+            operand,
+            shift_count,
+            target,
+        })
+        .add_context("DefShiftRight")
+        .parse(input, alloc)
     }
 }
 
@@ -1159,8 +1149,7 @@ impl<A: Allocator + Clone> DefSizeOf<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let size_of_op = item(0x87);
-        preceded(size_of_op, SuperName::p.cut())
+        preceded(&SizeOfOp::p, &SuperName::p.cut())
             .map(|name| Self { name })
             .add_context("DefSizeOf")
             .parse(input, alloc)
@@ -1177,8 +1166,7 @@ impl<A: Allocator + Clone> DefStore<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let store_op = item(0x70);
-        preceded(store_op, (TermArg::p, SuperName::p).cut())
+        preceded(&StoreOp::p, &(&TermArg::p, &SuperName::p).cut())
             .map(|(term, name)| Self { term, name })
             .add_context("DefStore")
             .parse(input, alloc)
@@ -1196,15 +1184,17 @@ impl<A: Allocator + Clone> DefSubtract<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let subtract_op = item(0x74);
-        preceded(subtract_op, (Operand::p, Operand::p, Target::p).cut())
-            .map(|(left, right, target)| Self {
-                left,
-                right,
-                target,
-            })
-            .add_context("DefSubtract")
-            .parse(input, alloc)
+        preceded(
+            &SubtractOp::p,
+            &(&Operand::p, &Operand::p, &Target::p).cut(),
+        )
+        .map(|(left, right, target)| Self {
+            left,
+            right,
+            target,
+        })
+        .add_context("DefSubtract")
+        .parse(input, alloc)
     }
 }
 
@@ -1215,8 +1205,7 @@ impl DefTimer {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let timer_op = (item(0x5b), item(0x33));
-        timer_op
+        TimerOp::p
             .map(|_| Self)
             .add_context("DefTimer")
             .parse(input, alloc)
@@ -1233,8 +1222,7 @@ impl<A: Allocator + Clone> DefToBcd<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let to_bcd_op = (ExtOpPrefix::p, item(0x29));
-        preceded(to_bcd_op, (Operand::p, Target::p).cut())
+        preceded(&ToBcdOp::p, &(&Operand::p, &Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
             .add_context("DefToBcd")
             .parse(input, alloc)
@@ -1251,8 +1239,7 @@ impl<A: Allocator + Clone> DefToBuffer<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let to_buffer_op = item(0x96);
-        preceded(to_buffer_op, (Operand::p, Target::p).cut())
+        preceded(&ToBufferOp::p, &(&Operand::p, &Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
             .add_context("DefToBuffer")
             .parse(input, alloc)
@@ -1269,8 +1256,7 @@ impl<A: Allocator + Clone> DefToDecimalString<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let to_decimal_string_op = item(0x97);
-        preceded(to_decimal_string_op, (Operand::p, Target::p).cut())
+        preceded(&ToDecimalStringOp::p, &(&Operand::p, &Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
             .add_context("DefToDecimalString")
             .parse(input, alloc)
@@ -1287,8 +1273,7 @@ impl<A: Allocator + Clone> DefToHexString<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let to_hex_string_op = item(0x98);
-        preceded(to_hex_string_op, (Operand::p, Target::p).cut())
+        preceded(&ToHexStringOp::p, &(&Operand::p, &Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
             .add_context("DefToHexString")
             .parse(input, alloc)
@@ -1305,8 +1290,7 @@ impl<A: Allocator + Clone> DefToInteger<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let to_integer_op = item(0x99);
-        preceded(to_integer_op, (Operand::p, Target::p).cut())
+        preceded(&ToIntegerOp::p, &(&Operand::p, &Target::p).cut())
             .map(|(operand, target)| Self { operand, target })
             .add_context("DefToInteger")
             .parse(input, alloc)
@@ -1324,16 +1308,18 @@ impl<A: Allocator + Clone> DefToString<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let to_string_op = item(0x9c);
         let length_arg = TermArg::p; // => Integer
-        preceded(to_string_op, (TermArg::p, length_arg, Target::p).cut())
-            .map(|(arg1, length_arg, target)| Self {
-                arg1,
-                length_arg,
-                target,
-            })
-            .add_context("DefToString")
-            .parse(input, alloc)
+        preceded(
+            &ToStringOp::p,
+            &(&TermArg::p, &length_arg, &Target::p).cut(),
+        )
+        .map(|(arg1, length_arg, target)| Self {
+            arg1,
+            length_arg,
+            target,
+        })
+        .add_context("DefToString")
+        .parse(input, alloc)
     }
 }
 
@@ -1347,8 +1333,7 @@ impl<A: Allocator + Clone> DefWait<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let wait_op = (ExtOpPrefix::p, item(0x25));
-        preceded(wait_op, (EventObj::p, Operand::p).cut())
+        preceded(&WaitOp::p, &(&EventObj::p, &Operand::p).cut())
             .map(|(event, operand)| Self { event, operand })
             .add_context("DefWait")
             .parse(input, alloc)
@@ -1366,8 +1351,7 @@ impl<A: Allocator + Clone> DefXOr<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let xor_op = item(0x7f);
-        preceded(xor_op, (Operand::p, Operand::p, Target::p).cut())
+        preceded(&XorOp::p, &(&Operand::p, &Operand::p, &Target::p).cut())
             .map(|(left, right, target)| Self {
                 left,
                 right,

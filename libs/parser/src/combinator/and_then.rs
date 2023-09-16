@@ -5,12 +5,12 @@ use crate::{
 };
 use core::alloc::Allocator;
 
-pub struct AndThen<P1, P2> {
-    pub(crate) first: P1,
-    pub(crate) second: P2,
+pub struct AndThen<'p, P1, P2> {
+    pub(crate) first: &'p P1,
+    pub(crate) second: &'p P2,
 }
 
-impl<I, O1, O2, E, P1, P2, A> Parser<I, A> for AndThen<P1, P2>
+impl<'p, I, O1, O2, E, P1, P2, A> Parser<I, A> for AndThen<'p, P1, P2>
 where
     I: Input,
     E: ParseError<I, A>,

@@ -1,16 +1,16 @@
 use crate::{
-    error::{ParseError, ParseErrorKind, ParseResult, ParserError},
+    error::{ParseError, ParseErrorKind, ParseResult},
     input::Input,
     parser::Parser,
 };
 use core::{alloc::Allocator, marker::PhantomData};
 
-pub struct Alt<P, A> {
-    pub(crate) parsers: P,
+pub struct Alt<'p, P, A> {
+    pub(crate) parsers: &'p P,
     pub(crate) alloc: PhantomData<A>,
 }
 
-impl<I, P, A> Parser<I, A> for Alt<P, A>
+impl<'p, I, P, A> Parser<I, A> for Alt<'p, P, A>
 where
     P: AltHelper<I, A>,
     A: Allocator,
@@ -48,14 +48,14 @@ macro_rules! alt_trait(
 
 macro_rules! alt_trait_impl {
     ($($parsers:ident),+) => {
-        impl< I, O, E, $($parsers),+, A> AltHelper<I, A> for ($($parsers),+)
+        impl<'p, I, O, E, $($parsers),+, A> AltHelper<I, A> for ($(&'p $parsers),+)
         where
             I: Input,
-            E: ParseError< I, A>,
+            E: ParseError<I, A>,
             $(
-                $parsers: Parser< I, A, Output = O, Error = E>,
+                $parsers: Parser<I, A, Output = O, Error = E>,
             )+
-            A:Allocator + Clone,
+            A: Allocator + Clone,
         {
             type Output = O;
 
@@ -68,7 +68,9 @@ macro_rules! alt_trait_impl {
             ) -> ParseResult< I, Self::Output, Self::Error> {
                 #[allow(non_snake_case)]
                 let ($($parsers),+) = self;
-                alt_trait_inner!(input.clone(), alloc.clone(), $($parsers)+)
+                alt_trait_inner!(__init $($parsers)+)
+                    .add_context("Alt")
+                    .parse(input.clone(), alloc)
                     .map_err(|error| error.append(input, ParseErrorKind::Alt))
             }
         }
@@ -76,15 +78,14 @@ macro_rules! alt_trait_impl {
 }
 
 macro_rules! alt_trait_inner(
-    ($input:expr, $alloc:expr, $head:ident $($parsers:ident)+) => (
-        match $head.parse($input.clone(), $alloc) {
-            Ok(result) => Ok(result),
-            Err(ParserError::Error(_)) => alt_trait_inner!($input, $alloc, $($parsers)+),
-            Err(ParserError::Failure(error)) => Err(ParserError::Failure(error)),
-        }
+    (__init $parser:ident $($parsers:ident)+) => (
+        alt_trait_inner!($parser, $($parsers)+)
     );
-    ($input:expr, $alloc:expr, $head:ident) => (
-        $head.parse($input, $alloc)
+    ($chain:expr, $parser:ident $($parsers:ident)+) => (
+        alt_trait_inner!($chain.or(*$parser), $($parsers)+)
+    );
+    ($chain:expr, $parser:ident) => (
+        $chain.or(*$parser)
     );
 );
 

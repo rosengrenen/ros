@@ -5,13 +5,13 @@ use crate::{
 };
 use core::{alloc::Allocator, marker::PhantomData};
 
-pub struct MapRes<P, F, E> {
-    pub(crate) parser: P,
+pub struct MapRes<'p, P, F, E> {
+    pub(crate) parser: &'p P,
     pub(crate) f: F,
     pub(crate) error: PhantomData<E>,
 }
 
-impl<I, O1, O2, E1, E2, P, F, A> Parser<I, A> for MapRes<P, F, E2>
+impl<'p, I, O1, O2, E1, E2, P, F, A> Parser<I, A> for MapRes<'p, P, F, E2>
 where
     I: Input,
     E1: ParseError<I, A> + FromExternalError<I, E2, A>,
@@ -44,13 +44,13 @@ where
     }
 }
 
-pub struct MapRes1<P, F, E> {
-    pub(crate) parser: P,
+pub struct MapRes1<'p, P, F, E> {
+    pub(crate) parser: &'p P,
     pub(crate) f: F,
     pub(crate) error: PhantomData<E>,
 }
 
-impl<I, O1, O2, E1, E2, P, F, A> Parser<I, A> for MapRes1<P, F, E2>
+impl<'p, I, O1, O2, E1, E2, P, F, A> Parser<I, A> for MapRes1<'p, P, F, E2>
 where
     I: Input,
     E1: ParseError<I, A>,

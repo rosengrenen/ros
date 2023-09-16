@@ -5,10 +5,7 @@ use crate::{
 };
 use core::alloc::Allocator;
 
-pub fn preceded<I, O1, O2, E, P1, P2, A>(
-    first: P1,
-    second: P2,
-) -> impl Parser<I, A, Output = O2, Error = E>
+pub fn preceded<'p, I, O1, O2, E, P1, P2, A>(first: &'p P1, second: &'p P2) -> Preceded<'p, P1, P2>
 where
     I: Input,
     E: ParseError<I, A>,
@@ -19,12 +16,12 @@ where
     Preceded { first, second }
 }
 
-pub struct Preceded<P1, P2> {
-    first: P1,
-    second: P2,
+pub struct Preceded<'p, P1, P2> {
+    first: &'p P1,
+    second: &'p P2,
 }
 
-impl<I, O1, O2, E, P1, P2, A> Parser<I, A> for Preceded<P1, P2>
+impl<'p, I, O1, O2, E, P1, P2, A> Parser<I, A> for Preceded<'p, P1, P2>
 where
     I: Input,
     E: ParseError<I, A>,

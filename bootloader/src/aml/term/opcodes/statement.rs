@@ -1,6 +1,7 @@
 use crate::aml::{
-    data::{byte_data, dword_data, ExtOpPrefix},
+    data::{byte_data, dword_data},
     name::SuperName,
+    ops::{FatalOp, ReleaseOp, ResetOp, ReturnOp, SignalOp, SleepOp, StallOp, WhileOp},
     pkg,
     term::{TermArg, TermList},
 };
@@ -38,24 +39,24 @@ impl<A: Allocator + Clone> StatementOpcode<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            DefBreak::p.map(Self::DefBreak),
-            DefBreakPoint::p.map(Self::DefBreakPoint),
-            DefContinue::p.map(Self::DefContinue),
-            DefElse::p.map_res1(|def_else| match def_else {
+            &DefBreak::p.map(Self::DefBreak),
+            &DefBreakPoint::p.map(Self::DefBreakPoint),
+            &DefContinue::p.map(Self::DefContinue),
+            &DefElse::p.map_res1(|def_else| match def_else {
                 Some(def_else) => Ok(Self::DefElse(def_else)),
                 None => Err(()),
             }),
-            DefFatal::p.map(Self::DefFatal),
-            DefIfElse::p.map(Self::DefIfElse),
-            DefNoop::p.map(Self::DefNoop),
-            DefNotify::p.map(Self::DefNotify),
-            DefRelease::p.map(Self::DefRelease),
-            DefReset::p.map(Self::DefReset),
-            DefReturn::p.map(Self::DefReturn),
-            DefSignal::p.map(Self::DefSignal),
-            DefSleep::p.map(Self::DefSleep),
-            DefStall::p.map(Self::DefStall),
-            DefWhile::p.map(Self::DefWhile),
+            &DefFatal::p.map(Self::DefFatal),
+            &DefIfElse::p.map(Self::DefIfElse),
+            &DefNoop::p.map(Self::DefNoop),
+            &DefNotify::p.map(Self::DefNotify),
+            &DefRelease::p.map(Self::DefRelease),
+            &DefReset::p.map(Self::DefReset),
+            &DefReturn::p.map(Self::DefReturn),
+            &DefSignal::p.map(Self::DefSignal),
+            &DefSleep::p.map(Self::DefSleep),
+            &DefStall::p.map(Self::DefStall),
+            &DefWhile::p.map(Self::DefWhile),
         )
             .alt()
             .add_context("StatementOpcode")
@@ -118,7 +119,7 @@ impl<A: Allocator + Clone> DefElse<A> {
         alloc: A,
     ) -> ParseResult<I, Option<Self>, E> {
         let else_op = item(0xa1);
-        preceded(else_op, pkg(TermList::p))
+        preceded(&else_op, &pkg(&TermList::p))
             .map(|terms| Self { terms })
             .opt()
             .add_context("DefElse")
@@ -137,9 +138,8 @@ impl<A: Allocator + Clone> DefFatal<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let fatal_op = (ExtOpPrefix::p, item(0x32));
         let fatal_arg = TermArg::p;
-        preceded(fatal_op, (byte_data, dword_data, fatal_arg).cut())
+        preceded(&FatalOp::p, &(&byte_data, &dword_data, &fatal_arg).cut())
             .map(|(ty, code, arg)| Self { ty, code, arg })
             .add_context("DefFatal")
             .parse(input, alloc)
@@ -159,7 +159,7 @@ impl<A: Allocator + Clone> DefIfElse<A> {
     ) -> ParseResult<I, Self, E> {
         let if_op = item(0xa0);
         let predicate = TermArg::p; // => Integer
-        preceded(if_op, pkg((predicate, TermList::p, DefElse::p)))
+        preceded(&if_op, &pkg(&(&predicate, &TermList::p, &DefElse::p)))
             .map(|(predicate, terms, else_statement)| Self {
                 predicate,
                 terms,
@@ -198,7 +198,7 @@ impl<A: Allocator + Clone> DefNotify<A> {
         let notify_op = item(0x86);
         let notify_obj = SuperName::p; // => ThermalZone | Processor | Device
         let notify_value = TermArg::p; // => Integer
-        preceded(notify_op, (notify_obj, notify_value).cut())
+        preceded(&notify_op, &(&notify_obj, &notify_value).cut())
             .map(|(obj, value)| Self { obj, value })
             .add_context("DefNotify")
             .parse(input, alloc)
@@ -214,8 +214,7 @@ impl<A: Allocator + Clone> DefRelease<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let release_op = (ExtOpPrefix::p, item(0x27));
-        preceded(release_op, MutexObj::p.cut())
+        preceded(&ReleaseOp::p, &MutexObj::p.cut())
             .map(|mutex| Self { mutex })
             .add_context("DefRelease")
             .parse(input, alloc)
@@ -246,8 +245,7 @@ impl<A: Allocator + Clone> DefReset<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let release_op = (ExtOpPrefix::p, item(0x26));
-        preceded(release_op, EventObj::p.cut())
+        preceded(&ResetOp::p, &EventObj::p.cut())
             .map(|event| Self { event })
             .add_context("DefReset")
             .parse(input, alloc)
@@ -277,8 +275,7 @@ impl<A: Allocator + Clone> DefReturn<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let return_op = item(0xa4);
-        preceded(return_op, ArgObj::p.cut())
+        preceded(&ReturnOp::p, &ArgObj::p.cut())
             .map(|arg| Self { arg })
             .add_context("DefReturn")
             .parse(input, alloc)
@@ -308,8 +305,7 @@ impl<A: Allocator + Clone> DefSignal<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let signal_op = (ExtOpPrefix::p, item(0x24));
-        preceded(signal_op, EventObj::p.cut())
+        preceded(&SignalOp::p, &EventObj::p.cut())
             .map(|event| Self { event })
             .add_context("DefSignal")
             .parse(input, alloc)
@@ -325,9 +321,8 @@ impl<A: Allocator + Clone> DefSleep<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let sleep_op = (ExtOpPrefix::p, item(0x22));
         let msec_time = TermArg::p; // => Integer
-        preceded(sleep_op, msec_time.cut())
+        preceded(&SleepOp::p, &msec_time.cut())
             .map(|ms| Self { ms })
             .add_context("DefSleep")
             .parse(input, alloc)
@@ -343,9 +338,8 @@ impl<A: Allocator + Clone> DefStall<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let stall_op = (ExtOpPrefix::p, item(0x21));
         let usec_time = TermArg::p; // => Integer
-        preceded(stall_op, usec_time.cut())
+        preceded(&StallOp::p, &usec_time.cut())
             .map(|us| Self { us })
             .add_context("DefStall")
             .parse(input, alloc)
@@ -362,9 +356,8 @@ impl<A: Allocator + Clone> DefWhile<A> {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let while_op = item(0xa2);
         let predicate = TermArg::p; // => Integer
-        preceded(while_op, pkg((predicate, TermList::p)))
+        preceded(&WhileOp::p, &pkg(&(&predicate, &TermList::p)))
             .map(|(predicate, terms)| Self { predicate, terms })
             .add_context("DefWhile")
             .parse(input, alloc)

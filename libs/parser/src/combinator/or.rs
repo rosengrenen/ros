@@ -5,12 +5,12 @@ use crate::{
 };
 use core::alloc::Allocator;
 
-pub struct Or<P1, P2> {
-    pub(crate) first: P1,
-    pub(crate) second: P2,
+pub struct Or<'p, P1, P2> {
+    pub(crate) first: &'p P1,
+    pub(crate) second: &'p P2,
 }
 
-impl<I, O, P1, P2, E, A> Parser<I, A> for Or<P1, P2>
+impl<'p, I, O, P1, P2, E, A> Parser<I, A> for Or<'p, P1, P2>
 where
     I: Input,
     P1: Parser<I, A, Output = O, Error = E>,

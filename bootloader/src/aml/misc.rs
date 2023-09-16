@@ -1,10 +1,12 @@
-use super::data::ExtOpPrefix;
+use super::ops::{
+    Arg0Op, Arg1Op, Arg2Op, Arg3Op, Arg4Op, Arg5Op, Arg6Op, DebugOp, Local0Op, Local1Op, Local2Op,
+    Local3Op, Local4Op, Local5Op, Local6Op, Local7Op,
+};
 use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},
     input::Input,
     parser::Parser,
-    primitive::item::item,
 };
 
 #[derive(Debug)]
@@ -24,13 +26,13 @@ impl ArgObj {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            item(0x68).map(|_| Self::Arg0),
-            item(0x69).map(|_| Self::Arg1),
-            item(0x6a).map(|_| Self::Arg2),
-            item(0x6b).map(|_| Self::Arg3),
-            item(0x6c).map(|_| Self::Arg4),
-            item(0x6d).map(|_| Self::Arg5),
-            item(0x6e).map(|_| Self::Arg6),
+            &Arg0Op::p.map(|_| Self::Arg0),
+            &Arg1Op::p.map(|_| Self::Arg1),
+            &Arg2Op::p.map(|_| Self::Arg2),
+            &Arg3Op::p.map(|_| Self::Arg3),
+            &Arg4Op::p.map(|_| Self::Arg4),
+            &Arg5Op::p.map(|_| Self::Arg5),
+            &Arg6Op::p.map(|_| Self::Arg6),
         )
             .alt()
             .add_context("ArgObj")
@@ -56,14 +58,14 @@ impl LocalObj {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
-            item(0x60).map(|_| Self::Local0),
-            item(0x61).map(|_| Self::Local1),
-            item(0x62).map(|_| Self::Local2),
-            item(0x63).map(|_| Self::Local3),
-            item(0x64).map(|_| Self::Local4),
-            item(0x65).map(|_| Self::Local5),
-            item(0x66).map(|_| Self::Local6),
-            item(0x67).map(|_| Self::Local7),
+            &Local0Op::p.map(|_| Self::Local0),
+            &Local1Op::p.map(|_| Self::Local1),
+            &Local2Op::p.map(|_| Self::Local2),
+            &Local3Op::p.map(|_| Self::Local3),
+            &Local4Op::p.map(|_| Self::Local4),
+            &Local5Op::p.map(|_| Self::Local5),
+            &Local6Op::p.map(|_| Self::Local6),
+            &Local7Op::p.map(|_| Self::Local7),
         )
             .alt()
             .add_context("LocalObj")
@@ -79,8 +81,8 @@ impl DebugObj {
         input: I,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        (ExtOpPrefix::p, item(0x32).map(|_| LocalObj::Local0))
-            .map(|_| DebugObj)
+        DebugOp::p
+            .map(|_| Self)
             .add_context("DebugObj")
             .parse(input, alloc)
     }

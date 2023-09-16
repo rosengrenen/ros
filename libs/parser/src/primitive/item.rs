@@ -20,12 +20,12 @@ where
     }
 }
 
-pub fn item<I, E, A>(item: I::Item) -> impl Parser<I, A, Output = I::Item, Error = E>
+pub fn item<'p, I, E, A>(item: I::Item) -> impl Parser<I, A, Output = I::Item, Error = E>
 where
-    I: Input,
+    I: Input + 'p,
     I::Item: Clone + PartialEq,
     E: ParseError<I, A>,
-    A: Allocator + Clone,
+    A: Allocator + Clone + 'p,
 {
     Satisfy {
         pred: move |i: &I::Item| i == &item,
@@ -34,13 +34,13 @@ where
     }
 }
 
-pub fn satisfy<I, E, P, A>(pred: P) -> impl Parser<I, A, Output = I::Item, Error = E>
+pub fn satisfy<'p, I, E, P, A>(pred: P) -> impl Parser<I, A, Output = I::Item, Error = E>
 where
-    I: Input,
+    I: Input + 'p,
     I::Item: Clone,
     E: ParseError<I, A>,
     P: Fn(&I::Item) -> bool,
-    A: Allocator + Clone,
+    A: Allocator + Clone + 'p,
 {
     Satisfy {
         pred,
@@ -49,19 +49,20 @@ where
     }
 }
 
-pub struct Satisfy<P, E> {
-    pred: P,
+pub struct Satisfy<F, E> {
+    pred: F,
     kind: ParseErrorKind,
     error: PhantomData<E>,
 }
 
-impl<I, E, P, A> Parser<I, A> for Satisfy<P, E>
+impl<'p, I, E, P, A> Parser<I, A> for Satisfy<P, E>
 where
-    I: Input,
+    Self: 'p,
+    I: Input + 'p,
     I::Item: Clone,
     E: ParseError<I, A>,
     P: Fn(&I::Item) -> bool,
-    A: Allocator + Clone,
+    A: Allocator + Clone + 'p,
 {
     type Output = I::Item;
 

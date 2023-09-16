@@ -5,12 +5,12 @@ use crate::{
 };
 use core::alloc::Allocator;
 
-pub struct AddContext<P> {
-    pub(crate) parser: P,
+pub struct AddContext<'p, P> {
+    pub(crate) parser: &'p P,
     pub(crate) context: &'static str,
 }
 
-impl<I, O, E, P, A> Parser<I, A> for AddContext<P>
+impl<'p, I, O, E, P, A> Parser<I, A> for AddContext<'p, P>
 where
     I: Input,
     E: ParseError<I, A>,

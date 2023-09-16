@@ -5,12 +5,12 @@ use crate::{
 };
 use core::alloc::Allocator;
 
-pub struct Map<P, F> {
-    pub(crate) parser: P,
+pub struct Map<'p, P, F> {
+    pub(crate) parser: &'p P,
     pub(crate) f: F,
 }
 
-impl<I, O, P, F, A> Parser<I, A> for Map<P, F>
+impl<'p, I, O, P, F, A> Parser<I, A> for Map<'p, P, F>
 where
     I: Input,
     P: Parser<I, A>,

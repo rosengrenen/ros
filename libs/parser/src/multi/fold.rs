@@ -5,17 +5,17 @@ use crate::{
 };
 use core::{alloc::Allocator, ops::ControlFlow};
 
-pub fn fold<I, O, E, P, F, Init, Acc, A>(
-    parser: P,
+pub fn fold<'p, I, O, E, P, F, Init, Acc, A>(
+    parser: &'p P,
     init: Init,
     f: F,
-) -> impl Parser<I, A, Output = Acc, Error = E>
+) -> impl Parser<I, A, Output = Acc, Error = E> + 'p
 where
     I: Input,
     E: ParseError<I, A>,
     P: Parser<I, A, Output = O, Error = E>,
-    F: Fn(Acc, O) -> Acc,
-    Init: Fn() -> Acc,
+    F: Fn(Acc, O) -> Acc + 'p,
+    Init: Fn() -> Acc + 'p,
     A: Allocator + Clone,
 {
     FoldMN {
@@ -28,17 +28,17 @@ where
     }
 }
 
-pub fn fold1<I, O, E, P, F, Init, Acc, A>(
-    parser: P,
+pub fn fold1<'p, I, O, E, P, F, Init, Acc, A>(
+    parser: &'p P,
     init: Init,
     f: F,
-) -> impl Parser<I, A, Output = Acc, Error = E>
+) -> impl Parser<I, A, Output = Acc, Error = E> + 'p
 where
     I: Input,
     E: ParseError<I, A>,
     P: Parser<I, A, Output = O, Error = E>,
-    F: Fn(Acc, O) -> Acc,
-    Init: Fn() -> Acc,
+    F: Fn(Acc, O) -> Acc + 'p,
+    Init: Fn() -> Acc + 'p,
     A: Allocator + Clone,
 {
     FoldMN {
@@ -51,18 +51,18 @@ where
     }
 }
 
-pub fn fold_n<I, O, E, P, F, Init, Acc, A>(
+pub fn fold_n<'p, I, O, E, P, F, Init, Acc, A>(
     count: usize,
-    parser: P,
+    parser: &'p P,
     init: Init,
     f: F,
-) -> impl Parser<I, A, Output = Acc, Error = E>
+) -> impl Parser<I, A, Output = Acc, Error = E> + 'p
 where
     I: Input,
     E: ParseError<I, A>,
     P: Parser<I, A, Output = O, Error = E>,
-    F: Fn(Acc, O) -> Acc,
-    Init: Fn() -> Acc,
+    F: Fn(Acc, O) -> Acc + 'p,
+    Init: Fn() -> Acc + 'p,
     A: Allocator + Clone,
 {
     FoldMN {
@@ -75,19 +75,19 @@ where
     }
 }
 
-pub fn fold_m_n<I, O, E, P, F, Init, Acc, A>(
+pub fn fold_m_n<'p, I, O, E, P, F, Init, Acc, A>(
     min: usize,
     max: usize,
-    parser: P,
+    parser: &'p P,
     init: Init,
     f: F,
-) -> impl Parser<I, A, Output = Acc, Error = E>
+) -> impl Parser<I, A, Output = Acc, Error = E> + 'p
 where
     I: Input,
     E: ParseError<I, A>,
     P: Parser<I, A, Output = O, Error = E>,
-    F: Fn(Acc, O) -> Acc,
-    Init: Fn() -> Acc,
+    F: Fn(Acc, O) -> Acc + 'p,
+    Init: Fn() -> Acc + 'p,
     A: Allocator + Clone,
 {
     FoldMN {
@@ -100,16 +100,16 @@ where
     }
 }
 
-pub struct FoldMN<P, Init, F> {
+pub struct FoldMN<'p, P, Init, F> {
     min: usize,
     max: usize,
-    parser: P,
+    parser: &'p P,
     init: Init,
     f: F,
     kind: ParseErrorKind,
 }
 
-impl<I, O, E, P, Init, Acc, F, A> Parser<I, A> for FoldMN<P, Init, F>
+impl<'p, I, O, E, P, Init, Acc, F, A> Parser<I, A> for FoldMN<'p, P, Init, F>
 where
     I: Input,
     E: ParseError<I, A>,
