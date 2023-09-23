@@ -124,6 +124,18 @@ impl<T, A: Allocator> FromIteratorIn<T, A> for Vec<T, A> {
     }
 }
 
+// TODO: try_clone, since alloc
+impl<T: Clone, A: Allocator + Clone> Clone for Vec<T, A> {
+    fn clone(&self) -> Self {
+        let mut cloned = Self::new(self.alloc.clone());
+        for item in self {
+            cloned.push(item.clone()).unwrap();
+        }
+
+        cloned
+    }
+}
+
 impl<T, A: Allocator> Deref for Vec<T, A> {
     type Target = [T];
 

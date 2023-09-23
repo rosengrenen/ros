@@ -6,7 +6,7 @@ use crate::{
 };
 use core::{alloc::Allocator, marker::PhantomData};
 
-pub fn take<I, E, A>(count: usize) -> impl Parser<I, A, Output = I, Error = E>
+pub fn take<I, E, C, A>(count: usize) -> impl Parser<I, C, A, Output = I, Error = E>
 where
     I: Input,
     E: ParseError<I, A>,
@@ -18,12 +18,13 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct Take<E> {
     count: usize,
     error: PhantomData<E>,
 }
 
-impl<I, E, A> Parser<I, A> for Take<E>
+impl<I, E, C, A> Parser<I, C, A> for Take<E>
 where
     I: Input,
     E: ParseError<I, A>,
@@ -33,12 +34,18 @@ where
 
     type Error = E;
 
-    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
+    fn parse(
+        &self,
+        input: I,
+        _context: &mut C,
+        alloc: A,
+    ) -> ParseResult<I, Self::Output, Self::Error> {
         input.split_at_index(self.count, ParseErrorKind::Take, alloc)
     }
 }
 
-pub fn take_const<const C: usize, I, E, A>() -> impl Parser<I, A, Output = [I::Item; C], Error = E>
+pub fn take_const<const COUNT: usize, I, E, C, A>(
+) -> impl Parser<I, C, A, Output = [I::Item; COUNT], Error = E>
 where
     I: Input,
     E: ParseError<I, A>,
@@ -47,33 +54,39 @@ where
     TakeConst { error: PhantomData }
 }
 
-pub struct TakeConst<const C: usize, E> {
+#[derive(Clone)]
+pub struct TakeConst<const COUNT: usize, E> {
     error: PhantomData<E>,
 }
 
-impl<const C: usize, I, E, A> Parser<I, A> for TakeConst<C, E>
+impl<const COUNT: usize, I, E, C, A> Parser<I, C, A> for TakeConst<COUNT, E>
 where
     I: Input,
     E: ParseError<I, A>,
     A: Allocator,
 {
-    type Output = [I::Item; C];
+    type Output = [I::Item; COUNT];
 
     type Error = E;
 
-    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
-        take(C)
+    fn parse(
+        &self,
+        input: I,
+        context: &mut C,
+        alloc: A,
+    ) -> ParseResult<I, Self::Output, Self::Error> {
+        take(COUNT)
             .map(|output: I| iter_to_array_unchecked(output.item_iter()))
-            .parse(input.clone(), alloc)
+            .parse(input.clone(), context, alloc)
             .map_err(|error| error.append(input, ParseErrorKind::TakeConst))
     }
 }
 
-pub fn take_while<I, E, P, A>(pred: P) -> impl Parser<I, A, Output = I, Error = E>
+pub fn take_while<I, E, C, P, A>(pred: P) -> impl Parser<I, C, A, Output = I, Error = E>
 where
     I: Input,
     E: ParseError<I, A>,
-    P: Fn(I::Item) -> bool,
+    P: Fn(I::Item) -> bool + Clone,
     A: Allocator,
 {
     TakeWhileMN {
@@ -85,11 +98,11 @@ where
     }
 }
 
-pub fn take_while1<I, E, P, A>(pred: P) -> impl Parser<I, A, Output = I, Error = E>
+pub fn take_while1<I, E, C, P, A>(pred: P) -> impl Parser<I, C, A, Output = I, Error = E>
 where
     I: Input,
     E: ParseError<I, A>,
-    P: Fn(I::Item) -> bool,
+    P: Fn(I::Item) -> bool + Clone,
     A: Allocator,
 {
     TakeWhileMN {
@@ -101,11 +114,11 @@ where
     }
 }
 
-pub fn take_while_n<I, E, P, A>(n: usize, pred: P) -> impl Parser<I, A, Output = I, Error = E>
+pub fn take_while_n<I, E, C, P, A>(n: usize, pred: P) -> impl Parser<I, C, A, Output = I, Error = E>
 where
     I: Input,
     E: ParseError<I, A>,
-    P: Fn(I::Item) -> bool,
+    P: Fn(I::Item) -> bool + Clone,
     A: Allocator,
 {
     TakeWhileMN {
@@ -117,15 +130,15 @@ where
     }
 }
 
-pub fn take_while_m_n<I, E, P, A>(
+pub fn take_while_m_n<I, E, C, P, A>(
     min: usize,
     max: usize,
     pred: P,
-) -> impl Parser<I, A, Output = I, Error = E>
+) -> impl Parser<I, C, A, Output = I, Error = E>
 where
     I: Input,
     E: ParseError<I, A>,
-    P: Fn(I::Item) -> bool,
+    P: Fn(I::Item) -> bool + Clone,
     A: Allocator,
 {
     TakeWhileMN {
@@ -137,6 +150,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct TakeWhileMN<P, E> {
     min: usize,
     max: usize,
@@ -145,18 +159,23 @@ pub struct TakeWhileMN<P, E> {
     error: PhantomData<E>,
 }
 
-impl<I, E, P, A> Parser<I, A> for TakeWhileMN<P, E>
+impl<I, E, C, P, A> Parser<I, C, A> for TakeWhileMN<P, E>
 where
     I: Input,
     E: ParseError<I, A>,
-    P: Fn(I::Item) -> bool,
+    P: Fn(I::Item) -> bool + Clone,
     A: Allocator,
 {
     type Output = I;
 
     type Error = E;
 
-    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
+    fn parse(
+        &self,
+        input: I,
+        _context: &mut C,
+        alloc: A,
+    ) -> ParseResult<I, Self::Output, Self::Error> {
         input.split_at_position_m_n(
             self.min,
             self.max,

@@ -21,7 +21,7 @@ impl<E> ParserError<E> {
     }
 }
 
-pub trait ParseError<I, A: Allocator> {
+pub trait ParseError<I, A: Allocator>: Clone {
     fn from_error_kind(input: I, kind: ParseErrorKind, alloc: A) -> Self;
 
     fn append(self, input: I, kind: ParseErrorKind) -> Self;

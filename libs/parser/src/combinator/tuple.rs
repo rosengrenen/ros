@@ -21,23 +21,23 @@ macro_rules! tuple_trait(
 
 macro_rules! tuple_trait_impl {
     ($($outputs:ident $parsers:ident),+) => {
-        impl<'p, I, $($outputs),+, E, $($parsers),+, A> Parser<I, A> for ($(&'p $parsers),+)
+        impl< I, $($outputs),+, E, C, $($parsers),+, A> Parser<I, C, A> for ($($parsers),+)
         where
             I: Input,
             E: ParseError< I, A>,
-            $($parsers: Parser< I, A, Output = $outputs, Error = E>,)+
+            $($parsers: Parser<I, C, A, Output = $outputs, Error = E>,)+
             A: Allocator + Clone,
         {
             type Output = ($($outputs),+);
 
             type Error = E;
 
-            fn parse(&self, input: I, alloc:  A) -> ParseResult<I, Self::Output, Self::Error> {
+            fn parse(&self, input: I, context: &mut C, alloc:  A) -> ParseResult<I, Self::Output, Self::Error> {
                 #[allow(non_snake_case)]
-                let ($($parsers),+) = self;
+                let ($($parsers),+) = self.clone();
                 $(
                     #[allow(non_snake_case)]
-                    let (input, $outputs) = $parsers.add_context("Tuple").parse(input.clone(), alloc.clone())
+                    let (input, $outputs) = $parsers.add_context("Tuple").parse(input.clone(), context, alloc.clone())
                         .map_err(|error| error.append(input, ParseErrorKind::Tuple))?;
                 )+
 

@@ -5,23 +5,29 @@ use crate::{
 };
 use core::alloc::Allocator;
 
-pub struct Cut<'p, P> {
-    pub(crate) parser: &'p P,
+#[derive(Clone)]
+pub struct Cut<P> {
+    pub(crate) parser: P,
 }
 
-impl<'p, I, P, A> Parser<I, A> for Cut<'p, P>
+impl<I, C, P, A> Parser<I, C, A> for Cut<P>
 where
     I: Input,
-    P: Parser<I, A>,
+    P: Parser<I, C, A>,
     A: Allocator,
 {
     type Output = P::Output;
 
     type Error = P::Error;
 
-    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
+    fn parse(
+        &self,
+        input: I,
+        context: &mut C,
+        alloc: A,
+    ) -> ParseResult<I, Self::Output, Self::Error> {
         self.parser
-            .parse(input.clone(), alloc)
+            .parse(input.clone(), context, alloc)
             .map_err(|error| match error {
                 ParserError::Error(error) => {
                     ParserError::Failure(error.append(input, ParseErrorKind::Cut))

@@ -5,23 +5,29 @@ use crate::{
 };
 use core::alloc::Allocator;
 
-pub struct Opt<'p, P> {
-    pub(crate) parser: &'p P,
+#[derive(Clone)]
+pub struct Opt<P> {
+    pub(crate) parser: P,
 }
 
-impl<'p, I, O, E, P, A> Parser<I, A> for Opt<'p, P>
+impl<I, O, E, C, P, A> Parser<I, C, A> for Opt<P>
 where
     I: Input,
     E: ParseError<I, A>,
-    P: Parser<I, A, Output = O, Error = E>,
+    P: Parser<I, C, A, Output = O, Error = E>,
     A: Allocator,
 {
     type Output = Option<P::Output>;
 
     type Error = P::Error;
 
-    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
-        match self.parser.parse(input.clone(), alloc) {
+    fn parse(
+        &self,
+        input: I,
+        context: &mut C,
+        alloc: A,
+    ) -> ParseResult<I, Self::Output, Self::Error> {
+        match self.parser.parse(input.clone(), context, alloc) {
             Ok((input, output)) => Ok((input, Some(output))),
             Err(ParserError::Error(_)) => Ok((input, None)),
             Err(ParserError::Failure(error)) => Err(ParserError::Failure(

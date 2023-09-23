@@ -5,25 +5,31 @@ use crate::{
 };
 use core::alloc::Allocator;
 
-pub struct Map<'p, P, F> {
-    pub(crate) parser: &'p P,
+#[derive(Clone)]
+pub struct Map<P, F> {
+    pub(crate) parser: P,
     pub(crate) f: F,
 }
 
-impl<'p, I, O, P, F, A> Parser<I, A> for Map<'p, P, F>
+impl<I, O, C, P, F, A> Parser<I, C, A> for Map<P, F>
 where
     I: Input,
-    P: Parser<I, A>,
-    F: Fn(P::Output) -> O,
+    P: Parser<I, C, A>,
+    F: Fn(P::Output) -> O + Clone,
     A: Allocator,
 {
     type Output = O;
 
     type Error = P::Error;
 
-    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
+    fn parse(
+        &self,
+        input: I,
+        context: &mut C,
+        alloc: A,
+    ) -> ParseResult<I, Self::Output, Self::Error> {
         self.parser
-            .parse(input.clone(), alloc)
+            .parse(input.clone(), context, alloc)
             .map(|(input, output)| (input, (self.f)(output)))
             .map_err(|error| error.append(input, ParseErrorKind::Map))
     }

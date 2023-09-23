@@ -5,17 +5,17 @@ use crate::{
 };
 use core::{alloc::Allocator, ops::ControlFlow};
 
-pub fn fold<'p, I, O, E, P, F, Init, Acc, A>(
-    parser: &'p P,
+pub fn fold<I, O, E, C, P, F, Init, Acc, A>(
+    parser: P,
     init: Init,
     f: F,
-) -> impl Parser<I, A, Output = Acc, Error = E> + 'p
+) -> impl Parser<I, C, A, Output = Acc, Error = E>
 where
     I: Input,
     E: ParseError<I, A>,
-    P: Parser<I, A, Output = O, Error = E>,
-    F: Fn(Acc, O) -> Acc + 'p,
-    Init: Fn() -> Acc + 'p,
+    P: Parser<I, C, A, Output = O, Error = E>,
+    F: Fn(Acc, O) -> Acc + Clone,
+    Init: Fn() -> Acc + Clone,
     A: Allocator + Clone,
 {
     FoldMN {
@@ -28,17 +28,17 @@ where
     }
 }
 
-pub fn fold1<'p, I, O, E, P, F, Init, Acc, A>(
-    parser: &'p P,
+pub fn fold1<I, O, E, C, P, F, Init, Acc, A>(
+    parser: P,
     init: Init,
     f: F,
-) -> impl Parser<I, A, Output = Acc, Error = E> + 'p
+) -> impl Parser<I, C, A, Output = Acc, Error = E>
 where
     I: Input,
     E: ParseError<I, A>,
-    P: Parser<I, A, Output = O, Error = E>,
-    F: Fn(Acc, O) -> Acc + 'p,
-    Init: Fn() -> Acc + 'p,
+    P: Parser<I, C, A, Output = O, Error = E>,
+    F: Fn(Acc, O) -> Acc + Clone,
+    Init: Fn() -> Acc + Clone,
     A: Allocator + Clone,
 {
     FoldMN {
@@ -51,18 +51,18 @@ where
     }
 }
 
-pub fn fold_n<'p, I, O, E, P, F, Init, Acc, A>(
+pub fn fold_n<I, O, E, C, P, F, Init, Acc, A>(
     count: usize,
-    parser: &'p P,
+    parser: P,
     init: Init,
     f: F,
-) -> impl Parser<I, A, Output = Acc, Error = E> + 'p
+) -> impl Parser<I, C, A, Output = Acc, Error = E>
 where
     I: Input,
     E: ParseError<I, A>,
-    P: Parser<I, A, Output = O, Error = E>,
-    F: Fn(Acc, O) -> Acc + 'p,
-    Init: Fn() -> Acc + 'p,
+    P: Parser<I, C, A, Output = O, Error = E>,
+    F: Fn(Acc, O) -> Acc + Clone,
+    Init: Fn() -> Acc + Clone,
     A: Allocator + Clone,
 {
     FoldMN {
@@ -75,19 +75,19 @@ where
     }
 }
 
-pub fn fold_m_n<'p, I, O, E, P, F, Init, Acc, A>(
+pub fn fold_m_n<I, O, E, C, P, F, Init, Acc, A>(
     min: usize,
     max: usize,
-    parser: &'p P,
+    parser: P,
     init: Init,
     f: F,
-) -> impl Parser<I, A, Output = Acc, Error = E> + 'p
+) -> impl Parser<I, C, A, Output = Acc, Error = E>
 where
     I: Input,
     E: ParseError<I, A>,
-    P: Parser<I, A, Output = O, Error = E>,
-    F: Fn(Acc, O) -> Acc + 'p,
-    Init: Fn() -> Acc + 'p,
+    P: Parser<I, C, A, Output = O, Error = E>,
+    F: Fn(Acc, O) -> Acc + Clone,
+    Init: Fn() -> Acc + Clone,
     A: Allocator + Clone,
 {
     FoldMN {
@@ -100,32 +100,38 @@ where
     }
 }
 
-pub struct FoldMN<'p, P, Init, F> {
-    min: usize,
-    max: usize,
-    parser: &'p P,
-    init: Init,
-    f: F,
-    kind: ParseErrorKind,
+#[derive(Clone)]
+pub struct FoldMN<P, Init, F> {
+    pub(crate) min: usize,
+    pub(crate) max: usize,
+    pub(crate) parser: P,
+    pub(crate) init: Init,
+    pub(crate) f: F,
+    pub(crate) kind: ParseErrorKind,
 }
 
-impl<'p, I, O, E, P, Init, Acc, F, A> Parser<I, A> for FoldMN<'p, P, Init, F>
+impl<I, O, E, C, P, Init, Acc, F, A> Parser<I, C, A> for FoldMN<P, Init, F>
 where
     I: Input,
     E: ParseError<I, A>,
-    P: Parser<I, A, Output = O, Error = E>,
-    F: Fn(Acc, O) -> Acc,
-    Init: Fn() -> Acc,
+    P: Parser<I, C, A, Output = O, Error = E>,
+    F: Fn(Acc, O) -> Acc + Clone,
+    Init: Fn() -> Acc + Clone,
     A: Allocator + Clone,
 {
     type Output = Acc;
 
     type Error = E;
 
-    fn parse(&self, input: I, alloc: A) -> crate::error::ParseResult<I, Self::Output, Self::Error> {
+    fn parse(
+        &self,
+        input: I,
+        context: &mut C,
+        alloc: A,
+    ) -> crate::error::ParseResult<I, Self::Output, Self::Error> {
         let control_flow =
             (0..self.max).try_fold((input, (self.init)()), |(input, folded_outputs), count| {
-                match self.parser.parse(input.clone(), alloc.clone()) {
+                match self.parser.parse(input.clone(), context, alloc.clone()) {
                     Ok((input, output)) => {
                         ControlFlow::Continue((input, (self.f)(folded_outputs, output)))
                     }

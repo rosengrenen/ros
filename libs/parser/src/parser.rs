@@ -13,7 +13,7 @@ use crate::{
 };
 use core::{alloc::Allocator, marker::PhantomData};
 
-pub trait Parser<I, A>
+pub trait Parser<I, C, A>: Clone
 where
     A: Allocator,
 {
@@ -21,21 +21,26 @@ where
 
     type Error: ParseError<I, A>;
 
-    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error>;
+    fn parse(
+        &self,
+        input: I,
+        context: &mut C,
+        alloc: A,
+    ) -> ParseResult<I, Self::Output, Self::Error>;
 
-    fn map<F, O2>(&self, f: F) -> Map<'_, Self, F>
+    fn map<F, O2>(self, f: F) -> Map<Self, F>
     where
         Self: Sized,
-        F: Fn(Self::Output) -> O2,
+        F: Fn(Self::Output) -> O2 + Clone,
     {
         Map { parser: self, f }
     }
 
-    fn map_res<O2, E2, F>(&self, f: F) -> MapRes<'_, Self, F, E2>
+    fn map_res<O2, E2, F>(self, f: F) -> MapRes<Self, F, E2>
     where
         Self: Sized,
         Self::Error: FromExternalError<I, E2, A>,
-        F: Fn(Self::Output) -> Result<O2, E2>,
+        F: Fn(Self::Output) -> Result<O2, E2> + Clone,
         A: Clone,
     {
         MapRes {
@@ -45,10 +50,10 @@ where
         }
     }
 
-    fn map_res1<O2, E2, F>(&self, f: F) -> MapRes1<'_, Self, F, E2>
+    fn map_res1<O2, E2, F>(self, f: F) -> MapRes1<Self, F, Self::Error>
     where
         Self: Sized,
-        F: Fn(Self::Output) -> Result<O2, E2>,
+        F: Fn(Self::Output) -> Result<O2, E2> + Clone,
         A: Clone,
     {
         MapRes1 {
@@ -58,10 +63,10 @@ where
         }
     }
 
-    fn and_then<'p, O, P>(&'p self, parser: &'p P) -> AndThen<'p, Self, P>
+    fn and_then<O, P>(self, parser: P) -> AndThen<Self, P>
     where
         Self: Sized,
-        P: Parser<Self::Output, A, Output = O, Error = Self::Error>,
+        P: Parser<Self::Output, C, A, Output = O, Error = Self::Error>,
     {
         AndThen {
             first: self,
@@ -69,10 +74,10 @@ where
         }
     }
 
-    fn or<'p, P>(&'p self, parser: &'p P) -> Or<'p, Self, P>
+    fn or<P>(self, parser: P) -> Or<Self, P>
     where
         Self: Sized,
-        P: Parser<I, A, Output = Self::Output, Error = Self::Error>,
+        P: Parser<I, C, A, Output = Self::Output, Error = Self::Error>,
     {
         Or {
             first: self,
@@ -80,23 +85,23 @@ where
         }
     }
 
-    fn opt(&self) -> Opt<Self>
+    fn opt(self) -> Opt<Self>
     where
         Self: Sized,
     {
         Opt { parser: self }
     }
 
-    fn cut(&self) -> Cut<Self>
+    fn cut(self) -> Cut<Self>
     where
         Self: Sized,
     {
         Cut { parser: self }
     }
 
-    fn alt(&self) -> Alt<'_, Self, A>
+    fn alt(self) -> Alt<Self, A>
     where
-        Self: Sized + AltHelper<I, A>,
+        Self: Sized + AltHelper<I, C, A>,
     {
         Alt {
             parsers: self,
@@ -104,7 +109,7 @@ where
         }
     }
 
-    fn add_context(&self, context: &'static str) -> AddContext<Self>
+    fn add_context(self, context: &'static str) -> AddContext<Self>
     where
         Self: Sized,
     {
@@ -115,17 +120,22 @@ where
     }
 }
 
-impl<I, O, E, F, A> Parser<I, A> for F
+impl<I, O, E, C, F, A> Parser<I, C, A> for F
 where
     E: ParseError<I, A>,
-    F: Fn(I, A) -> ParseResult<I, O, E>,
+    F: Fn(I, &mut C, A) -> ParseResult<I, O, E> + Clone,
     A: Allocator,
 {
     type Output = O;
 
     type Error = E;
 
-    fn parse(&self, input: I, alloc: A) -> ParseResult<I, Self::Output, Self::Error> {
-        self(input, alloc)
+    fn parse(
+        &self,
+        input: I,
+        context: &mut C,
+        alloc: A,
+    ) -> ParseResult<I, Self::Output, Self::Error> {
+        self(input, context, alloc)
     }
 }
