@@ -37,7 +37,7 @@ macro_rules! tuple_trait_impl {
                 let ($($parsers),+) = self.clone();
                 $(
                     #[allow(non_snake_case)]
-                    let (input, $outputs) = $parsers.add_context("Tuple").parse(input.clone(), context, alloc.clone())
+                    let (input, $outputs) = $parsers.parse(input.clone(), context, alloc.clone())
                         .map_err(|error| error.append(input, ParseErrorKind::Tuple))?;
                 )+
 

@@ -81,7 +81,6 @@ macro_rules! alt_trait_impl {
                 #[allow(non_snake_case)]
                 let ($($parsers),+) = self.clone();
                 alt_trait_inner!(__init $($parsers)+)
-                    .add_context("Alt")
                     .parse(input.clone(), context, alloc)
                     .map_err(|error| error.append(input, ParseErrorKind::Alt))
             }

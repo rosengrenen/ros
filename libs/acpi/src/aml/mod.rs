@@ -1,3 +1,4 @@
+pub mod aml;
 pub mod ops;
 
 use alloc::vec::Vec;
@@ -6,77 +7,15 @@ use parser::{
     input::Input,
     parser::Parser,
     primitive::{fail::fail, item::take_one, take::take},
+    sequence::preceded,
 };
 use std::{alloc::Allocator, fmt::Debug, marker::PhantomData};
 
 pub struct Context {}
 
-pub enum TermObj {
-    // // Obj(Obj),
-    Statement,
-    Expr,
-}
-
-impl TermObj {
-    pub fn p<I: Input<Item = u8> + Debug, C, A: Allocator>(
-        input: I,
-        context: &mut C,
-        alloc: A,
-    ) -> ParseResult<I, Self, SimpleError<I, A>> {
-        panic!("{:x?}", input);
-        // if let Ok((input, obj)) = obj(input) {
-        //     return Ok((input, TermObj::Obj(obj)));
-        // }
-
-        // Err(())
-    }
-}
-
-// pub enum Obj {
-//     NameSpaceModObj(NameSpaceModObj),
-//     NamedObj,
-// }
-
-// fn obj(input: &[u8]) -> ParseResult<&[u8], Obj> {
-//     if let Ok((input, name_space_mod_obj)) = name_space_mod_obj(input) {
-//         return Ok((input, Obj::NameSpaceModObj(name_space_mod_obj)));
-//     }
-
-//     Err(())
-// }
-
-// pub enum NameSpaceModObj {
-//     Alias,
-//     Name,
-//     Scope(Scope),
-// }
-
-// fn name_space_mod_obj(input: &[u8]) -> ParseResult<&[u8], NameSpaceModObj> {
-//     if let Ok((input, scope)) = scope(input) {
-//         return Ok((input, NameSpaceModObj::Scope(scope)));
-//     }
-
-//     Err(())
-// }
-
-// pub struct Scope {
-//     // name: String,
-//     // terms: Vec<TermObj>,
-// }
-
-// fn scope(input: &[u8]) -> ParseResult<&[u8], Scope> {
-//     let (input, _) = item(input, 0x10)?;
-//     let (input, pkg_len) = pkg_len(input)?;
-//     let (rest, input) = take(input, pkg_len)?;
-//     println!("package length {:?}", pkg_len);
-//     panic!("{:x?}", &input[..16]);
-//     let scope = Scope {};
-//     Ok((rest, scope))
-// }
-
-pub fn pkg_length<I: Input<Item = u8>, E: ParseError<I, A>, C, A: Allocator + Clone>(
+pub fn pkg_length<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
-    context: &mut C,
+    context: &mut Context,
     alloc: A,
 ) -> ParseResult<I, usize, E> {
     let (input, lead_byte) = take_one().parse(input, context, alloc.clone())?;
@@ -102,11 +41,11 @@ pub fn pkg_length<I: Input<Item = u8>, E: ParseError<I, A>, C, A: Allocator + Cl
         .parse(input, context, alloc)
 }
 
-pub fn pkg<I, O, E, C, P, A>(parser: P) -> Pkg<P, E>
+pub fn pkg<I, O, E, P, A>(parser: P) -> Pkg<P, E>
 where
     I: Input<Item = u8>,
     E: ParseError<I, A>,
-    P: Parser<I, C, A, Output = O, Error = E>,
+    P: Parser<I, Context, A, Output = O, Error = E>,
     A: Allocator + Clone,
 {
     Pkg {
@@ -121,11 +60,11 @@ pub struct Pkg<P, E> {
     error: PhantomData<E>,
 }
 
-impl<I, O, E: ParseError<I, A>, C, P, A: Allocator + Clone> Parser<I, C, A> for Pkg<P, E>
+impl<I, O, E: ParseError<I, A>, P, A: Allocator + Clone> Parser<I, Context, A> for Pkg<P, E>
 where
     I: Input<Item = u8>,
     E: ParseError<I, A>,
-    P: Parser<I, C, A, Output = O, Error = E>,
+    P: Parser<I, Context, A, Output = O, Error = E>,
     A: Allocator + Clone,
 {
     type Output = O;
@@ -135,7 +74,7 @@ where
     fn parse(
         self,
         input: I,
-        context: &mut C,
+        context: &mut Context,
         alloc: A,
     ) -> ParseResult<I, Self::Output, Self::Error> {
         let (input, pkg_len) =
@@ -154,14 +93,14 @@ where
 }
 
 #[derive(Copy, Clone, Debug)]
-enum SimpleErrorKind {
+pub enum SimpleErrorKind {
     Context(&'static str),
     Parser(ParseErrorKind),
 }
 
 #[derive(Clone)]
 pub struct SimpleError<I, A: Allocator> {
-    errors: Vec<(I, SimpleErrorKind), A>,
+    pub errors: Vec<(I, SimpleErrorKind), A>,
 }
 
 impl<I, A> Debug for SimpleError<I, A>
@@ -223,8 +162,8 @@ where
 
 #[derive(Copy, Clone, Debug)]
 pub struct Span {
-    start: usize,
-    end: usize,
+    pub start: usize,
+    pub end: usize,
 }
 
 impl Span {
@@ -244,8 +183,8 @@ impl Span {
 
 #[derive(Clone)]
 pub struct LocatedInput<I> {
-    inner: I,
-    span: Span,
+    pub inner: I,
+    pub span: Span,
 }
 
 impl<I> core::fmt::Debug for LocatedInput<I>
@@ -299,5 +238,52 @@ where
             Self::with_span(left, left_span),
             Self::with_span(right, right_span),
         )
+    }
+}
+
+pub fn prefixed<I, O1, O2, E, P1, P2, A>(first: P1, second: P2) -> Prefixed<P1, P2, E>
+where
+    I: Input<Item = u8>,
+    E: ParseError<I, A>,
+    P1: Parser<I, Context, A, Output = O1, Error = E>,
+    P2: Parser<I, Context, A, Output = O2, Error = E>,
+    A: Allocator + Clone,
+{
+    Prefixed {
+        first,
+        second,
+        error: PhantomData,
+    }
+}
+
+#[derive(Clone)]
+pub struct Prefixed<P1, P2, E> {
+    first: P1,
+    second: P2,
+    error: PhantomData<E>,
+}
+
+impl<I, O1, O2, E: ParseError<I, A>, P1, P2, A: Allocator + Clone> Parser<I, Context, A>
+    for Prefixed<P1, P2, E>
+where
+    I: Input<Item = u8>,
+    E: ParseError<I, A>,
+    P1: Parser<I, Context, A, Output = O1, Error = E>,
+    P2: Parser<I, Context, A, Output = O2, Error = E>,
+    A: Allocator + Clone,
+{
+    type Output = O2;
+
+    type Error = E;
+
+    fn parse(
+        self,
+        input: I,
+        context: &mut Context,
+        alloc: A,
+    ) -> ParseResult<I, Self::Output, Self::Error> {
+        preceded(self.first, self.second.cut())
+            .add_context("Prefixed")
+            .parse(input, context, alloc)
     }
 }
