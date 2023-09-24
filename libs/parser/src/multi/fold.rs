@@ -124,14 +124,18 @@ where
     type Error = E;
 
     fn parse(
-        &self,
+        self,
         input: I,
         context: &mut C,
         alloc: A,
     ) -> crate::error::ParseResult<I, Self::Output, Self::Error> {
         let control_flow =
             (0..self.max).try_fold((input, (self.init)()), |(input, folded_outputs), count| {
-                match self.parser.parse(input.clone(), context, alloc.clone()) {
+                match self
+                    .parser
+                    .clone()
+                    .parse(input.clone(), context, alloc.clone())
+                {
                     Ok((input, output)) => {
                         ControlFlow::Continue((input, (self.f)(folded_outputs, output)))
                     }

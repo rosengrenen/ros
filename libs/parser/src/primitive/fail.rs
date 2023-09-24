@@ -30,7 +30,7 @@ where
     type Error = E;
 
     fn parse(
-        &self,
+        self,
         input: I,
         _context: &mut C,
         alloc: A,

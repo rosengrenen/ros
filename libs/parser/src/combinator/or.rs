@@ -24,7 +24,7 @@ where
     type Error = E;
 
     fn parse(
-        &self,
+        self,
         input: I,
         context: &mut C,
         alloc: A,

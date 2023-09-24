@@ -32,7 +32,7 @@ macro_rules! tuple_trait_impl {
 
             type Error = E;
 
-            fn parse(&self, input: I, context: &mut C, alloc:  A) -> ParseResult<I, Self::Output, Self::Error> {
+            fn parse(self, input: I, context: &mut C, alloc:  A) -> ParseResult<I, Self::Output, Self::Error> {
                 #[allow(non_snake_case)]
                 let ($($parsers),+) = self.clone();
                 $(

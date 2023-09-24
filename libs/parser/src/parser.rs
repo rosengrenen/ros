@@ -22,7 +22,7 @@ where
     type Error: ParseError<I, A>;
 
     fn parse(
-        &self,
+        self,
         input: I,
         context: &mut C,
         alloc: A,
@@ -131,7 +131,7 @@ where
     type Error = E;
 
     fn parse(
-        &self,
+        self,
         input: I,
         context: &mut C,
         alloc: A,

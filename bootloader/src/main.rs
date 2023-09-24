@@ -172,7 +172,7 @@ pub extern "efiapi" fn efi_main(
                 fadt
             );
             let dsdt_addr = fadt.dsdt;
-            print_dsdt(dsdt_addr as _, &bump_allocator);
+            // print_dsdt(dsdt_addr as _, &bump_allocator);
         } else if &hdr.signature == b"APIC" {
             // TODO: print the entries
             print_apic(*hdr_ptr);
@@ -468,8 +468,9 @@ where
     }
 
     fn replace(mut self, input: I, kind: ParseErrorKind) -> Self {
-        *self.errors.last_mut().unwrap() = (input, SimpleErrorKind::Parser(kind));
-        self
+        self.append(input, kind)
+        // *self.errors.last_mut().unwrap() = (input, SimpleErrorKind::Parser(kind));
+        // self
     }
 
     fn add_context(mut self, input: I, context: &'static str) -> Self {

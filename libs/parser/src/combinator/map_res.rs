@@ -26,7 +26,7 @@ where
     type Error = P::Error;
 
     fn parse(
-        &self,
+        self,
         input: I,
         context: &mut C,
         alloc: A,
@@ -71,7 +71,7 @@ where
     type Error = P::Error;
 
     fn parse(
-        &self,
+        self,
         input: I,
         context: &mut C,
         alloc: A,

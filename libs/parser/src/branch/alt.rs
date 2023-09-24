@@ -21,7 +21,7 @@ where
     type Error = P::Error;
 
     fn parse(
-        &self,
+        self,
         input: I,
         context: &mut C,
         alloc: A,
@@ -36,7 +36,7 @@ pub trait AltHelper<I, C, A: Allocator>: Clone {
     type Error: ParseError<I, A>;
 
     fn parse_alt(
-        &self,
+        self,
         input: I,
         context: &mut C,
         alloc: A,
@@ -73,7 +73,7 @@ macro_rules! alt_trait_impl {
             type Error = E;
 
             fn parse_alt(
-                &self,
+                self,
                 input: I,
                 context: &mut C,
                 alloc: A,
