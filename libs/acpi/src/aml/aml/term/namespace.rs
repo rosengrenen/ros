@@ -1,9 +1,10 @@
-use super::{TermList, TermObj};
+use super::TermObj;
 use crate::aml::{
     aml::{data::DataRefObj, name::NameString},
     ops::{AliasOp, NameOp, ScopeOp},
     pkg, prefixed, Context,
 };
+use alloc::vec::Vec;
 use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},
@@ -74,7 +75,7 @@ impl<A: Allocator + Clone> DefName<A> {
 
 pub struct DefScope<A: Allocator> {
     pub name: NameString<A>,
-    pub terms: TermList<A>,
+    pub terms: Vec<TermObj<A>, A>,
 }
 
 impl<A: Allocator + Clone> DefScope<A> {
@@ -86,7 +87,7 @@ impl<A: Allocator + Clone> DefScope<A> {
         // prefixed(scope_op, pkg((NameString::p, TermList::p)))
         prefixed(
             ScopeOp::p,
-            pkg((NameString::p, many_n(1, TermObj::p).map(TermList), rest())),
+            pkg((NameString::p, many_n(1, TermObj::p), rest())),
         )
         .map(|(name, terms, _)| Self { name, terms })
         .add_context("DefScope")

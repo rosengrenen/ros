@@ -1,16 +1,17 @@
+use super::PkgElement;
 use crate::aml::{aml::data::byte_data, ops::PkgOp, pkg, prefixed, Context};
+use alloc::vec::Vec;
 use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},
     input::Input,
+    multi::many::many,
     parser::Parser,
 };
 
-use super::PkgElementList;
-
 pub struct Pkg<A: Allocator> {
     pub len: usize,
-    pub elements: PkgElementList<A>,
+    pub elements: Vec<PkgElement<A>, A>,
 }
 
 impl<A: Allocator + Clone> Pkg<A> {
@@ -20,7 +21,7 @@ impl<A: Allocator + Clone> Pkg<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         let num_elements = byte_data;
-        prefixed(PkgOp::p, pkg((num_elements, PkgElementList::p)))
+        prefixed(PkgOp::p, pkg((num_elements, many(PkgElement::p))))
             .map(|(len, elements)| Self {
                 len: len as usize,
                 elements,

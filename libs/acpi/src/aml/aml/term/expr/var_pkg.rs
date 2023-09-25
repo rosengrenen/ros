@@ -1,16 +1,17 @@
+use super::PkgElement;
 use crate::aml::{aml::term::TermArg, ops::VarPkgOp, pkg, prefixed, Context};
+use alloc::vec::Vec;
 use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},
     input::Input,
+    multi::many::many,
     parser::Parser,
 };
 
-use super::PkgElementList;
-
 pub struct VarPkg<A: Allocator> {
     pub len: TermArg<A>,
-    pub elements: PkgElementList<A>,
+    pub elements: Vec<PkgElement<A>, A>,
 }
 
 impl<A: Allocator + Clone> VarPkg<A> {
@@ -20,7 +21,7 @@ impl<A: Allocator + Clone> VarPkg<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         let var_num_elements = TermArg::p; // => Integer
-        prefixed(VarPkgOp::p, pkg((var_num_elements, PkgElementList::p)))
+        prefixed(VarPkgOp::p, pkg((var_num_elements, many(PkgElement::p))))
             .map(|(len, elements)| Self { len, elements })
             .add_context("VarPkg")
             .parse(input, context, alloc)

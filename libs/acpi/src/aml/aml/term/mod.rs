@@ -69,21 +69,6 @@ impl<A: Allocator + Clone> TermObj<A> {
     }
 }
 
-pub struct TermList<A: Allocator>(Vec<TermObj<A>, A>);
-
-impl<A: Allocator + Clone> TermList<A> {
-    pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
-        input: I,
-        context: &mut Context,
-        alloc: A,
-    ) -> ParseResult<I, Self, E> {
-        many(TermObj::p)
-            .map(Self)
-            .add_context("TermList")
-            .parse(input, context, alloc)
-    }
-}
-
 pub enum TermArg<A: Allocator> {
     Expr(Box<Expr<A>, A>),
     DataObj(Box<DataObj<A>, A>),
@@ -113,7 +98,7 @@ impl<A: Allocator + Clone> TermArg<A> {
 
 pub struct MethodInvocation<A: Allocator> {
     pub name: NameString<A>,
-    pub args: TermArgList<A>,
+    pub args: Vec<TermArg<A>, A>,
 }
 
 impl<A: Allocator + Clone> MethodInvocation<A> {
@@ -126,24 +111,9 @@ impl<A: Allocator + Clone> MethodInvocation<A> {
             .add_context("MethodInvocation")
             .parse(input, context, alloc)?;
         panic!();
-        // (NameString::p, TermArgList::p)
+        // (NameString::p, many(TermArg::p))
         //     .map(|(name, args)| Self { name, args })
         //     .add_context("MethodInvocation")
         //     .parse(input, context, alloc)
-    }
-}
-
-pub struct TermArgList<A: Allocator>(Vec<TermArg<A>, A>);
-
-impl<A: Allocator + Clone> TermArgList<A> {
-    pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
-        input: I,
-        context: &mut Context,
-        alloc: A,
-    ) -> ParseResult<I, Self, E> {
-        many(TermArg::p)
-            .map(Self)
-            .add_context("TermArgList")
-            .parse(input, context, alloc)
     }
 }

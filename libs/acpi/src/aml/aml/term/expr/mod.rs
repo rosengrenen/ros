@@ -38,12 +38,10 @@ use crate::aml::{
     aml::{data::DataRefObj, name::NameString, term::MethodInvocation},
     Context,
 };
-use alloc::vec::Vec;
 use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},
     input::Input,
-    multi::many::many,
     parser::Parser,
 };
 
@@ -166,21 +164,6 @@ impl<A: Allocator + Clone> RefTypeOpcode<A> {
 //             .parse(input, context, alloc)
 //     }
 // }
-
-pub struct PkgElementList<A: Allocator>(Vec<PkgElement<A>, A>);
-
-impl<A: Allocator + Clone> PkgElementList<A> {
-    pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
-        input: I,
-        context: &mut Context,
-        alloc: A,
-    ) -> ParseResult<I, Self, E> {
-        many(PkgElement::p)
-            .map(Self)
-            .add_context("PkgElementList")
-            .parse(input, context, alloc)
-    }
-}
 
 pub enum PkgElement<A: Allocator> {
     DataRefObj(DataRefObj<A>),

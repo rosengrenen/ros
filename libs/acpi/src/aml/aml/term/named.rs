@@ -1,4 +1,4 @@
-use super::{TermArg, TermList};
+use super::{TermArg, TermObj};
 use crate::aml::{
     aml::{
         data::{byte_data, dword_data, word_data},
@@ -73,7 +73,7 @@ pub struct DefBankField<A: Allocator> {
     pub name2: NameString<A>,
     pub bank_value: TermArg<A>,
     pub field_flags: FieldFlags,
-    pub field_list: FieldList<A>,
+    pub field_list: Vec<FieldElement<A>, A>,
 }
 
 impl<A: Allocator + Clone> DefBankField<A> {
@@ -90,7 +90,7 @@ impl<A: Allocator + Clone> DefBankField<A> {
                 NameString::p,
                 bank_value,
                 FieldFlags::p,
-                FieldList::p,
+                many(FieldElement::p),
             )),
         )
         .map(|(name1, name2, bank_value, field_flags, field_list)| Self {
@@ -116,21 +116,6 @@ impl FieldFlags {
         byte_data
             .map(Self)
             .add_context("FieldFlags")
-            .parse(input, context, alloc)
-    }
-}
-
-pub struct FieldList<A: Allocator>(Vec<FieldElement<A>, A>);
-
-impl<A: Allocator + Clone> FieldList<A> {
-    pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
-        input: I,
-        context: &mut Context,
-        alloc: A,
-    ) -> ParseResult<I, Self, E> {
-        many(FieldElement::p)
-            .map(Self)
-            .add_context("FieldList")
             .parse(input, context, alloc)
     }
 }
@@ -436,7 +421,7 @@ impl<A: Allocator + Clone> DefDataRegion<A> {
 
 pub struct DefDevice<A: Allocator> {
     pub name: NameString<A>,
-    pub terms: TermList<A>,
+    pub terms: Vec<TermObj<A>, A>,
 }
 
 impl<A: Allocator + Clone> DefDevice<A> {
@@ -445,7 +430,7 @@ impl<A: Allocator + Clone> DefDevice<A> {
         context: &mut Context,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        prefixed(DeviceOp::p, pkg((NameString::p, TermList::p)))
+        prefixed(DeviceOp::p, pkg((NameString::p, many(TermObj::p))))
             .map(|(name, terms)| Self { name, terms })
             .add_context("DefDevice")
             .parse(input, context, alloc)
@@ -495,7 +480,7 @@ impl<A: Allocator + Clone> DefExternal<A> {
 pub struct DefField<A: Allocator> {
     pub name: NameString<A>,
     pub flags: FieldFlags,
-    pub fields: FieldList<A>,
+    pub fields: Vec<FieldElement<A>, A>,
 }
 
 impl<A: Allocator + Clone> DefField<A> {
@@ -508,7 +493,7 @@ impl<A: Allocator + Clone> DefField<A> {
         // panic!("heh");
         prefixed(
             FieldOp::p,
-            pkg((NameString::p, FieldFlags::p, FieldList::p)),
+            pkg((NameString::p, FieldFlags::p, many(FieldElement::p))),
         )
         .map(|(name, flags, fields)| Self {
             name,
@@ -524,7 +509,7 @@ pub struct DefIndexField<A: Allocator> {
     pub name1: NameString<A>,
     pub name2: NameString<A>,
     pub flags: FieldFlags,
-    pub fields: FieldList<A>,
+    pub fields: Vec<FieldElement<A>, A>,
 }
 
 impl<A: Allocator + Clone> DefIndexField<A> {
@@ -535,7 +520,12 @@ impl<A: Allocator + Clone> DefIndexField<A> {
     ) -> ParseResult<I, Self, E> {
         prefixed(
             IndexFieldOp::p,
-            pkg((NameString::p, NameString::p, FieldFlags::p, FieldList::p)),
+            pkg((
+                NameString::p,
+                NameString::p,
+                FieldFlags::p,
+                many(FieldElement::p),
+            )),
         )
         .map(|(name1, name2, flags, fields)| Self {
             name1,
@@ -551,7 +541,7 @@ impl<A: Allocator + Clone> DefIndexField<A> {
 pub struct DefMethod<A: Allocator> {
     pub name: NameString<A>,
     pub flags: MethodFlags,
-    pub terms: TermList<A>,
+    pub terms: Vec<TermObj<A>, A>,
 }
 
 impl<A: Allocator + Clone> DefMethod<A> {
@@ -562,7 +552,7 @@ impl<A: Allocator + Clone> DefMethod<A> {
     ) -> ParseResult<I, Self, E> {
         prefixed(
             MethodOp::p,
-            pkg((NameString::p, MethodFlags::p, TermList::p)),
+            pkg((NameString::p, MethodFlags::p, many(TermObj::p))),
         )
         .map(|(name, flags, terms)| Self { name, flags, terms })
         .add_context("DefMethod")
@@ -668,7 +658,7 @@ pub struct DefPowerRes<A: Allocator> {
     pub name: NameString<A>,
     pub system_level: u8,
     pub resource_order: u16,
-    pub terms: TermList<A>,
+    pub terms: Vec<TermObj<A>, A>,
 }
 
 impl<A: Allocator + Clone> DefPowerRes<A> {
@@ -679,7 +669,12 @@ impl<A: Allocator + Clone> DefPowerRes<A> {
     ) -> ParseResult<I, Self, E> {
         prefixed(
             PowerResOp::p,
-            pkg((NameString::p, system_level, resource_order, TermList::p)),
+            pkg((
+                NameString::p,
+                system_level,
+                resource_order,
+                many(TermObj::p),
+            )),
         )
         .map(|(name, system_level, resource_order, terms)| Self {
             name,
@@ -747,7 +742,7 @@ fn pblk_len<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
 
 pub struct DefThermalZone<A: Allocator> {
     pub name: NameString<A>,
-    pub terms: TermList<A>,
+    pub terms: Vec<TermObj<A>, A>,
 }
 
 impl<A: Allocator + Clone> DefThermalZone<A> {
@@ -756,7 +751,7 @@ impl<A: Allocator + Clone> DefThermalZone<A> {
         context: &mut Context,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        prefixed(ThermalZoneOp::p, pkg((NameString::p, TermList::p)))
+        prefixed(ThermalZoneOp::p, pkg((NameString::p, many(TermObj::p))))
             .map(|(name, terms)| Self { name, terms })
             .add_context("DefThermalZone")
             .parse(input, context, alloc)

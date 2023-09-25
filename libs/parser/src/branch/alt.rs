@@ -1,5 +1,5 @@
 use crate::{
-    error::{ParseError, ParseErrorKind, ParseResult},
+    error::{ParseError, ParseErrorKind, ParseResult, ParserError},
     input::Input,
     parser::Parser,
 };
@@ -80,24 +80,25 @@ macro_rules! alt_trait_impl {
             ) -> ParseResult< I, Self::Output, Self::Error> {
                 #[allow(non_snake_case)]
                 let ($($parsers),+) = self.clone();
-                alt_trait_inner!(__init $($parsers)+)
-                    .parse(input.clone(), context, alloc)
-                    .map_err(|error| error.append(input, ParseErrorKind::Alt))
+                $(
+                    match $parsers
+                        .parse(input.clone(), context, alloc.clone())
+                        .map_err(|error| error.append(input.clone(), ParseErrorKind::Alt))
+                    {
+                        Ok(res) => return Ok(res),
+                        Err(ParserError::Error(_)) => (),
+                        Err(ParserError::Failure(e)) => return Err(ParserError::Failure(e)),
+                    }
+                )+
+
+                Err(ParserError::Error(E::from_error_kind(
+                    input,
+                    ParseErrorKind::Alt,
+                    alloc,
+                )))
             }
         }
     };
 }
-
-macro_rules! alt_trait_inner(
-    (__init $parser:ident $($parsers:ident)+) => (
-        alt_trait_inner!($parser, $($parsers)+)
-    );
-    ($chain:expr, $parser:ident $($parsers:ident)+) => (
-        alt_trait_inner!($chain.or($parser), $($parsers)+)
-    );
-    ($chain:expr, $parser:ident) => (
-        $chain.or($parser)
-    );
-);
 
 alt_trait!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16);
