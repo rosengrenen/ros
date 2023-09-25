@@ -12,7 +12,7 @@ fn main() {
     let mut context = Context {};
     let res = TermObj::p::<_, SimpleError<LocatedInput<&[u8]>, Global>>(aml, &mut context, Global);
     match res {
-        Ok(ast) => todo!(),
+        Ok(ast) => println!("{:?}", ast),
         Err(e) => match e {
             parser::error::ParserError::Error(e) => todo!(),
             parser::error::ParserError::Failure(e) => {

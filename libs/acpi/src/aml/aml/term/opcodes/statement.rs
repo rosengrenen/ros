@@ -5,7 +5,8 @@ use crate::aml::{
         term::{TermArg, TermList},
     },
     ops::{
-        FatalOp, IfOp, NoopOp, ReleaseOp, ResetOp, ReturnOp, SignalOp, SleepOp, StallOp, WhileOp,
+        BreakOp, BreakPointOp, ContinueOp, ElseOp, FatalOp, IfOp, NoopOp, NotifyOp, ReleaseOp,
+        ResetOp, ReturnOp, SignalOp, SleepOp, StallOp, WhileOp,
     },
     pkg, prefixed, Context,
 };
@@ -76,8 +77,7 @@ impl DefBreak {
         context: &mut Context,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let break_op = item(0xa5);
-        break_op
+        BreakOp::p
             .map(|_| Self)
             .add_context("DefBreak")
             .parse(input, context, alloc)
@@ -92,8 +92,7 @@ impl DefBreakPoint {
         context: &mut Context,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let break_point_op = item(0xcc);
-        break_point_op
+        BreakPointOp::p
             .map(|_| DefBreakPoint)
             .add_context("DefBreakPoint")
             .parse(input, context, alloc)
@@ -108,8 +107,7 @@ impl DefContinue {
         context: &mut Context,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let continue_op = item(0x9f);
-        continue_op
+        ContinueOp::p
             .map(|_| Self)
             .add_context("DefContinue")
             .parse(input, context, alloc)
@@ -126,8 +124,7 @@ impl<A: Allocator + Clone> DefElse<A> {
         context: &mut Context,
         alloc: A,
     ) -> ParseResult<I, Option<Self>, E> {
-        let else_op = item(0xa1);
-        prefixed(else_op, pkg(TermList::p))
+        prefixed(ElseOp::p, pkg(TermList::p))
             .map(|terms| Self { terms })
             .opt()
             .add_context("DefElse")
@@ -205,10 +202,9 @@ impl<A: Allocator + Clone> DefNotify<A> {
         context: &mut Context,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        let notify_op = item(0x86);
         let notify_obj = SuperName::p; // => ThermalZone | Processor | Device
         let notify_value = TermArg::p; // => Integer
-        prefixed(notify_op, (notify_obj, notify_value))
+        prefixed(NotifyOp::p, (notify_obj, notify_value))
             .map(|(obj, value)| Self { obj, value })
             .add_context("DefNotify")
             .parse(input, context, alloc)

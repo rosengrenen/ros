@@ -1,4 +1,4 @@
-use super::TermList;
+use super::{TermList, TermObj};
 use crate::aml::{
     aml::{data::DataRefObj, name::NameString},
     ops::{AliasOp, NameOp, ScopeOp},
@@ -8,7 +8,9 @@ use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},
     input::Input,
+    multi::many::many_n,
     parser::Parser,
+    primitive::rest::rest,
 };
 
 pub enum NameSpaceModObj<A: Allocator> {
@@ -82,9 +84,12 @@ impl<A: Allocator + Clone> DefScope<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         // prefixed(scope_op, pkg((NameString::p, TermList::p)))
-        prefixed(ScopeOp::p, pkg((NameString::p, TermList::p)))
-            .map(|(name, terms)| Self { name, terms })
-            .add_context("DefScope")
-            .parse(input, context, alloc)
+        prefixed(
+            ScopeOp::p,
+            pkg((NameString::p, many_n(1, TermObj::p).map(TermList), rest())),
+        )
+        .map(|(name, terms, _)| Self { name, terms })
+        .add_context("DefScope")
+        .parse(input, context, alloc)
     }
 }

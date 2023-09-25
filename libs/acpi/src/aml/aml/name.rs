@@ -1,4 +1,7 @@
-use crate::aml::{prefixed, Context};
+use crate::aml::{
+    ops::{DualNamePrefix, MultiNamePrefix, RootChar},
+    prefixed, Context,
+};
 
 use super::{
     misc::{ArgObj, DebugObj, LocalObj},
@@ -53,7 +56,7 @@ fn root_char<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     context: &mut Context,
     alloc: A,
 ) -> ParseResult<I, (), E> {
-    item(0x5c)
+    RootChar::p
         .map(|_| ())
         .add_context("root_char")
         .parse(input, context, alloc)
@@ -173,7 +176,7 @@ impl DualNamePath {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         prefixed(
-            item(0x2e),
+            DualNamePrefix::p,
             (NameSeg::p, NameSeg::p).map(|(seg0, seg1)| Self(seg0, seg1)),
         )
         .add_context("DualNamePath")
@@ -196,8 +199,9 @@ impl<A: Allocator + Clone> MultiNamePath<A> {
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         let (input, seg_count) =
-            prefixed(item(0x2e), take_one()).parse(input, context, alloc.clone())?;
+            prefixed(MultiNamePrefix::p, take_one()).parse(input, context, alloc.clone())?;
         many_n(seg_count as usize, NameSeg::p)
+            .cut()
             .map(MultiNamePath)
             .add_context("MultiNamePath")
             .parse(input, context, alloc)
@@ -260,7 +264,7 @@ impl NullName {
         context: &mut Context,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
-        item(0)
+        item(0x00)
             .map(|_| Self)
             .add_context("NullName")
             .parse(input, context, alloc)
