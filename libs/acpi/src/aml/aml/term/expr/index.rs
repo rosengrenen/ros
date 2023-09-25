@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct Index<A: Allocator> {
     pub buf_pkg_str_obj: TermArg<A>,
     pub index_value: TermArg<A>,

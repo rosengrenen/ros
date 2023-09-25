@@ -12,6 +12,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub enum ConvertFn<A: Allocator> {
     FromBcd(FromBcd<A>),
     ToBcd(ToBcd<A>),
@@ -45,6 +46,7 @@ impl<A: Allocator + Clone> ConvertFn<A> {
 
 macro_rules! convert_fn_expr {
     ($name:ident, $op:ident) => {
+        #[derive(Debug)]
         pub struct $name<A: Allocator> {
             pub input: TermArg<A>,
             pub target: Target<A>,
@@ -72,6 +74,7 @@ convert_fn_expr!(ToDecimalString, ToDecimalStringOp);
 convert_fn_expr!(ToHexString, ToHexStringOp);
 convert_fn_expr!(ToInteger, ToIntegerOp);
 
+#[derive(Debug)]
 pub struct ToString<A: Allocator> {
     pub arg1: TermArg<A>,
     pub length_arg: TermArg<A>,

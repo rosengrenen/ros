@@ -12,6 +12,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct While<A: Allocator> {
     pub predicate: TermArg<A>,
     pub terms: Vec<TermObj<A>, A>,

@@ -41,6 +41,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub enum Statement<A: Allocator> {
     Break(Break),
     BreakPoint(BreakPoint),
@@ -91,6 +92,7 @@ impl<A: Allocator + Clone> Statement<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct MutexObj<A: Allocator>(Box<SuperName<A>, A>);
 
 impl<A: Allocator + Clone> MutexObj<A> {
@@ -107,6 +109,7 @@ impl<A: Allocator + Clone> MutexObj<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct EventObj<A: Allocator>(SuperName<A>);
 
 impl<A: Allocator + Clone> EventObj<A> {
@@ -122,6 +125,7 @@ impl<A: Allocator + Clone> EventObj<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct ArgObj<A: Allocator>(TermArg<A>);
 
 impl<A: Allocator + Clone> ArgObj<A> {

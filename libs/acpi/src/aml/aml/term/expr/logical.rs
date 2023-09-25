@@ -13,6 +13,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub enum Logical<A: Allocator> {
     And(And<A>),
     Equal(Equal<A>),
@@ -48,6 +49,7 @@ impl<A: Allocator + Clone> Logical<A> {
 
 macro_rules! logical_binary_expr {
     ($name:ident, $op:ident) => {
+        #[derive(Debug)]
         pub struct $name<A: Allocator> {
             pub left: TermArg<A>,
             pub right: TermArg<A>,
@@ -77,6 +79,7 @@ logical_binary_expr!(Less, LLessOp);
 logical_binary_expr!(NotEqual, LNotEqualOp);
 logical_binary_expr!(Or, LOrOp);
 
+#[derive(Debug)]
 pub struct Not<A: Allocator> {
     pub operand: TermArg<A>,
 }

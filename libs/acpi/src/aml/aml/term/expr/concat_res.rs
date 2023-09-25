@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct ConcatRes<A: Allocator> {
     pub left: TermArg<A>,
     pub right: TermArg<A>,

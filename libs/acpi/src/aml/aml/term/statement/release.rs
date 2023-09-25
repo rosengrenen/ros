@@ -8,6 +8,7 @@ use parser::{
 
 use super::MutexObj;
 
+#[derive(Debug)]
 pub struct Release<A: Allocator> {
     pub mutex: MutexObj<A>,
 }

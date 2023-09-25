@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct Buffer<A: Allocator> {
     pub len: TermArg<A>,
     pub bytes: ByteList<A>,

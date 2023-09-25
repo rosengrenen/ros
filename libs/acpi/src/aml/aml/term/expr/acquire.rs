@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct Acquire<A: Allocator> {
     pub mutex: MutexObj<A>,
     pub timeout: Timeout,
@@ -28,6 +29,7 @@ impl<A: Allocator + Clone> Acquire<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct Timeout(u8);
 
 impl Timeout {

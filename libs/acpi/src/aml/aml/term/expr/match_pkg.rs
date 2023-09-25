@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct Match<A: Allocator> {
     pub search_pkg: TermArg<A>,
     pub left_match_opcode: u8,

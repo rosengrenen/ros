@@ -13,6 +13,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub enum Integer<A: Allocator> {
     Add(Add<A>),
     Multiply(Multiply<A>),
@@ -44,6 +45,7 @@ impl<A: Allocator + Clone> Integer<A> {
 
 macro_rules! integer_binary_expr {
     ($name:ident, $op:ident) => {
+        #[derive(Debug)]
         pub struct $name<A: Allocator> {
             pub left: TermArg<A>,
             pub right: TermArg<A>,
@@ -73,6 +75,7 @@ integer_binary_expr!(Add, AddOp);
 integer_binary_expr!(Multiply, MultiplyOp);
 integer_binary_expr!(Subtract, SubtractOp);
 
+#[derive(Debug)]
 pub struct Divide<A: Allocator> {
     pub dividend: TermArg<A>,
     pub divisor: TermArg<A>,
@@ -102,6 +105,7 @@ impl<A: Allocator + Clone> Divide<A> {
 
 macro_rules! integer_unary_expr {
     ($name:ident, $op:ident) => {
+        #[derive(Debug)]
         pub struct $name<A: Allocator> {
             pub name: SuperName<A>,
         }

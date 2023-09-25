@@ -19,6 +19,7 @@ macro_rules! op_parser {
 macro_rules! ops {
     {$($parser:tt => $name:ident)+} => {
         $(
+            #[derive(Debug)]
             pub struct $name;
 
             impl $name {

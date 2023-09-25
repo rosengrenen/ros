@@ -1,3 +1,4 @@
+use super::term::expr::{buffer::Buffer, pkg::Pkg, var_pkg::VarPkg};
 use crate::aml::{
     ops::{
         BytePrefix, DWordPrefix, OneOp, OnesOp, QWordPrefix, RevisionOp, StringPrefix, WordPrefix,
@@ -15,8 +16,7 @@ use parser::{
     primitive::item::{item, satisfy, take_one},
 };
 
-use super::term::expr::{buffer::Buffer, pkg::Pkg, var_pkg::VarPkg};
-
+#[derive(Debug)]
 pub enum ComputationalData<A: Allocator> {
     ByteConst(ByteConst),
     WordConst(WordConst),
@@ -50,6 +50,7 @@ impl<A: Allocator + Clone> ComputationalData<A> {
     }
 }
 
+#[derive(Debug)]
 pub enum DataObj<A: Allocator> {
     ComputationalData(ComputationalData<A>),
     Pkg(Pkg<A>),
@@ -73,6 +74,7 @@ impl<A: Allocator + Clone> DataObj<A> {
     }
 }
 
+#[derive(Debug)]
 pub enum DataRefObj<A: Allocator> {
     DataObj(DataObj<A>),
     // ObjRef(ObjRef),
@@ -96,6 +98,7 @@ impl<A: Allocator + Clone> DataRefObj<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct ByteConst(u8);
 
 impl ByteConst {
@@ -111,6 +114,7 @@ impl ByteConst {
     }
 }
 
+#[derive(Debug)]
 pub struct WordConst(u16);
 
 impl WordConst {
@@ -131,6 +135,7 @@ impl WordConst {
     }
 }
 
+#[derive(Debug)]
 pub struct DWordConst(u32);
 
 impl DWordConst {
@@ -146,6 +151,7 @@ impl DWordConst {
     }
 }
 
+#[derive(Debug)]
 pub struct QWordConst(u64);
 
 impl QWordConst {
@@ -161,6 +167,7 @@ impl QWordConst {
     }
 }
 
+#[derive(Debug)]
 pub struct String<A: Allocator>(AsciiCharList<A>);
 
 impl<A: Allocator + Clone> String<A> {
@@ -176,6 +183,7 @@ impl<A: Allocator + Clone> String<A> {
     }
 }
 
+#[derive(Debug)]
 pub enum ConstObj {
     ZeroOp(ZeroOp),
     OneOp(OneOp),
@@ -199,6 +207,7 @@ impl ConstObj {
     }
 }
 
+#[derive(Debug)]
 pub struct ByteList<A: Allocator>(Vec<u8, A>);
 
 impl<A: Allocator + Clone> ByteList<A> {
@@ -257,6 +266,7 @@ pub fn qword_data<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone
         .parse(input, context, alloc)
 }
 
+#[derive(Debug)]
 pub struct AsciiCharList<A: Allocator>(Vec<u8, A>);
 
 impl<A: Allocator + Clone> AsciiCharList<A> {

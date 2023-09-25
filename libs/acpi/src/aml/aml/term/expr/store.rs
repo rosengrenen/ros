@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct Store<A: Allocator> {
     pub term: TermArg<A>,
     pub name: SuperName<A>,

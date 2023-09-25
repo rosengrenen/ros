@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct CopyObj<A: Allocator> {
     pub arg: TermArg<A>,
     pub name: SimpleName<A>,

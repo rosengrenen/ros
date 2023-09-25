@@ -45,6 +45,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub enum Expr<A: Allocator> {
     Acquire(Acquire<A>),
     Bitwise(Bitwise<A>),
@@ -122,6 +123,7 @@ impl<A: Allocator + Clone> Expr<A> {
     }
 }
 
+#[derive(Debug)]
 pub enum RefTypeOpcode<A: Allocator> {
     RefOf(RefOf<A>),
     DerefOf(DerefOf<A>),
@@ -147,7 +149,7 @@ impl<A: Allocator + Clone> RefTypeOpcode<A> {
     }
 }
 
-// pub struct Load<A: Allocator> {
+// #[derive(Debug)] pub struct Load<A: Allocator> {
 //     name: NameString<A>,
 //     target: Target<A>,
 // }
@@ -165,6 +167,7 @@ impl<A: Allocator + Clone> RefTypeOpcode<A> {
 //     }
 // }
 
+#[derive(Debug)]
 pub enum PkgElement<A: Allocator> {
     DataRefObj(DataRefObj<A>),
     NameString(NameString<A>),

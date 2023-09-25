@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct Mid<A: Allocator> {
     pub mid_obj: TermArg<A>,
     pub term1: TermArg<A>,

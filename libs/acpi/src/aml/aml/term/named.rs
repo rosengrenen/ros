@@ -21,6 +21,7 @@ use parser::{
     primitive::{item::item, rest::rest},
 };
 
+#[derive(Debug)]
 pub enum NamedObj<A: Allocator> {
     DefBankField(DefBankField<A>),
     DefCreateBitField(DefCreateBitField<A>),
@@ -68,6 +69,7 @@ impl<A: Allocator + Clone> NamedObj<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefBankField<A: Allocator> {
     pub name1: NameString<A>,
     pub name2: NameString<A>,
@@ -105,6 +107,7 @@ impl<A: Allocator + Clone> DefBankField<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct FieldFlags(u8);
 
 impl FieldFlags {
@@ -120,6 +123,7 @@ impl FieldFlags {
     }
 }
 
+#[derive(Debug)]
 pub struct NamedField(NameSeg, usize);
 
 impl NamedField {
@@ -135,6 +139,7 @@ impl NamedField {
     }
 }
 
+#[derive(Debug)]
 pub struct ReservedField;
 
 impl ReservedField {
@@ -150,6 +155,7 @@ impl ReservedField {
     }
 }
 
+#[derive(Debug)]
 pub struct AccessField {
     pub ty: AccessType,
     pub attrib: AccessAttrib,
@@ -168,6 +174,7 @@ impl AccessField {
     }
 }
 
+#[derive(Debug)]
 pub struct AccessType(u8);
 
 impl AccessType {
@@ -183,6 +190,7 @@ impl AccessType {
     }
 }
 
+#[derive(Debug)]
 pub struct AccessAttrib(u8);
 
 impl AccessAttrib {
@@ -198,6 +206,7 @@ impl AccessAttrib {
     }
 }
 
+#[derive(Debug)]
 pub enum ConnectField<A: Allocator> {
     NameString(NameString<A>),
     // BufferData(BufferData),
@@ -223,6 +232,7 @@ impl<A: Allocator + Clone> ConnectField<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefCreateBitField<A: Allocator> {
     pub source_buf: TermArg<A>,
     pub bit_index: TermArg<A>,
@@ -248,6 +258,7 @@ impl<A: Allocator + Clone> DefCreateBitField<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefCreateByteField<A: Allocator> {
     pub source_buf: TermArg<A>,
     pub byte_index: TermArg<A>,
@@ -276,6 +287,7 @@ impl<A: Allocator + Clone> DefCreateByteField<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefCreateDWordField<A: Allocator> {
     pub source_buf: TermArg<A>,
     pub byte_index: TermArg<A>,
@@ -304,6 +316,7 @@ impl<A: Allocator + Clone> DefCreateDWordField<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefCreateField<A: Allocator> {
     pub source_buf: TermArg<A>,
     pub bit_index: TermArg<A>,
@@ -335,6 +348,7 @@ impl<A: Allocator + Clone> DefCreateField<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefCreateQWordField<A: Allocator> {
     pub source_buf: TermArg<A>,
     pub byte_index: TermArg<A>,
@@ -363,6 +377,7 @@ impl<A: Allocator + Clone> DefCreateQWordField<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefCreateWordField<A: Allocator> {
     pub source_buf: TermArg<A>,
     pub byte_index: TermArg<A>,
@@ -391,6 +406,7 @@ impl<A: Allocator + Clone> DefCreateWordField<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefDataRegion<A: Allocator> {
     pub name: NameString<A>,
     pub term1: TermArg<A>,
@@ -419,6 +435,7 @@ impl<A: Allocator + Clone> DefDataRegion<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefDevice<A: Allocator> {
     pub name: NameString<A>,
     pub terms: Vec<TermObj<A>, A>,
@@ -437,6 +454,7 @@ impl<A: Allocator + Clone> DefDevice<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefEvent<A: Allocator> {
     pub name: NameString<A>,
 }
@@ -454,6 +472,7 @@ impl<A: Allocator + Clone> DefEvent<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefExternal<A: Allocator> {
     pub name: NameString<A>,
     pub obj_type: u8,
@@ -477,6 +496,7 @@ impl<A: Allocator + Clone> DefExternal<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefField<A: Allocator> {
     pub name: NameString<A>,
     pub flags: FieldFlags,
@@ -505,6 +525,7 @@ impl<A: Allocator + Clone> DefField<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefIndexField<A: Allocator> {
     pub name1: NameString<A>,
     pub name2: NameString<A>,
@@ -538,6 +559,7 @@ impl<A: Allocator + Clone> DefIndexField<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefMethod<A: Allocator> {
     pub name: NameString<A>,
     pub flags: MethodFlags,
@@ -560,6 +582,7 @@ impl<A: Allocator + Clone> DefMethod<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct MethodFlags(u8);
 
 impl MethodFlags {
@@ -575,6 +598,7 @@ impl MethodFlags {
     }
 }
 
+#[derive(Debug)]
 pub struct DefMutex<A: Allocator> {
     pub name: NameString<A>,
     pub flags: SyncFlags,
@@ -593,6 +617,7 @@ impl<A: Allocator + Clone> DefMutex<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct SyncFlags(u8);
 
 impl SyncFlags {
@@ -608,6 +633,7 @@ impl SyncFlags {
     }
 }
 
+#[derive(Debug)]
 pub struct DefOpRegion<A: Allocator> {
     pub name: NameString<A>,
     pub space: RegionSpace,
@@ -654,6 +680,7 @@ impl RegionSpace {
     }
 }
 
+#[derive(Debug)]
 pub struct DefPowerRes<A: Allocator> {
     pub name: NameString<A>,
     pub system_level: u8,
@@ -740,6 +767,7 @@ fn pblk_len<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
         .parse(input, context, alloc)
 }
 
+#[derive(Debug)]
 pub struct DefThermalZone<A: Allocator> {
     pub name: NameString<A>,
     pub terms: Vec<TermObj<A>, A>,
@@ -758,6 +786,7 @@ impl<A: Allocator + Clone> DefThermalZone<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct ExtendedAccessField {
     pub ty: AccessType,
     pub attrib: ExtendedAccessAttrib,
@@ -780,6 +809,7 @@ impl ExtendedAccessField {
     }
 }
 
+#[derive(Debug)]
 pub struct ExtendedAccessAttrib(u8);
 
 impl ExtendedAccessAttrib {
@@ -795,6 +825,7 @@ impl ExtendedAccessAttrib {
     }
 }
 
+#[derive(Debug)]
 pub struct AccessLength(u8);
 
 impl AccessLength {
@@ -810,6 +841,7 @@ impl AccessLength {
     }
 }
 
+#[derive(Debug)]
 pub enum FieldElement<A: Allocator> {
     NamedField(NamedField),
     ReservedField(ReservedField),

@@ -13,6 +13,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct Fatal<A: Allocator> {
     pub ty: u8,
     pub code: u32,

@@ -6,6 +6,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct DerefOf<A: Allocator> {
     pub obj_ref: TermArg<A>,
 }

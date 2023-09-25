@@ -8,6 +8,7 @@ use parser::{
 
 use super::ArgObj;
 
+#[derive(Debug)]
 pub struct Return<A: Allocator> {
     pub arg: ArgObj<A>,
 }

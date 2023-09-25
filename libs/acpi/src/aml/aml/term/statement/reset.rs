@@ -8,6 +8,7 @@ use parser::{
 
 use super::EventObj;
 
+#[derive(Debug)]
 pub struct Reset<A: Allocator> {
     pub event: EventObj<A>,
 }

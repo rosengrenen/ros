@@ -6,6 +6,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct SizeOf<A: Allocator> {
     pub name: SuperName<A>,
 }

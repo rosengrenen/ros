@@ -13,7 +13,9 @@ use parser::{
     parser::Parser,
     primitive::rest::rest,
 };
+use std::fmt::Debug;
 
+#[derive(Debug)]
 pub enum NameSpaceModObj<A: Allocator> {
     DefAlias(DefAlias<A>),
     DefName(DefName<A>),
@@ -37,6 +39,7 @@ impl<A: Allocator + Clone> NameSpaceModObj<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefAlias<A: Allocator> {
     pub source: NameString<A>,
     pub alias: NameString<A>,
@@ -55,6 +58,7 @@ impl<A: Allocator + Clone> DefAlias<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefName<A: Allocator> {
     pub name: NameString<A>,
     pub data: DataRefObj<A>,
@@ -73,6 +77,7 @@ impl<A: Allocator + Clone> DefName<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct DefScope<A: Allocator> {
     pub name: NameString<A>,
     pub terms: Vec<TermObj<A>, A>,
@@ -87,7 +92,7 @@ impl<A: Allocator + Clone> DefScope<A> {
         // prefixed(scope_op, pkg((NameString::p, TermList::p)))
         prefixed(
             ScopeOp::p,
-            pkg((NameString::p, many_n(1, TermObj::p), rest())),
+            pkg((NameString::p, many_n(3, TermObj::p), rest())),
         )
         .map(|(name, terms, _)| Self { name, terms })
         .add_context("DefScope")

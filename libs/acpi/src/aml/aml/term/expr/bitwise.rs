@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub enum Bitwise<A: Allocator> {
     And(And<A>),
     NAnd(NAnd<A>),
@@ -45,6 +46,7 @@ impl<A: Allocator + Clone> Bitwise<A> {
 
 macro_rules! bitwise_binary_expr {
     ($name:ident, $op:ident) => {
+        #[derive(Debug)]
         pub struct $name<A: Allocator> {
             pub left: TermArg<A>,
             pub right: TermArg<A>,
@@ -76,6 +78,7 @@ bitwise_binary_expr!(NOr, NOrOp);
 bitwise_binary_expr!(Or, OrOp);
 bitwise_binary_expr!(XOr, XOrOp);
 
+#[derive(Debug)]
 pub struct Not<A: Allocator> {
     pub operand: TermArg<A>,
     pub target: Target<A>,
@@ -96,6 +99,7 @@ impl<A: Allocator + Clone> Not<A> {
 
 macro_rules! bitwise_shift_expr {
     ($name:ident, $op:ident) => {
+        #[derive(Debug)]
         pub struct $name<A: Allocator> {
             pub operand: TermArg<A>,
             pub shift_count: TermArg<A>,

@@ -1,11 +1,10 @@
-use crate::aml::{
-    ops::{DualNamePrefix, MultiNamePrefix, RootChar},
-    prefixed, Context,
-};
-
 use super::{
     misc::{ArgObj, DebugObj, LocalObj},
     term::expr::RefTypeOpcode,
+};
+use crate::aml::{
+    ops::{DualNamePrefix, MultiNamePrefix, RootChar},
+    prefixed, Context,
 };
 use alloc::{boxed::Box, vec::Vec};
 use core::alloc::Allocator;
@@ -19,6 +18,7 @@ use parser::{
         take::take_while1,
     },
 };
+use std::fmt::Debug;
 
 fn lead_name_char<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
@@ -62,7 +62,6 @@ fn root_char<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
         .parse(input, context, alloc)
 }
 
-#[derive(Debug)]
 pub struct NameSeg([u8; 4]);
 
 impl NameSeg {
@@ -78,20 +77,18 @@ impl NameSeg {
     }
 }
 
+impl Debug for NameSeg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("NameSeg")
+            .field(unsafe { &core::str::from_utf8_unchecked(&self.0) })
+            .finish()
+    }
+}
+
+#[derive(Debug)]
 pub enum NameString<A: Allocator> {
     Absolute(NamePath<A>),
     Relative(usize, NamePath<A>),
-}
-
-impl<A: Allocator> core::fmt::Debug for NameString<A> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Self::Absolute(arg0) => f.debug_tuple("Absolute").field(&arg0).finish(),
-            Self::Relative(arg0, arg1) => {
-                f.debug_tuple("Relative").field(&arg0).field(&arg1).finish()
-            }
-        }
-    }
 }
 
 impl<A: Allocator + Clone> NameString<A> {
@@ -130,22 +127,12 @@ impl PrefixPath {
     }
 }
 
+#[derive(Debug)]
 pub enum NamePath<A: Allocator> {
     NameSeg(NameSeg),
     DualName(DualNamePath),
     MultiName(MultiNamePath<A>),
     NullName(NullName),
-}
-
-impl<A: Allocator> core::fmt::Debug for NamePath<A> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Self::NameSeg(arg0) => f.debug_tuple("NameSeg").field(arg0).finish(),
-            Self::DualName(arg0) => f.debug_tuple("DualName").field(arg0).finish(),
-            Self::MultiName(arg0) => f.debug_tuple("MultiName").field(arg0).finish(),
-            Self::NullName(arg0) => f.debug_tuple("NullName").field(arg0).finish(),
-        }
-    }
 }
 
 impl<A: Allocator + Clone> NamePath<A> {
@@ -184,13 +171,8 @@ impl DualNamePath {
     }
 }
 
+#[derive(Debug)]
 pub struct MultiNamePath<A: Allocator>(Vec<NameSeg, A>);
-
-impl<A: Allocator> core::fmt::Debug for MultiNamePath<A> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_tuple("MultiNamePath").field(&self.0).finish()
-    }
-}
 
 impl<A: Allocator + Clone> MultiNamePath<A> {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
@@ -208,6 +190,7 @@ impl<A: Allocator + Clone> MultiNamePath<A> {
     }
 }
 
+#[derive(Debug)]
 pub enum SimpleName<A: Allocator> {
     NameString(NameString<A>),
     ArgObj(ArgObj),
@@ -231,6 +214,7 @@ impl<A: Allocator + Clone> SimpleName<A> {
     }
 }
 
+#[derive(Debug)]
 pub enum SuperName<A: Allocator> {
     SimpleName(SimpleName<A>),
     DebugObj(DebugObj),
@@ -271,6 +255,7 @@ impl NullName {
     }
 }
 
+#[derive(Debug)]
 pub enum Target<A: Allocator> {
     SuperName(SuperName<A>),
     NullName(NullName),

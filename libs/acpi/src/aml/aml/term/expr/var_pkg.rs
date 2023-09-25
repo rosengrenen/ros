@@ -9,6 +9,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct VarPkg<A: Allocator> {
     pub len: TermArg<A>,
     pub elements: Vec<PkgElement<A>, A>,

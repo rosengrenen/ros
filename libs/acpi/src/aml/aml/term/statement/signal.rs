@@ -8,6 +8,7 @@ use parser::{
 
 use super::EventObj;
 
+#[derive(Debug)]
 pub struct Signal<A: Allocator> {
     pub event: EventObj<A>,
 }

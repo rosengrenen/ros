@@ -6,6 +6,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct RefOf<A: Allocator> {
     pub name: SuperName<A>,
 }

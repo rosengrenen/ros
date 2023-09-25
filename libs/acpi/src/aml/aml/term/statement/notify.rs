@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct Notify<A: Allocator> {
     pub obj: SuperName<A>,
     pub value: TermArg<A>,

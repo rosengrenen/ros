@@ -18,10 +18,20 @@ pub fn pkg_length<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone
     context: &mut Context,
     alloc: A,
 ) -> ParseResult<I, usize, E> {
+    pkg_length_inner
+        .map(|(pkg_len, _)| pkg_len)
+        .parse(input, context, alloc)
+}
+
+fn pkg_length_inner<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
+    input: I,
+    context: &mut Context,
+    alloc: A,
+) -> ParseResult<I, (usize, usize), E> {
     let (input, lead_byte) = take_one().parse(input, context, alloc.clone())?;
     let extra_bytes = (lead_byte >> 6) as usize;
     if extra_bytes == 0 {
-        return Ok((input, lead_byte as usize - 1));
+        return Ok((input, (lead_byte as usize, 1)));
     }
 
     take(extra_bytes)
@@ -35,7 +45,7 @@ pub fn pkg_length<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone
                 pkg_length |= (b as usize) << (i * 8 + 4);
             }
 
-            Ok(pkg_length - 1 - extra_bytes.input_len())
+            Ok((pkg_length, 1 + extra_bytes.input_len()))
         })
         .add_context("pkg_length")
         .parse(input, context, alloc)
@@ -77,11 +87,11 @@ where
         context: &mut Context,
         alloc: A,
     ) -> ParseResult<I, Self::Output, Self::Error> {
-        let (input, pkg_len) =
-            pkg_length
+        let (input, (pkg_len, pkg_len_bytes_read)) =
+            pkg_length_inner
                 .add_context("pkg")
                 .parse(input, context, alloc.clone())?;
-        take(pkg_len)
+        take(pkg_len - pkg_len_bytes_read)
             .and_then((
                 self.parser,
                 fail().add_context("whole package was not read"),

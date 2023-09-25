@@ -12,6 +12,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct IfElse<A: Allocator> {
     pub predicate: TermArg<A>,
     pub terms: Vec<TermObj<A>, A>,
@@ -36,6 +37,7 @@ impl<A: Allocator + Clone> IfElse<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct Else<A: Allocator> {
     pub terms: Vec<TermObj<A>, A>,
 }

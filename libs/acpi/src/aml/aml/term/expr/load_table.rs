@@ -6,6 +6,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct LoadTable<A: Allocator> {
     pub arg1: TermArg<A>,
     pub arg2: TermArg<A>,

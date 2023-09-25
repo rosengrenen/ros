@@ -9,6 +9,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct Pkg<A: Allocator> {
     pub len: usize,
     pub elements: Vec<PkgElement<A>, A>,

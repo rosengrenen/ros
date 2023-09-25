@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct FindSetLeftBit<A: Allocator> {
     pub operand: TermArg<A>,
     pub target: Target<A>,

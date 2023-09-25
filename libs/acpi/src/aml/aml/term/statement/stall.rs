@@ -6,6 +6,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct Stall<A: Allocator> {
     pub us: TermArg<A>,
 }

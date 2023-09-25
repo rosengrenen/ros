@@ -11,6 +11,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub enum ObjType<A: Allocator> {
     SimpleName(SimpleName<A>),
     DebugObj(DebugObj),

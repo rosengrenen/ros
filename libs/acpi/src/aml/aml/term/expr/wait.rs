@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct Wait<A: Allocator> {
     pub event: EventObj<A>,
     pub operand: TermArg<A>,

@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct CondRefOf<A: Allocator> {
     pub name: SuperName<A>,
     pub target: Target<A>,

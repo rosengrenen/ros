@@ -16,11 +16,12 @@ use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},
     input::Input,
-    multi::many::many,
     parser::Parser,
     primitive::fail::fail,
 };
+use std::fmt::Debug;
 
+#[derive(Debug)]
 pub enum Obj<A: Allocator> {
     NameSpaceModObj(NameSpaceModObj<A>),
     NamedObj(NamedObj<A>),
@@ -42,6 +43,7 @@ impl<A: Allocator + Clone> Obj<A> {
     }
 }
 
+#[derive(Debug)]
 pub enum TermObj<A: Allocator> {
     Obj(Obj<A>),
     Statement(Statement<A>),
@@ -60,15 +62,12 @@ impl<A: Allocator + Clone> TermObj<A> {
             Expr::p.map(Self::Expr),
         )
             .alt()
-            .map(|a| {
-                println!("we got one!!!");
-                a
-            })
             .add_context("TermObj")
             .parse(input, context, alloc)
     }
 }
 
+#[derive(Debug)]
 pub enum TermArg<A: Allocator> {
     Expr(Box<Expr<A>, A>),
     DataObj(Box<DataObj<A>, A>),
@@ -96,6 +95,7 @@ impl<A: Allocator + Clone> TermArg<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct MethodInvocation<A: Allocator> {
     pub name: NameString<A>,
     pub args: Vec<TermArg<A>, A>,

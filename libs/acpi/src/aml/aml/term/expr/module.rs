@@ -10,6 +10,7 @@ use parser::{
     parser::Parser,
 };
 
+#[derive(Debug)]
 pub struct Mod<A: Allocator> {
     pub dividend: TermArg<A>,
     pub divisor: TermArg<A>,
