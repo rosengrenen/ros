@@ -3,7 +3,7 @@
 #![allow(unused_attributes)]
 #![allow(unused_variables)]
 
-use acpi::aml::{aml::term::TermObj, Context, LocatedInput, SimpleError, SimpleErrorKind};
+use acpi::aml::{aml::term::TermObj, Context, LocatedInput, SimpleError};
 use std::alloc::Global;
 
 fn main() {

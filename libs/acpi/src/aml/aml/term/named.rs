@@ -69,11 +69,11 @@ impl<A: Allocator + Clone> NamedObj<A> {
 }
 
 pub struct DefBankField<A: Allocator> {
-    name1: NameString<A>,
-    name2: NameString<A>,
-    bank_value: TermArg<A>,
-    field_flags: FieldFlags,
-    field_list: FieldList<A>,
+    pub name1: NameString<A>,
+    pub name2: NameString<A>,
+    pub bank_value: TermArg<A>,
+    pub field_flags: FieldFlags,
+    pub field_list: FieldList<A>,
 }
 
 impl<A: Allocator + Clone> DefBankField<A> {
@@ -166,8 +166,8 @@ impl ReservedField {
 }
 
 pub struct AccessField {
-    ty: AccessType,
-    attrib: AccessAttrib,
+    pub ty: AccessType,
+    pub attrib: AccessAttrib,
 }
 
 impl AccessField {
@@ -239,9 +239,9 @@ impl<A: Allocator + Clone> ConnectField<A> {
 }
 
 pub struct DefCreateBitField<A: Allocator> {
-    source_buf: TermArg<A>,
-    bit_index: TermArg<A>,
-    name: NameString<A>,
+    pub source_buf: TermArg<A>,
+    pub bit_index: TermArg<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> DefCreateBitField<A> {
@@ -264,9 +264,9 @@ impl<A: Allocator + Clone> DefCreateBitField<A> {
 }
 
 pub struct DefCreateByteField<A: Allocator> {
-    source_buf: TermArg<A>,
-    byte_index: TermArg<A>,
-    name: NameString<A>,
+    pub source_buf: TermArg<A>,
+    pub byte_index: TermArg<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> DefCreateByteField<A> {
@@ -292,9 +292,9 @@ impl<A: Allocator + Clone> DefCreateByteField<A> {
 }
 
 pub struct DefCreateDWordField<A: Allocator> {
-    source_buf: TermArg<A>,
-    byte_index: TermArg<A>,
-    name: NameString<A>,
+    pub source_buf: TermArg<A>,
+    pub byte_index: TermArg<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> DefCreateDWordField<A> {
@@ -320,10 +320,10 @@ impl<A: Allocator + Clone> DefCreateDWordField<A> {
 }
 
 pub struct DefCreateField<A: Allocator> {
-    source_buf: TermArg<A>,
-    bit_index: TermArg<A>,
-    num_bits: TermArg<A>,
-    name: NameString<A>,
+    pub source_buf: TermArg<A>,
+    pub bit_index: TermArg<A>,
+    pub num_bits: TermArg<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> DefCreateField<A> {
@@ -351,9 +351,9 @@ impl<A: Allocator + Clone> DefCreateField<A> {
 }
 
 pub struct DefCreateQWordField<A: Allocator> {
-    source_buf: TermArg<A>,
-    byte_index: TermArg<A>,
-    name: NameString<A>,
+    pub source_buf: TermArg<A>,
+    pub byte_index: TermArg<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> DefCreateQWordField<A> {
@@ -379,9 +379,9 @@ impl<A: Allocator + Clone> DefCreateQWordField<A> {
 }
 
 pub struct DefCreateWordField<A: Allocator> {
-    source_buf: TermArg<A>,
-    byte_index: TermArg<A>,
-    name: NameString<A>,
+    pub source_buf: TermArg<A>,
+    pub byte_index: TermArg<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> DefCreateWordField<A> {
@@ -407,10 +407,10 @@ impl<A: Allocator + Clone> DefCreateWordField<A> {
 }
 
 pub struct DefDataRegion<A: Allocator> {
-    name: NameString<A>,
-    term1: TermArg<A>,
-    term2: TermArg<A>,
-    term3: TermArg<A>,
+    pub name: NameString<A>,
+    pub term1: TermArg<A>,
+    pub term2: TermArg<A>,
+    pub term3: TermArg<A>,
 }
 
 impl<A: Allocator + Clone> DefDataRegion<A> {
@@ -435,8 +435,8 @@ impl<A: Allocator + Clone> DefDataRegion<A> {
 }
 
 pub struct DefDevice<A: Allocator> {
-    name: NameString<A>,
-    terms: TermList<A>,
+    pub name: NameString<A>,
+    pub terms: TermList<A>,
 }
 
 impl<A: Allocator + Clone> DefDevice<A> {
@@ -453,7 +453,7 @@ impl<A: Allocator + Clone> DefDevice<A> {
 }
 
 pub struct DefEvent<A: Allocator> {
-    name: NameString<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> DefEvent<A> {
@@ -470,9 +470,9 @@ impl<A: Allocator + Clone> DefEvent<A> {
 }
 
 pub struct DefExternal<A: Allocator> {
-    name: NameString<A>,
-    obj_type: u8,
-    argument_count: u8,
+    pub name: NameString<A>,
+    pub obj_type: u8,
+    pub argument_count: u8,
 }
 
 impl<A: Allocator + Clone> DefExternal<A> {
@@ -493,9 +493,9 @@ impl<A: Allocator + Clone> DefExternal<A> {
 }
 
 pub struct DefField<A: Allocator> {
-    name: NameString<A>,
-    flags: FieldFlags,
-    fields: FieldList<A>,
+    pub name: NameString<A>,
+    pub flags: FieldFlags,
+    pub fields: FieldList<A>,
 }
 
 impl<A: Allocator + Clone> DefField<A> {
@@ -521,10 +521,10 @@ impl<A: Allocator + Clone> DefField<A> {
 }
 
 pub struct DefIndexField<A: Allocator> {
-    name1: NameString<A>,
-    name2: NameString<A>,
-    flags: FieldFlags,
-    fields: FieldList<A>,
+    pub name1: NameString<A>,
+    pub name2: NameString<A>,
+    pub flags: FieldFlags,
+    pub fields: FieldList<A>,
 }
 
 impl<A: Allocator + Clone> DefIndexField<A> {
@@ -549,9 +549,9 @@ impl<A: Allocator + Clone> DefIndexField<A> {
 }
 
 pub struct DefMethod<A: Allocator> {
-    name: NameString<A>,
-    flags: MethodFlags,
-    terms: TermList<A>,
+    pub name: NameString<A>,
+    pub flags: MethodFlags,
+    pub terms: TermList<A>,
 }
 
 impl<A: Allocator + Clone> DefMethod<A> {
@@ -586,8 +586,8 @@ impl MethodFlags {
 }
 
 pub struct DefMutex<A: Allocator> {
-    name: NameString<A>,
-    flags: SyncFlags,
+    pub name: NameString<A>,
+    pub flags: SyncFlags,
 }
 
 impl<A: Allocator + Clone> DefMutex<A> {
@@ -619,10 +619,10 @@ impl SyncFlags {
 }
 
 pub struct DefOpRegion<A: Allocator> {
-    name: NameString<A>,
-    space: RegionSpace,
-    offset: TermArg<A>,
-    len: TermArg<A>,
+    pub name: NameString<A>,
+    pub space: RegionSpace,
+    pub offset: TermArg<A>,
+    pub len: TermArg<A>,
 }
 
 impl<A: Allocator + Clone> DefOpRegion<A> {
@@ -665,10 +665,10 @@ impl RegionSpace {
 }
 
 pub struct DefPowerRes<A: Allocator> {
-    name: NameString<A>,
-    system_level: u8,
-    resource_order: u16,
-    terms: TermList<A>,
+    pub name: NameString<A>,
+    pub system_level: u8,
+    pub resource_order: u16,
+    pub terms: TermList<A>,
 }
 
 impl<A: Allocator + Clone> DefPowerRes<A> {
@@ -712,6 +712,7 @@ fn resource_order<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone
         .parse(input, context, alloc)
 }
 
+#[allow(dead_code)]
 fn proc_id<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     context: &mut Context,
@@ -722,6 +723,7 @@ fn proc_id<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
         .parse(input, context, alloc)
 }
 
+#[allow(dead_code)]
 fn pblk_addr<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     context: &mut Context,
@@ -732,6 +734,7 @@ fn pblk_addr<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
         .parse(input, context, alloc)
 }
 
+#[allow(dead_code)]
 fn pblk_len<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     context: &mut Context,
@@ -743,8 +746,8 @@ fn pblk_len<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
 }
 
 pub struct DefThermalZone<A: Allocator> {
-    name: NameString<A>,
-    terms: TermList<A>,
+    pub name: NameString<A>,
+    pub terms: TermList<A>,
 }
 
 impl<A: Allocator + Clone> DefThermalZone<A> {
@@ -761,9 +764,9 @@ impl<A: Allocator + Clone> DefThermalZone<A> {
 }
 
 pub struct ExtendedAccessField {
-    ty: AccessType,
-    attrib: ExtendedAccessAttrib,
-    len: AccessLength,
+    pub ty: AccessType,
+    pub attrib: ExtendedAccessAttrib,
+    pub len: AccessLength,
 }
 
 impl ExtendedAccessField {

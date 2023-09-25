@@ -5,7 +5,7 @@ use crate::aml::{
 
 use super::{
     misc::{ArgObj, DebugObj, LocalObj},
-    term::opcodes::expr::RefTypeOpcode,
+    term::expr::RefTypeOpcode,
 };
 use alloc::{boxed::Box, vec::Vec};
 use core::alloc::Allocator;

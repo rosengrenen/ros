@@ -37,8 +37,8 @@ impl<A: Allocator + Clone> NameSpaceModObj<A> {
 }
 
 pub struct DefAlias<A: Allocator> {
-    source: NameString<A>,
-    alias: NameString<A>,
+    pub source: NameString<A>,
+    pub alias: NameString<A>,
 }
 
 impl<A: Allocator + Clone> DefAlias<A> {
@@ -55,8 +55,8 @@ impl<A: Allocator + Clone> DefAlias<A> {
 }
 
 pub struct DefName<A: Allocator> {
-    name: NameString<A>,
-    data: DataRefObj<A>,
+    pub name: NameString<A>,
+    pub data: DataRefObj<A>,
 }
 
 impl<A: Allocator + Clone> DefName<A> {
@@ -73,8 +73,8 @@ impl<A: Allocator + Clone> DefName<A> {
 }
 
 pub struct DefScope<A: Allocator> {
-    name: NameString<A>,
-    terms: TermList<A>,
+    pub name: NameString<A>,
+    pub terms: TermList<A>,
 }
 
 impl<A: Allocator + Clone> DefScope<A> {

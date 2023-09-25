@@ -109,10 +109,10 @@ ops! {
     0x79 => ShiftLeftOp
     0x7a => ShiftRightOp
     0x7b => AndOp
-    0x7c => NandOp
+    0x7c => NAndOp
     0x7d => OrOp
-    0x7e => NorOp
-    0x7f => XorOp
+    0x7e => NOrOp
+    0x7f => XOrOp
     0x80 => NotOp
     0x81 => FindSetLeftBitOp
     0x82 => FindSetRightBitOp

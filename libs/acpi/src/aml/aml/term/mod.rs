@@ -1,14 +1,11 @@
+pub mod expr;
 pub mod named;
 pub mod namespace;
-pub mod opcodes;
+pub mod statement;
 
 use crate::aml::Context;
 
-use self::{
-    named::NamedObj,
-    namespace::NameSpaceModObj,
-    opcodes::{expr::ExprOpcode, statement::StatementOpcode},
-};
+use self::{expr::Expr, named::NamedObj, namespace::NameSpaceModObj, statement::Statement};
 use super::{
     data::DataObj,
     misc::{ArgObj, LocalObj},
@@ -47,8 +44,8 @@ impl<A: Allocator + Clone> Obj<A> {
 
 pub enum TermObj<A: Allocator> {
     Obj(Obj<A>),
-    StatementOpcode(StatementOpcode<A>),
-    ExprOpcode(ExprOpcode<A>),
+    Statement(Statement<A>),
+    Expr(Expr<A>),
 }
 
 impl<A: Allocator + Clone> TermObj<A> {
@@ -59,8 +56,8 @@ impl<A: Allocator + Clone> TermObj<A> {
     ) -> ParseResult<I, Self, E> {
         (
             Obj::p.map(Self::Obj),
-            StatementOpcode::p.map(Self::StatementOpcode),
-            ExprOpcode::p.map(Self::ExprOpcode),
+            Statement::p.map(Self::Statement),
+            Expr::p.map(Self::Expr),
         )
             .alt()
             .map(|a| {
@@ -88,7 +85,7 @@ impl<A: Allocator + Clone> TermList<A> {
 }
 
 pub enum TermArg<A: Allocator> {
-    ExprOpcode(Box<ExprOpcode<A>, A>),
+    Expr(Box<Expr<A>, A>),
     DataObj(Box<DataObj<A>, A>),
     ArgObj(ArgObj),
     LocalObj(LocalObj),
@@ -106,7 +103,7 @@ impl<A: Allocator + Clone> TermArg<A> {
             ArgObj::p.map(Self::ArgObj),
             LocalObj::p.map(Self::LocalObj),
             DataObj::p.map(|d| Self::DataObj(Box::new(d, box_alloc2.clone()).unwrap())),
-            ExprOpcode::p.map(|e| Self::ExprOpcode(Box::new(e, box_alloc1.clone()).unwrap())),
+            Expr::p.map(|e| Self::Expr(Box::new(e, box_alloc1.clone()).unwrap())),
         )
             .alt()
             .add_context("TermArg")
@@ -115,8 +112,8 @@ impl<A: Allocator + Clone> TermArg<A> {
 }
 
 pub struct MethodInvocation<A: Allocator> {
-    name: NameString<A>,
-    args: TermArgList<A>,
+    pub name: NameString<A>,
+    pub args: TermArgList<A>,
 }
 
 impl<A: Allocator + Clone> MethodInvocation<A> {

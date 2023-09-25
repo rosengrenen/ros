@@ -1,4 +1,3 @@
-use super::term::opcodes::expr::{DefBuffer, DefPkg, DefVarPkg};
 use crate::aml::{
     ops::{
         BytePrefix, DWordPrefix, OneOp, OnesOp, QWordPrefix, RevisionOp, StringPrefix, WordPrefix,
@@ -13,11 +12,10 @@ use parser::{
     input::Input,
     multi::many::many,
     parser::Parser,
-    primitive::{
-        fail::fail,
-        item::{item, satisfy, take_one},
-    },
+    primitive::item::{item, satisfy, take_one},
 };
+
+use super::term::expr::{buffer::Buffer, pkg::Pkg, var_pkg::VarPkg};
 
 pub enum ComputationalData<A: Allocator> {
     ByteConst(ByteConst),
@@ -27,7 +25,7 @@ pub enum ComputationalData<A: Allocator> {
     String(String<A>),
     ConstObj(ConstObj),
     RevisionOp(RevisionOp),
-    DefBuffer(DefBuffer<A>),
+    Buffer(Buffer<A>),
 }
 
 impl<A: Allocator + Clone> ComputationalData<A> {
@@ -44,7 +42,7 @@ impl<A: Allocator + Clone> ComputationalData<A> {
             String::p.map(Self::String),
             ConstObj::p.map(Self::ConstObj),
             RevisionOp::p.map(Self::RevisionOp),
-            DefBuffer::p.map(Self::DefBuffer),
+            Buffer::p.map(Self::Buffer),
         )
             .alt()
             .add_context("ComputationalData")
@@ -54,8 +52,8 @@ impl<A: Allocator + Clone> ComputationalData<A> {
 
 pub enum DataObj<A: Allocator> {
     ComputationalData(ComputationalData<A>),
-    DefPkg(DefPkg<A>),
-    DefVarPkg(DefVarPkg<A>),
+    Pkg(Pkg<A>),
+    VarPkg(VarPkg<A>),
 }
 
 impl<A: Allocator + Clone> DataObj<A> {
@@ -66,8 +64,8 @@ impl<A: Allocator + Clone> DataObj<A> {
     ) -> ParseResult<I, Self, E> {
         (
             ComputationalData::p.map(Self::ComputationalData),
-            DefPkg::p.map(Self::DefPkg),
-            DefVarPkg::p.map(Self::DefVarPkg),
+            Pkg::p.map(Self::Pkg),
+            VarPkg::p.map(Self::VarPkg),
         )
             .alt()
             .add_context("DataObj")
