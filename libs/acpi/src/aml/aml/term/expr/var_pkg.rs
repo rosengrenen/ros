@@ -1,5 +1,5 @@
 use super::PkgElement;
-use crate::aml::{aml::term::TermArg, ops::VarPkgOp, pkg, prefixed, Context};
+use crate::aml::{aml::term::term_arg::TermArg, ops::VarPkgOp, pkg, prefixed, Context};
 use alloc::vec::Vec;
 use core::alloc::Allocator;
 use parser::{

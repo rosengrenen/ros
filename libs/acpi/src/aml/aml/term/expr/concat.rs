@@ -1,8 +1,4 @@
-use crate::aml::{
-    aml::{name::Target, term::TermArg},
-    ops::ConcatOp,
-    prefixed, Context,
-};
+use crate::aml::{aml::{name::Target, term::term_arg::TermArg}, ops::ConcatOp, prefixed, Context};
 use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},

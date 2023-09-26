@@ -1,5 +1,5 @@
 use crate::aml::{
-    aml::{data::byte_data, term::TermArg},
+    aml::{data::integer::byte_data, term::term_arg::TermArg},
     ops::MatchOp,
     prefixed, Context,
 };

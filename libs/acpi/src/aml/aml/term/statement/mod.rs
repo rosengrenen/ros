@@ -30,7 +30,7 @@ use self::{
     wheel::While,
 };
 use crate::aml::{
-    aml::{name::SuperName, term::TermArg},
+    aml::{name::SuperName, term::term_arg::TermArg},
     Context,
 };
 use alloc::boxed::Box;

@@ -1,5 +1,5 @@
-use super::TermArg;
 use crate::aml::{
+    aml::term::term_arg::TermArg,
     ops::{
         LAndOp, LEqualOp, LGreaterEqualOp, LGreaterOp, LLessEqualOp, LLessOp, LNotEqualOp, LNotOp,
         LOrOp,

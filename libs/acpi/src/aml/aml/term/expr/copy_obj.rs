@@ -1,5 +1,5 @@
 use crate::aml::{
-    aml::{name::SimpleName, term::TermArg},
+    aml::{name::SimpleName, term::term_arg::TermArg},
     ops::CopyObjOp,
     prefixed, Context,
 };

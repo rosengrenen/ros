@@ -1,5 +1,5 @@
 use crate::aml::{
-    aml::term::{TermArg, TermObj},
+    aml::term::{term_arg::TermArg, term_obj::TermObj},
     ops::WhileOp,
     pkg, prefixed, Context,
 };

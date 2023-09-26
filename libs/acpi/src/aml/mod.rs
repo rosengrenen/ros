@@ -1,7 +1,7 @@
 pub mod aml;
 pub mod ops;
 
-use alloc::vec::Vec;
+use alloc::{iter::IteratorCollectIn, vec::Vec};
 use parser::{
     error::{FromExternalError, ParseError, ParseErrorKind, ParseResult},
     input::Input,
@@ -92,13 +92,21 @@ where
                 .add_context("pkg")
                 .parse(input, context, alloc.clone())?;
         take(pkg_len - pkg_len_bytes_read)
+            .map(|bytes: I| {
+                let vec = bytes
+                    .item_iter()
+                    .collect_in::<Vec<_, _>, _>(alloc.clone())
+                    .unwrap();
+                println!("pkg {:x?}", vec);
+                bytes
+            })
             .and_then((
                 self.parser,
                 fail().add_context("whole package was not read"),
             ))
             .map(|(output, _)| output)
             .add_context("pkg")
-            .parse(input, context, alloc)
+            .parse(input, context, alloc.clone())
     }
 }
 

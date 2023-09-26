@@ -3,6 +3,7 @@ use crate::{
     combinator::{
         add_context::AddContext,
         and_then::AndThen,
+        boxed::Boxed,
         cut::Cut,
         map::Map,
         map_res::{MapRes, MapRes1},
@@ -28,19 +29,19 @@ where
         alloc: A,
     ) -> ParseResult<I, Self::Output, Self::Error>;
 
-    fn map<F, O2>(self, f: F) -> Map<Self, F>
+    fn map<F, O>(self, f: F) -> Map<Self, F>
     where
         Self: Sized,
-        F: Fn(Self::Output) -> O2 + Clone,
+        F: Fn(Self::Output) -> O + Clone,
     {
         Map { parser: self, f }
     }
 
-    fn map_res<O2, E2, F>(self, f: F) -> MapRes<Self, F, E2>
+    fn map_res<O, E, F>(self, f: F) -> MapRes<Self, F, E>
     where
         Self: Sized,
-        Self::Error: FromExternalError<I, E2, A>,
-        F: Fn(Self::Output) -> Result<O2, E2> + Clone,
+        Self::Error: FromExternalError<I, E, A>,
+        F: Fn(Self::Output) -> Result<O, E> + Clone,
         A: Clone,
     {
         MapRes {
@@ -50,10 +51,10 @@ where
         }
     }
 
-    fn map_res1<O2, E2, F>(self, f: F) -> MapRes1<Self, F, Self::Error>
+    fn map_res1<O, E, F>(self, f: F) -> MapRes1<Self, F, Self::Error>
     where
         Self: Sized,
-        F: Fn(Self::Output) -> Result<O2, E2> + Clone,
+        F: Fn(Self::Output) -> Result<O, E> + Clone,
         A: Clone,
     {
         MapRes1 {
@@ -72,6 +73,13 @@ where
             first: self,
             second: parser,
         }
+    }
+
+    fn boxed(self) -> Boxed<Self>
+    where
+        Self: Sized,
+    {
+        Boxed { parser: self }
     }
 
     fn or<P>(self, parser: P) -> Or<Self, P>

@@ -1,5 +1,5 @@
 use crate::aml::{
-    aml::{data::byte_data, term::statement::MutexObj},
+    aml::{data::integer::byte_data, term::statement::MutexObj},
     ops::AcquireOp,
     prefixed, Context,
 };

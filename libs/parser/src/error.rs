@@ -40,6 +40,7 @@ pub enum ParseErrorKind {
     Unknown,
     Alt,
     AndThen,
+    MapBoxed,
     Cut,
     MapRes,
     MapRes1,

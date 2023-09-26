@@ -1,5 +1,5 @@
 use super::PkgElement;
-use crate::aml::{aml::data::byte_data, ops::PkgOp, pkg, prefixed, Context};
+use crate::aml::{aml::data::integer::byte_data, ops::PkgOp, pkg, prefixed, Context};
 use alloc::vec::Vec;
 use core::alloc::Allocator;
 use parser::{

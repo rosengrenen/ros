@@ -3,7 +3,9 @@
 #![allow(unused_attributes)]
 #![allow(unused_variables)]
 
-use acpi::aml::{aml::term::TermObj, Context, LocatedInput, SimpleError};
+use acpi::aml::{
+    aml::term::term_obj::TermObj, Context, LocatedInput, SimpleError, SimpleErrorKind,
+};
 use std::alloc::Global;
 
 fn main() {
@@ -18,7 +20,7 @@ fn main() {
             parser::error::ParserError::Failure(e) => {
                 for e in &e.errors {
                     match e.1 {
-                        _ => {
+                        SimpleErrorKind::Context(_) => {
                             println!(
                                 "{:x?} {:?} {:?}",
                                 &e.0.inner[0..16usize.min(e.0.inner.len())],
@@ -26,6 +28,7 @@ fn main() {
                                 e.1
                             )
                         }
+                        _ => (),
                     }
                 }
             }

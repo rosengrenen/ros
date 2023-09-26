@@ -1,4 +1,4 @@
-use crate::aml::{aml::term::TermArg, ops::SleepOp, prefixed, Context};
+use crate::aml::{aml::term::term_arg::TermArg, ops::SleepOp, prefixed, Context};
 use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},

@@ -1,5 +1,5 @@
 use crate::aml::{
-    aml::term::{statement::EventObj, TermArg},
+    aml::term::{statement::EventObj, term_arg::TermArg},
     ops::WaitOp,
     prefixed, Context,
 };

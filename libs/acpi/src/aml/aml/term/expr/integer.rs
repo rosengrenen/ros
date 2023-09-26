@@ -1,7 +1,7 @@
 use crate::aml::{
     aml::{
         name::{SuperName, Target},
-        term::TermArg,
+        term::term_arg::TermArg,
     },
     ops::{AddOp, DecrementOp, DivideOp, IncrementOp, MultiplyOp, SubtractOp},
     prefixed, Context,

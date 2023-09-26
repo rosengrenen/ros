@@ -1,5 +1,5 @@
 use crate::aml::{
-    aml::{name::Target, term::TermArg},
+    aml::{name::Target, term::term_arg::TermArg},
     ops::ConcatResOp,
     prefixed, Context,
 };

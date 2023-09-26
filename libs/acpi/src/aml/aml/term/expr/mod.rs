@@ -33,9 +33,9 @@ use self::{
     module::Mod, obj_type::ObjType, pkg::Pkg, ref_of::RefOf, size_of::SizeOf, store::Store,
     timer::Timer, var_pkg::VarPkg, wait::Wait,
 };
-use super::TermArg;
+use super::call::MethodInvocation;
 use crate::aml::{
-    aml::{data::DataRefObj, name::NameString, term::MethodInvocation},
+    aml::{data::DataRefObj, name::NameString},
     Context,
 };
 use core::alloc::Allocator;

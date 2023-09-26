@@ -1,7 +1,7 @@
 use crate::aml::{
     aml::{
-        data::{byte_data, dword_data},
-        term::TermArg,
+        data::integer::{byte_data, dword_data},
+        term::term_arg::TermArg,
     },
     ops::FatalOp,
     prefixed, Context,

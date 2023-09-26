@@ -1,5 +1,5 @@
 use crate::aml::{
-    aml::{name::SuperName, term::TermArg},
+    aml::{name::SuperName, term::term_arg::TermArg},
     ops::NotifyOp,
     prefixed, Context,
 };
