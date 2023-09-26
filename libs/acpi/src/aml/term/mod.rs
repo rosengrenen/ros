@@ -35,12 +35,22 @@ parser_enum_alloc!(
     }
 );
 
-#[derive(Debug)]
 pub enum TermArg<A: Allocator> {
     Expr(Box<Expr<A>, A>),
     DataObj(Box<DataObj<A>, A>),
     ArgObj(ArgObj),
     LocalObj(LocalObj),
+}
+
+impl<A: Allocator> core::fmt::Debug for TermArg<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Expr(inner) => f.debug_tuple("Expr").field(inner).finish(),
+            Self::DataObj(inner) => f.debug_tuple("DataObj").field(inner).finish(),
+            Self::ArgObj(inner) => f.debug_tuple("ArgObj").field(inner).finish(),
+            Self::LocalObj(inner) => f.debug_tuple("LocalObj").field(inner).finish(),
+        }
+    }
 }
 
 impl<A: Allocator + Clone> TermArg<A> {
@@ -56,8 +66,17 @@ impl<A: Allocator + Clone> TermArg<A> {
             Expr::p.boxed().map(Self::Expr),
         )
             .alt()
+            .map(|a| {
+                println!(
+                    "{:width$} matched {:x?}",
+                    "TermArg",
+                    input.clone(),
+                    width = 20
+                );
+                a
+            })
             .add_context("TermArg")
-            .parse(input, context, alloc)
+            .parse(input.clone(), context, alloc)
     }
 }
 

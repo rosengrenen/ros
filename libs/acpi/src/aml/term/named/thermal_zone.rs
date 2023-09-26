@@ -9,8 +9,5 @@ parser_struct_alloc!(
         name: NameString<A>,
         terms: Vec<TermObj<A>, A>,
     },
-    prefixed(
-        ThermalZoneOp::p,
-        pkg((NameString::p, many(TermObj::p)))
-    )
+    prefixed(ThermalZoneOp::p, pkg((NameString::p, many(TermObj::p))))
 );

@@ -81,11 +81,13 @@ where
             pkg_length_inner
                 .add_context("pkg")
                 .parse(input, context, alloc.clone())?;
-        let (rest, output) = take(pkg_len - pkg_len_bytes_read)
-            .and_then((
-                self.parser,
-                fail().add_context("whole package was not read"),
-            ))
+        let (rest, input) =
+            take(pkg_len - pkg_len_bytes_read).parse(input, context, alloc.clone())?;
+        println!("rest {:x?}", rest);
+        let (_, output) = (
+            self.parser,
+            fail().add_context("whole package was not read"),
+        )
             .map(|(output, _)| output)
             .add_context("pkg")
             .parse(input, context, alloc.clone())?;

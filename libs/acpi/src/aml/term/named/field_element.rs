@@ -31,10 +31,17 @@ parser_struct!(
     prefixed(item(0x01), (byte_data, byte_data))
 );
 
-#[derive(Debug)]
 pub enum ConnectField<A: Allocator> {
     NameString(NameString<A>),
     // BufferData(BufferData),
+}
+
+impl<A: Allocator> core::fmt::Debug for ConnectField<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NameString(inner) => f.debug_tuple("NameString").field(inner).finish(),
+        }
+    }
 }
 
 impl<A: Allocator + Clone> ConnectField<A> {

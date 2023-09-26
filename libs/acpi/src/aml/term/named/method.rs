@@ -11,8 +11,10 @@ parser_struct_alloc!(
         flags: u8,
         terms: Vec<TermObj<A>, A>,
     },
-    prefixed(
-        MethodOp::p,
-        pkg((NameString::p, byte_data, many(TermObj::p))),
-    )
+    {
+        prefixed(
+            MethodOp::p,
+            pkg((NameString::p, byte_data, many(TermObj::p))),
+        )
+    }
 );

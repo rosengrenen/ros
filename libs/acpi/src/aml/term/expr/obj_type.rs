@@ -7,13 +7,24 @@ use parser::{
     parser::Parser,
 };
 
-#[derive(Debug)]
 pub enum ObjType<A: Allocator> {
     SimpleName(SimpleName<A>),
     DebugObj(DebugObj),
     RefOf(RefOf<A>),
     DerefOf(DerefOf<A>),
     Index(Index<A>),
+}
+
+impl<A: Allocator> core::fmt::Debug for ObjType<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SimpleName(inner) => f.debug_tuple("SimpleName").field(inner).finish(),
+            Self::DebugObj(inner) => f.debug_tuple("DebugObj").field(inner).finish(),
+            Self::RefOf(inner) => f.debug_tuple("RefOf").field(inner).finish(),
+            Self::DerefOf(inner) => f.debug_tuple("DerefOf").field(inner).finish(),
+            Self::Index(inner) => f.debug_tuple("Index").field(inner).finish(),
+        }
+    }
 }
 
 impl<A: Allocator + Clone> ObjType<A> {

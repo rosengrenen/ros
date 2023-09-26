@@ -1,10 +1,19 @@
 macro_rules! parser_struct_alloc {
     (struct $name:ident { $($field:ident: $ty:ty),+, }, $parser:expr) => {
-        #[derive(Debug)]
         pub struct $name<A: core::alloc::Allocator> {
             $(
                 pub $field: $ty,
             )+
+        }
+
+        impl<A: core::alloc::Allocator> core::fmt::Debug for $name<A> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.debug_struct(stringify!($name))
+                    $(
+                        .field(stringify!($field), &self.$field)
+                    )+
+                    .finish()
+            }
         }
 
         impl<A: core::alloc::Allocator + Clone> $name<A> {
@@ -21,8 +30,13 @@ macro_rules! parser_struct_alloc {
                             $field,
                         )+
                     })
+                .map(|a| {
+                    let name = stringify!($name);
+                    println!("{:width$} matched {:x?}, {:x?}", name, input.clone(), a, width = 20);
+                    a
+                })
                     .add_context(stringify!($name))
-                    .parse(input, context, alloc)
+                    .parse(input.clone(), context, alloc)
             }
         }
     };
@@ -50,8 +64,13 @@ macro_rules! parser_struct {
                             $field,
                         )+
                     })
+                .map(|a| {
+                    let name = stringify!($name);
+                    println!("{:width$} matched {:x?}, {:x?}", name, input.clone(), a, width = 20);
+                    a
+                })
                     .add_context(stringify!($name))
-                    .parse(input, context, alloc)
+                    .parse(input.clone(), context, alloc)
             }
         }
     };
@@ -59,8 +78,13 @@ macro_rules! parser_struct {
 
 macro_rules! parser_struct_wrapper_alloc {
     (struct $name:ident($ty:ty);, $parser:expr) => {
-        #[derive(Debug)]
         pub struct $name<A: core::alloc::Allocator>($ty);
+
+        impl<A: core::alloc::Allocator> core::fmt::Debug for $name<A> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.debug_tuple(stringify!($name)).field(&self.0).finish()
+            }
+        }
 
         impl<A: core::alloc::Allocator + Clone> $name<A> {
             pub fn p<I: parser::input::Input<Item = u8>, E: parser::error::ParseError<I, A>>(
@@ -71,8 +95,19 @@ macro_rules! parser_struct_wrapper_alloc {
                 use parser::parser::Parser;
                 $parser
                     .map(Self)
+                    .map(|a| {
+                        let name = stringify!($name);
+                        println!(
+                            "{:width$} matched {:x?}, {:x?}",
+                            name,
+                            input.clone(),
+                            a,
+                            width = 20
+                        );
+                        a
+                    })
                     .add_context(stringify!($name))
-                    .parse(input, context, alloc)
+                    .parse(input.clone(), context, alloc)
             }
         }
     };
@@ -96,8 +131,19 @@ macro_rules! parser_struct_wrapper {
                 use parser::parser::Parser;
                 $parser
                     .map(Self)
+                    .map(|a| {
+                        let name = stringify!($name);
+                        println!(
+                            "{:width$} matched {:x?}, {:x?}",
+                            name,
+                            input.clone(),
+                            a,
+                            width = 20
+                        );
+                        a
+                    })
                     .add_context(stringify!($name))
-                    .parse(input, context, alloc)
+                    .parse(input.clone(), context, alloc)
             }
         }
     };
@@ -121,8 +167,19 @@ macro_rules! parser_struct_empty {
                 use parser::parser::Parser;
                 $parser
                     .map(|_| Self)
+                    .map(|a| {
+                        let name = stringify!($name);
+                        println!(
+                            "{:width$} matched {:x?}, {:x?}",
+                            name,
+                            input.clone(),
+                            a,
+                            width = 20
+                        );
+                        a
+                    })
                     .add_context(stringify!($name))
-                    .parse(input, context, alloc)
+                    .parse(input.clone(), context, alloc)
             }
         }
     };
@@ -130,11 +187,20 @@ macro_rules! parser_struct_empty {
 
 macro_rules! parser_enum_alloc {
     (enum $name:ident { $($variant:ident($ty:ty)),+, }) => {
-        #[derive(Debug)]
         pub enum $name<A: core::alloc::Allocator> {
             $(
                 $variant($ty)
             ),+
+        }
+
+        impl<A: core::alloc::Allocator> core::fmt::Debug for $name<A> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    $(
+                      Self::$variant(inner) => f.debug_tuple(stringify!($variant)).field(&inner).finish(),
+                    )+
+                }
+            }
         }
 
         impl<A: core::alloc::Allocator + Clone> $name<A> {
@@ -150,8 +216,13 @@ macro_rules! parser_enum_alloc {
                     )+
                 )
                     .alt()
+                .map(|a| {
+                    let name = stringify!($name);
+                    println!("{:width$} matched {:x?}, {:x?}", name, input.clone(), a, width = 20);
+                    a
+                })
                     .add_context(stringify!($name))
-                    .parse(input, context, alloc)
+                    .parse(input.clone(), context, alloc)
             }
         }
     };
@@ -179,8 +250,13 @@ macro_rules! parser_enum {
                     )+
                 )
                     .alt()
+                .map(|a| {
+                    let name = stringify!($name);
+                    println!("{:width$} matched {:x?}, {:x?}", name, input.clone(), a, width = 20);
+                    a
+                })
                     .add_context(stringify!($name))
-                    .parse(input, context, alloc)
+                    .parse(input.clone(), context, alloc)
             }
         }
     };
@@ -199,8 +275,19 @@ macro_rules! parser_fn {
         ) -> parser::error::ParseResult<I, $ret, E> {
             use parser::parser::Parser;
             $parser
+                .map(|a| {
+                    let name = stringify!($name);
+                    println!(
+                        "{:width$} matched {:x?}, {:x?}",
+                        name,
+                        input.clone(),
+                        a,
+                        width = 20
+                    );
+                    a
+                })
                 .add_context(stringify!($name))
-                .parse(input, context, alloc)
+                .parse(input.clone(), context, alloc)
         }
     };
 }

@@ -13,9 +13,10 @@ use parser::{
     parser::Parser,
     primitive::{
         item::{item, satisfy, take_one},
-        take::take_while,
+        take::take_while1,
     },
 };
+use std::fmt::Formatter;
 use std::{
     alloc::Allocator,
     fmt::{Debug, Display},
@@ -50,10 +51,20 @@ impl Display for NameSeg {
     }
 }
 
-#[derive(Debug)]
 pub enum NameString<A: Allocator> {
     Absolute(NamePath<A>),
     Relative(usize, NamePath<A>),
+}
+
+impl<A: Allocator> core::fmt::Debug for NameString<A> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Absolute(name) => f.debug_tuple("Absolute").field(&name).finish(),
+            Self::Relative(count, name) => {
+                f.debug_tuple("Relative").field(count).field(&name).finish()
+            }
+        }
+    }
 }
 
 impl<A: Allocator + Clone> NameString<A> {
@@ -66,6 +77,7 @@ impl<A: Allocator + Clone> NameString<A> {
             prefixed(RootChar::p, NamePath::p).map(Self::Absolute),
             (PrefixPath::p, NamePath::p.cut())
                 .map(|(prefix_path, name_path)| Self::Relative(prefix_path.0, name_path)),
+            (NamePath::p).map(|name_path| Self::Relative(0, name_path)),
         )
             .alt()
             .add_context("NameString")
@@ -75,7 +87,7 @@ impl<A: Allocator + Clone> NameString<A> {
 
 parser_struct_wrapper!(
     struct PrefixPath(usize);,
-    take_while::<_, E, _, _, _>(|b| b == 0x5e).map(|value| value.input_len())
+    take_while1::<_, E, _, _, _>(|b| b == 0x5e).map(|value| value.input_len())
 );
 
 parser_enum_alloc!(
@@ -95,8 +107,13 @@ parser_struct!(
     prefixed(DualNamePrefix::p, (NameSeg::p, NameSeg::p),)
 );
 
-#[derive(Debug)]
 pub struct MultiNamePath<A: Allocator>(Vec<NameSeg, A>);
+
+impl<A: Allocator> core::fmt::Debug for MultiNamePath<A> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("MultiNamePath").field(&self.0).finish()
+    }
+}
 
 impl<A: Allocator + Clone> MultiNamePath<A> {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
@@ -116,17 +133,26 @@ impl<A: Allocator + Clone> MultiNamePath<A> {
 
 parser_enum_alloc!(
     enum SimpleName {
-        NameString(NameString<A>),
         ArgObj(ArgObj),
         LocalObj(LocalObj),
+        NameString(NameString<A>),
     }
 );
 
-#[derive(Debug)]
 pub enum SuperName<A: Allocator> {
     SimpleName(SimpleName<A>),
     DebugObj(DebugObj),
     RefTypeOpcode(Box<RefTypeOpcode<A>, A>),
+}
+
+impl<A: Allocator> core::fmt::Debug for SuperName<A> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SimpleName(inner) => f.debug_tuple("SimpleName").field(&inner).finish(),
+            Self::DebugObj(inner) => f.debug_tuple("DebugObj").field(&inner).finish(),
+            Self::RefTypeOpcode(inner) => f.debug_tuple("RefTypeOpcode").field(&inner).finish(),
+        }
+    }
 }
 
 impl<A: Allocator + Clone> SuperName<A> {

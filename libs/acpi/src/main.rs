@@ -14,7 +14,7 @@ use acpi::aml::{
 
 fn main() {
     let aml = include_bytes!("../dsdt.aml");
-    let aml = LocatedInput::new(&aml[36..]);
+    let aml = LocatedInput::new(aml.as_slice());
     let mut context = Context {};
     let res = TermObj::p::<_, SimpleError<LocatedInput<&[u8]>, Global>>(aml, &mut context, Global);
     match res {
