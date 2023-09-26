@@ -17,9 +17,11 @@ use self::{
     bank_field::BankField,
     create_field::{CreateConstField, CreateField},
     data_region::DataRegion,
+    device::Device,
     external::External,
     field::Field,
     method::Method,
+    mutex::Mutex,
     op_region::OpRegion,
     power_res::PowerRes,
     thermal_zone::ThermalZone,
@@ -39,5 +41,8 @@ parser_enum_alloc!(
         Field(Field<A>),
         // Not in spec, but should probably be here, see: https://forum.osdev.org/viewtopic.php?f=1t=33186
         Method(Method<A>),
+        // More that aren't included
+        Device(Device<A>),
+        Mutex(Mutex<A>),
     }
 );

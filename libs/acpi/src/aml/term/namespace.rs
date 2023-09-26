@@ -7,7 +7,7 @@ use crate::aml::{
     prefixed::prefixed,
 };
 use alloc::vec::Vec;
-use parser::{multi::many::many_n, primitive::rest::rest};
+use parser::multi::many::many;
 
 parser_enum_alloc!(
     enum NameSpaceModObj {
@@ -38,8 +38,5 @@ parser_struct_alloc!(
         name: NameString<A>,
         terms: Vec<TermObj<A>, A>,
     },
-    prefixed(
-        ScopeOp::p,
-        pkg((NameString::p, many_n(3, TermObj::p), rest())).map(|(name, terms, _)| (name, terms)),
-    )
+    prefixed(ScopeOp::p, pkg((NameString::p, many(TermObj::p))))
 );

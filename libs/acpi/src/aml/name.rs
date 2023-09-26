@@ -40,10 +40,33 @@ parser_fn!(
     }
 );
 
-parser_struct_wrapper!(
-    struct NameSeg([u8; 4]);,
-    (lead_name_char, name_char, name_char, name_char).map(|(lead, c1, c2, c3)| [lead, c1, c2, c3])
-);
+pub struct NameSeg([u8; 4]);
+
+impl core::fmt::Debug for NameSeg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("NameSeg")
+            .field(unsafe { &core::str::from_utf8_unchecked(&self.0) })
+            .finish()
+    }
+}
+
+impl NameSeg {
+    pub fn p<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
+        input: I,
+        context: &mut Context,
+        alloc: A,
+    ) -> ParseResult<I, Self, E> {
+        (lead_name_char, name_char, name_char, name_char)
+            .map(|(lead, c1, c2, c3)| Self([lead, c1, c2, c3]))
+            .add_context("NameSeg")
+            .parse(input, context, alloc)
+    }
+}
+
+// parser_struct_wrapper!(
+//     struct NameSeg([u8; 4]);,
+//     (lead_name_char, name_char, name_char, name_char).map(|(lead, c1, c2, c3)| [lead, c1, c2, c3])
+// );
 
 impl Display for NameSeg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

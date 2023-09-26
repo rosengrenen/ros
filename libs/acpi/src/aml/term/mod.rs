@@ -25,7 +25,7 @@ parser_struct_alloc!(
         name: NameString<A>,
         args: Vec<TermArg<A>, A>,
     },
-    (fail(), NameString::p, many(TermArg::p)).map(|(_, name, args)| (name, args))
+    (NameString::p, fail(), many(TermArg::p)).map(|(name, _, args)| (name, args))
 );
 
 parser_enum_alloc!(
@@ -36,19 +36,21 @@ parser_enum_alloc!(
 );
 
 pub enum TermArg<A: Allocator> {
-    Expr(Box<Expr<A>, A>),
-    DataObj(Box<DataObj<A>, A>),
     ArgObj(ArgObj),
     LocalObj(LocalObj),
+    // In ASL, but not AML... moved to MethodInvocation
+    // NameString(NameString<A>),
+    DataObj(Box<DataObj<A>, A>),
+    Expr(Box<Expr<A>, A>),
 }
 
 impl<A: Allocator> core::fmt::Debug for TermArg<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Expr(inner) => f.debug_tuple("Expr").field(inner).finish(),
-            Self::DataObj(inner) => f.debug_tuple("DataObj").field(inner).finish(),
             Self::ArgObj(inner) => f.debug_tuple("ArgObj").field(inner).finish(),
             Self::LocalObj(inner) => f.debug_tuple("LocalObj").field(inner).finish(),
+            Self::DataObj(inner) => f.debug_tuple("DataObj").field(inner).finish(),
+            Self::Expr(inner) => f.debug_tuple("Expr").field(inner).finish(),
         }
     }
 }

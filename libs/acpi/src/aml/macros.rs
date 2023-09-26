@@ -32,7 +32,7 @@ macro_rules! parser_struct_alloc {
                     })
                 .map(|a| {
                     let name = stringify!($name);
-                    println!("{:width$} matched {:x?}, {:x?}", name, input.clone(), a, width = 20);
+                    println!("{:width$} matched {:x?}, {:x?}", name,a, input.clone(), width = 20);
                     a
                 })
                     .add_context(stringify!($name))
@@ -66,7 +66,7 @@ macro_rules! parser_struct {
                     })
                 .map(|a| {
                     let name = stringify!($name);
-                    println!("{:width$} matched {:x?}, {:x?}", name, input.clone(), a, width = 20);
+                    println!("{:width$} matched {:x?}, {:x?}", name,a, input.clone(), width = 20);
                     a
                 })
                     .add_context(stringify!($name))
@@ -100,8 +100,8 @@ macro_rules! parser_struct_wrapper_alloc {
                         println!(
                             "{:width$} matched {:x?}, {:x?}",
                             name,
-                            input.clone(),
                             a,
+                            input.clone(),
                             width = 20
                         );
                         a
@@ -136,8 +136,8 @@ macro_rules! parser_struct_wrapper {
                         println!(
                             "{:width$} matched {:x?}, {:x?}",
                             name,
-                            input.clone(),
                             a,
+                            input.clone(),
                             width = 20
                         );
                         a
@@ -172,8 +172,8 @@ macro_rules! parser_struct_empty {
                         println!(
                             "{:width$} matched {:x?}, {:x?}",
                             name,
-                            input.clone(),
                             a,
+                            input.clone(),
                             width = 20
                         );
                         a
@@ -218,7 +218,7 @@ macro_rules! parser_enum_alloc {
                     .alt()
                 .map(|a| {
                     let name = stringify!($name);
-                    println!("{:width$} matched {:x?}, {:x?}", name, input.clone(), a, width = 20);
+                    println!("{:width$} matched {:x?}, {:x?}", name,a, input.clone(), width = 20);
                     a
                 })
                     .add_context(stringify!($name))
@@ -252,7 +252,7 @@ macro_rules! parser_enum {
                     .alt()
                 .map(|a| {
                     let name = stringify!($name);
-                    println!("{:width$} matched {:x?}, {:x?}", name, input.clone(), a, width = 20);
+                    println!("{:width$} matched {:x?}, {:x?}", name,a, input.clone(), width = 20);
                     a
                 })
                     .add_context(stringify!($name))
@@ -280,8 +280,8 @@ macro_rules! parser_fn {
                     println!(
                         "{:width$} matched {:x?}, {:x?}",
                         name,
-                        input.clone(),
                         a,
+                        input.clone(),
                         width = 20
                     );
                     a
