@@ -3,10 +3,14 @@
 #![allow(unused_attributes)]
 #![allow(unused_variables)]
 
-use acpi::aml::{
-    aml::term::term_obj::TermObj, Context, LocatedInput, SimpleError, SimpleErrorKind,
-};
 use std::alloc::Global;
+
+use acpi::aml::{
+    error::{SimpleError, SimpleErrorKind},
+    input::LocatedInput,
+    term::TermObj,
+    Context,
+};
 
 fn main() {
     let aml = include_bytes!("../dsdt.aml");
@@ -28,7 +32,14 @@ fn main() {
                                 e.1
                             )
                         }
-                        _ => (),
+                        _ => {
+                            println!(
+                                "{:x?} {:?} \t\t\t{:?}",
+                                &e.0.inner[0..16usize.min(e.0.inner.len())],
+                                e.0.span,
+                                e.1
+                            )
+                        }
                     }
                 }
             }

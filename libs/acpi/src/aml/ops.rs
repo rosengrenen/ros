@@ -1,11 +1,4 @@
-use crate::aml::Context;
-use core::alloc::Allocator;
-use parser::{
-    error::{ParseError, ParseResult},
-    input::Input,
-    parser::Parser,
-    primitive::item::item,
-};
+use parser::primitive::item::item;
 
 macro_rules! op_parser {
     ($opcode:literal) => {
@@ -19,18 +12,9 @@ macro_rules! op_parser {
 macro_rules! ops {
     {$($parser:tt => $name:ident)+} => {
         $(
-            #[derive(Debug)]
-            pub struct $name;
-
-            impl $name {
-                pub fn p<I: Input<Item=u8>, E: ParseError<I,A>, A: Allocator + Clone>(
-                  input: I,
-                  context: &mut Context,
-                  alloc: A,
-                ) -> ParseResult<I, Self, E> {
-                    op_parser!($parser).map(|_| Self).parse(input, context, alloc)
-                }
-            }
+            parser_struct_empty!(
+                struct $name;, op_parser!($parser)
+            );
         )+
     };
 }

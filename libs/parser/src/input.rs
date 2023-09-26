@@ -1,7 +1,7 @@
 use crate::error::{ParseError, ParseErrorKind, ParseResult, ParserError};
-use core::{alloc::Allocator, iter::Copied, slice::Iter};
+use core::{alloc::Allocator, fmt::Debug, iter::Copied, slice::Iter};
 
-pub trait Input: Clone {
+pub trait Input: Clone + Debug {
     type Item;
 
     type ItemIter: Iterator<Item = Self::Item>;

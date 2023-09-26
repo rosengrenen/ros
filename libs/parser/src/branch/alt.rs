@@ -43,6 +43,29 @@ pub trait AltHelper<I, C, A: Allocator>: Clone {
     ) -> ParseResult<I, Self::Output, Self::Error>;
 }
 
+impl<I, O, E, C, P1, A> AltHelper<I, C, A> for (P1,)
+where
+    I: Input,
+    E: ParseError<I, A>,
+    P1: Parser<I, C, A, Output = O, Error = E>,
+    A: Allocator + Clone,
+{
+    type Output = O;
+
+    type Error = E;
+
+    fn parse_alt(
+        self,
+        input: I,
+        context: &mut C,
+        alloc: A,
+    ) -> ParseResult<I, Self::Output, Self::Error> {
+        self.0
+            .parse(input.clone(), context, alloc.clone())
+            .map_err(|error| error.append(input.clone(), ParseErrorKind::Alt))
+    }
+}
+
 macro_rules! alt_trait(
     ($parser1:ident, $parser2:ident, $($parser:ident),*) => (
         alt_trait!(__impl $parser1, $parser2; $($parser),*);
@@ -77,7 +100,7 @@ macro_rules! alt_trait_impl {
                 input: I,
                 context: &mut C,
                 alloc: A,
-            ) -> ParseResult< I, Self::Output, Self::Error> {
+            ) -> ParseResult<I, Self::Output, Self::Error> {
                 #[allow(non_snake_case)]
                 let ($($parsers),+) = self.clone();
                 $(
@@ -101,4 +124,7 @@ macro_rules! alt_trait_impl {
     };
 }
 
-alt_trait!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16);
+alt_trait!(
+    P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21,
+    P22, P23, P24, P25, P26, P27, P28, P29, P30, P31, P32
+);
