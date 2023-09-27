@@ -3,6 +3,7 @@ use crate::aml::{
     Context,
 };
 use alloc::vec::Vec;
+use core::{alloc::Allocator, fmt::Formatter};
 use parser::{
     error::{ParseError, ParseResult},
     input::Input,
@@ -10,7 +11,6 @@ use parser::{
     parser::Parser,
     primitive::{fail::fail, take::take},
 };
-use std::{alloc::Allocator, fmt::Formatter};
 
 pub struct Method<A: Allocator> {
     pub name: NameString<A>,
@@ -19,7 +19,7 @@ pub struct Method<A: Allocator> {
 }
 
 impl<A: Allocator> core::fmt::Debug for Method<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Method")
             .field("name", &self.name)
             .field("flags", &self.flags)

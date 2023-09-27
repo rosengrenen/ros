@@ -7,26 +7,21 @@
 
 mod acpi;
 mod allocator;
-mod aml;
 mod elf;
 mod print;
 
 use crate::{
+    acpi::DefinitionHeader,
     acpi::{Fadt, Rsdp},
     allocator::BumpAllocator,
+    elf::{get_elf_entry_point_offset, KernelExecutable},
 };
-use acpi::DefinitionHeader;
+use ::acpi::aml::{Context, LocatedInput, SimpleError, SimpleErrorKind, TermObj};
 use alloc::vec::{PushError, Vec};
-use aml::term::TermObj;
 use bootloader_api::BootInfo;
 use core::{
     alloc::{Allocator, Layout},
     fmt::{Arguments, Write},
-};
-use elf::{get_elf_entry_point_offset, KernelExecutable};
-use parser::{
-    error::{FromExternalError, ParseError, ParseErrorKind},
-    input::Input,
 };
 use serial::{SerialPort, COM1_BASE};
 use uefi::{
@@ -172,7 +167,7 @@ pub extern "efiapi" fn efi_main(
                 fadt
             );
             let dsdt_addr = fadt.dsdt;
-            // print_dsdt(dsdt_addr as _, &bump_allocator);
+            print_dsdt(dsdt_addr as _, &bump_allocator);
         } else if &hdr.signature == b"APIC" {
             // TODO: print the entries
             print_apic(*hdr_ptr);
@@ -267,15 +262,15 @@ fn read_kernel_executable(
     let file_name = String16::from_str("ros", &uefi_allocator).map_err(|_| 99usize)?;
     let file = root_fs.open(file_name.as_raw(), 0x3, 0x0)?;
     let info = file.get_info(&uefi_allocator)?;
-    let mut buffer = Vec::with_elem(0u8, info.file_size as usize, &uefi_allocator).unwrap();
+    let mut buffer = Vec::with_size_default(info.file_size as usize, &uefi_allocator).unwrap();
     let _read_bytes = file.read(&mut buffer).unwrap();
     // TODO: impl truncate
     // buffer.truncate(read_bytes);
     get_elf_entry_point_offset(uefi_boot_services, &buffer, &uefi_allocator).map_err(|_| 100usize)
 }
 
-fn get_kernel_mem_regions<'uefi, A: Allocator>(
-    memory_map: &MemoryMap<&'uefi UefiAllocator>,
+fn get_kernel_mem_regions<A: Allocator>(
+    memory_map: &MemoryMap<&UefiAllocator>,
     alloc: A,
 ) -> Result<Vec<MemoryDescriptor, A>, PushError> {
     let mut kernel_mem_regions: Vec<MemoryDescriptor, _> = Vec::new(alloc);
@@ -401,7 +396,12 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
     let aml_slice = unsafe { core::slice::from_raw_parts(aml_ptr, aml_len) };
     sprintln!("{:x?}", &aml_slice[..64]);
     let input = LocatedInput::new(aml_slice);
-    let res = TermObj::p::<LocatedInput<&[u8]>, SimpleError<LocatedInput<&[u8]>, _>>(input, alloc);
+    let mut context = Context::new(alloc);
+    let res = TermObj::p::<LocatedInput<&[u8]>, SimpleError<LocatedInput<&[u8]>, _>>(
+        input,
+        &mut context,
+        alloc,
+    );
     match res {
         Ok(_) => sprintln!("ok"),
         Err(e) => match e {

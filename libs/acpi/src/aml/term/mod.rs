@@ -6,13 +6,13 @@ use super::{
 };
 use crate::aml::Context;
 use alloc::{boxed::Box, vec::Vec};
+use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},
     input::Input,
     multi::many::many_n,
     parser::Parser,
 };
-use std::alloc::Allocator;
 
 pub mod expr;
 pub mod named;
@@ -28,7 +28,7 @@ pub enum SymbolAccess<A: Allocator> {
 }
 
 impl<A: Allocator> core::fmt::Debug for SymbolAccess<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             SymbolAccess::Variable(name) => f.debug_tuple("Variable").field(name).finish(),
             SymbolAccess::Method { name, args } => f
@@ -80,7 +80,7 @@ pub enum TermArg<A: Allocator> {
 }
 
 impl<A: Allocator> core::fmt::Debug for TermArg<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::ArgObj(inner) => f.debug_tuple("ArgObj").field(inner).finish(),
             Self::LocalObj(inner) => f.debug_tuple("LocalObj").field(inner).finish(),

@@ -8,6 +8,7 @@ use crate::aml::{
     Context,
 };
 use alloc::vec::Vec;
+use core::alloc::Allocator;
 use parser::{
     error::{ParseError, ParseResult},
     input::Input,
@@ -15,7 +16,6 @@ use parser::{
     parser::Parser,
     primitive::{fail::fail, take::take},
 };
-use std::alloc::Allocator;
 
 parser_enum_alloc!(
     enum NameSpaceModObj {
@@ -47,7 +47,7 @@ pub struct Scope<A: Allocator> {
 }
 
 impl<A: Allocator> core::fmt::Debug for Scope<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Scope")
             .field("name", &self.name)
             .field("terms", &self.terms)

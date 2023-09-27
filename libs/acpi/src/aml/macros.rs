@@ -7,7 +7,7 @@ macro_rules! parser_struct_alloc {
         }
 
         impl<A: core::alloc::Allocator> core::fmt::Debug for $name<A> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 f.debug_struct(stringify!($name))
                     $(
                         .field(stringify!($field), &self.$field)
@@ -71,7 +71,7 @@ macro_rules! parser_struct_wrapper_alloc {
         pub struct $name<A: core::alloc::Allocator>(pub $ty);
 
         impl<A: core::alloc::Allocator> core::fmt::Debug for $name<A> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 f.debug_tuple(stringify!($name)).field(&self.0).finish()
             }
         }
@@ -154,7 +154,7 @@ macro_rules! parser_enum_alloc {
         }
 
         impl<A: core::alloc::Allocator> core::fmt::Debug for $name<A> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 match self {
                     $(
                       Self::$variant(inner) => f.debug_tuple(stringify!($variant)).field(&inner).finish(),

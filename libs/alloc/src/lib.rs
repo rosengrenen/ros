@@ -7,5 +7,6 @@
 mod macros;
 
 pub mod boxed;
+pub mod collections;
 pub mod iter;
 pub mod vec;

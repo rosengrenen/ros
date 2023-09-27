@@ -29,12 +29,8 @@ pub fn get_elf_entry_point_offset<A: Allocator>(
     assert!(header.program_header_size as usize == PROGRAM_HEADER_SIZE);
 
     // TODO: no alloc, just iter
-    let mut program_header_entries = Vec::with_elem(
-        ProgramHeader::default(),
-        header.program_header_count as _,
-        alloc,
-    )
-    .unwrap();
+    let mut program_header_entries =
+        Vec::with_size_default(header.program_header_count as _, alloc).unwrap();
     for i in 0..header.program_header_count {
         let entry_start = header.program_header_offset as usize + i as usize * PROGRAM_HEADER_SIZE;
         program_header_entries[i as usize] =

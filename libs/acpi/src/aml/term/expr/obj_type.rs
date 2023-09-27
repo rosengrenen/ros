@@ -16,7 +16,7 @@ pub enum ObjType<A: Allocator> {
 }
 
 impl<A: Allocator> core::fmt::Debug for ObjType<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::SimpleName(inner) => f.debug_tuple("SimpleName").field(inner).finish(),
             Self::DebugObj(inner) => f.debug_tuple("DebugObj").field(inner).finish(),
