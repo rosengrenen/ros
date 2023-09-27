@@ -9,10 +9,7 @@ use acpi::aml::{
     term::TermObj,
     Context,
 };
-use parser::{
-    multi::many::{many, many_n},
-    parser::Parser,
-};
+use parser::{multi::many::many, parser::Parser};
 use std::alloc::Global;
 
 fn main() {

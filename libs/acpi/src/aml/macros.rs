@@ -30,11 +30,6 @@ macro_rules! parser_struct_alloc {
                             $field,
                         )+
                     })
-                .map(|a| {
-                    let name = stringify!($name);
-                    println!("{:width$} matched {:x?}, {:x?}", name,a, input.clone(), width = 20);
-                    a
-                })
                     .add_context(stringify!($name))
                     .parse(input.clone(), context, alloc)
             }
@@ -64,11 +59,6 @@ macro_rules! parser_struct {
                             $field,
                         )+
                     })
-                .map(|a| {
-                    let name = stringify!($name);
-                    println!("{:width$} matched {:x?}, {:x?}", name,a, input.clone(), width = 20);
-                    a
-                })
                     .add_context(stringify!($name))
                     .parse(input.clone(), context, alloc)
             }
@@ -93,21 +83,11 @@ macro_rules! parser_struct_wrapper_alloc {
                 alloc: A,
             ) -> parser::error::ParseResult<I, Self, E> {
                 use parser::parser::Parser;
-                $parser
-                    .map(Self)
-                    .map(|a| {
-                        let name = stringify!($name);
-                        println!(
-                            "{:width$} matched {:x?}, {:x?}",
-                            name,
-                            a,
-                            input.clone(),
-                            width = 20
-                        );
-                        a
-                    })
-                    .add_context(stringify!($name))
-                    .parse(input.clone(), context, alloc)
+                $parser.map(Self).add_context(stringify!($name)).parse(
+                    input.clone(),
+                    context,
+                    alloc,
+                )
             }
         }
     };
@@ -129,21 +109,11 @@ macro_rules! parser_struct_wrapper {
                 alloc: A,
             ) -> parser::error::ParseResult<I, Self, E> {
                 use parser::parser::Parser;
-                $parser
-                    .map(Self)
-                    .map(|a| {
-                        let name = stringify!($name);
-                        println!(
-                            "{:width$} matched {:x?}, {:x?}",
-                            name,
-                            a,
-                            input.clone(),
-                            width = 20
-                        );
-                        a
-                    })
-                    .add_context(stringify!($name))
-                    .parse(input.clone(), context, alloc)
+                $parser.map(Self).add_context(stringify!($name)).parse(
+                    input.clone(),
+                    context,
+                    alloc,
+                )
             }
         }
     };
@@ -165,21 +135,11 @@ macro_rules! parser_struct_empty {
                 alloc: A,
             ) -> parser::error::ParseResult<I, Self, E> {
                 use parser::parser::Parser;
-                $parser
-                    .map(|_| Self)
-                    .map(|a| {
-                        let name = stringify!($name);
-                        println!(
-                            "{:width$} matched {:x?}, {:x?}",
-                            name,
-                            a,
-                            input.clone(),
-                            width = 20
-                        );
-                        a
-                    })
-                    .add_context(stringify!($name))
-                    .parse(input.clone(), context, alloc)
+                $parser.map(|_| Self).add_context(stringify!($name)).parse(
+                    input.clone(),
+                    context,
+                    alloc,
+                )
             }
         }
     };
@@ -216,11 +176,6 @@ macro_rules! parser_enum_alloc {
                     )+
                 )
                     .alt()
-                .map(|a| {
-                    let name = stringify!($name);
-                    println!("{:width$} matched {:x?}, {:x?}", name,a, input.clone(), width = 20);
-                    a
-                })
                     .add_context(stringify!($name))
                     .parse(input.clone(), context, alloc)
             }
@@ -250,11 +205,6 @@ macro_rules! parser_enum {
                     )+
                 )
                     .alt()
-                .map(|a| {
-                    let name = stringify!($name);
-                    println!("{:width$} matched {:x?}, {:x?}", name,a, input.clone(), width = 20);
-                    a
-                })
                     .add_context(stringify!($name))
                     .parse(input.clone(), context, alloc)
             }
@@ -275,17 +225,6 @@ macro_rules! parser_fn {
         ) -> parser::error::ParseResult<I, $ret, E> {
             use parser::parser::Parser;
             $parser
-                .map(|a| {
-                    let name = stringify!($name);
-                    println!(
-                        "{:width$} matched {:x?}, {:x?}",
-                        name,
-                        a,
-                        input.clone(),
-                        width = 20
-                    );
-                    a
-                })
                 .add_context(stringify!($name))
                 .parse(input.clone(), context, alloc)
         }

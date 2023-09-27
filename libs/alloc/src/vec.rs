@@ -101,7 +101,7 @@ impl From<LayoutError> for PushError {
 }
 
 impl<T: Clone, A: Allocator> Vec<T, A> {
-    pub fn with_elem(value: T, n: usize, alloc: A) -> Result<Self, ()> {
+    pub fn from_elem(value: T, n: usize, alloc: A) -> Result<Self, ()> {
         let layout = Layout::array::<T>(n).map_err(|_| ())?;
         let ptr = alloc.allocate(layout).map_err(|_| ())?.cast::<T>();
 

@@ -1,10 +1,5 @@
 use crate::aml::{
-    data::byte_data,
-    name::NameString,
-    ops::MethodOp,
-    pkg_len::{pkg, pkg_length_left},
-    prefixed::prefixed,
-    term::TermObj,
+    data::byte_data, name::NameString, ops::MethodOp, pkg_len::pkg_length_left, term::TermObj,
     Context,
 };
 use alloc::vec::Vec;

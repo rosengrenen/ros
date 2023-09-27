@@ -13,54 +13,30 @@ use parser::{
     primitive::item::item,
 };
 
-#[derive(Debug)]
-pub struct NamedField {
-    pub name: NameSeg,
-    pub len: usize,
-}
+parser_struct!(
+    struct Named {
+        name: NameSeg,
+        len: usize,
+    },
+    (NameSeg::p, pkg_length)
+);
 
-impl NamedField {
-    pub fn p<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
-        input: I,
-        context: &mut Context<A>,
-        alloc: A,
-    ) -> ParseResult<I, Self, E> {
-        let (input, field) = (NameSeg::p, pkg_length)
-            .map(|(name, len)| Self { name, len })
-            .map(|a| {
-                let name = stringify!(NamedField);
-                println!(
-                    "{:width$} matched {:x?}, {:x?}",
-                    name,
-                    a,
-                    input.clone(),
-                    width = 20
-                );
-                a
-            })
-            .add_context("NamedField")
-            .parse(input.clone(), context, alloc)?;
-        context.add_field_seg(field.name);
-        Ok((input, field))
-    }
-}
-
-parser_struct_empty!(struct ReservedField;, (item(0x00), pkg_length));
+parser_struct_empty!(struct Reserved;, (item(0x00), pkg_length));
 
 parser_struct!(
-    struct AccessField {
+    struct Access {
         ty: u8,
         attrib: u8,
     },
     prefixed(item(0x01), (byte_data, byte_data))
 );
 
-pub enum ConnectField<A: Allocator> {
+pub enum Connect<A: Allocator> {
     NameString(NameString<A>),
     // BufferData(BufferData),
 }
 
-impl<A: Allocator> core::fmt::Debug for ConnectField<A> {
+impl<A: Allocator> core::fmt::Debug for Connect<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NameString(inner) => f.debug_tuple("NameString").field(inner).finish(),
@@ -68,7 +44,7 @@ impl<A: Allocator> core::fmt::Debug for ConnectField<A> {
     }
 }
 
-impl<A: Allocator + Clone> ConnectField<A> {
+impl<A: Allocator + Clone> Connect<A> {
     fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
         input: I,
         context: &mut Context<A>,
@@ -89,7 +65,7 @@ impl<A: Allocator + Clone> ConnectField<A> {
 }
 
 parser_struct!(
-    struct ExtendedAccessField {
+    struct ExtendedAccess {
         ty: u8,
         attrib: u8,
         len: u8,
@@ -99,10 +75,10 @@ parser_struct!(
 
 parser_enum_alloc!(
     enum FieldElement {
-        NamedField(NamedField),
-        ReservedField(ReservedField),
-        AccessField(AccessField),
-        ExtendedAccessField(ExtendedAccessField),
-        ConnectField(ConnectField<A>),
+        Named(Named),
+        Reserved(Reserved),
+        Access(Access),
+        ExtendedAccess(ExtendedAccess),
+        Connect(Connect<A>),
     }
 );

@@ -10,11 +10,11 @@ use crate::aml::{
 
 parser_enum_alloc!(
     enum CreateConstField {
-        CreateBitField(CreateBitField<A>),
-        CreateByteField(CreateByteField<A>),
-        CreateWordField(CreateWordField<A>),
-        CreateDWordField(CreateDWordField<A>),
-        CreateQWordField(CreateQWordField<A>),
+        Bit(Bit<A>),
+        Byte(Byte<A>),
+        Word(Word<A>),
+        DWord(DWord<A>),
+        QWord(QWord<A>),
     }
 );
 
@@ -31,11 +31,11 @@ macro_rules! create_const_field {
     };
 }
 
-create_const_field!(CreateBitField, CreateBitFieldOp);
-create_const_field!(CreateByteField, CreateByteFieldOp);
-create_const_field!(CreateWordField, CreateWordFieldOp);
-create_const_field!(CreateDWordField, CreateDWordFieldOp);
-create_const_field!(CreateQWordField, CreateQWordFieldOp);
+create_const_field!(Bit, CreateBitFieldOp);
+create_const_field!(Byte, CreateByteFieldOp);
+create_const_field!(Word, CreateWordFieldOp);
+create_const_field!(DWord, CreateDWordFieldOp);
+create_const_field!(QWord, CreateQWordFieldOp);
 
 parser_struct_alloc!(
     struct CreateField {

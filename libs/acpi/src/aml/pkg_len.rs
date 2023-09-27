@@ -89,7 +89,6 @@ where
         let (rest, input) = take(pkg_len - pkg_len_bytes_read)
             .add_context("pkg take")
             .parse(input, context, alloc.clone())?;
-        println!("rest {:x?}", rest);
         let (_, output) = (
             self.parser,
             fail().add_context("whole package was not read"),

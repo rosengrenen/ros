@@ -7,11 +7,10 @@ use super::{
 use crate::aml::Context;
 use alloc::{boxed::Box, vec::Vec};
 use parser::{
-    error::{ParseError, ParseErrorKind, ParseResult, ParserError},
+    error::{ParseError, ParseResult},
     input::Input,
-    multi::many::{many, many_n},
+    multi::many::many_n,
     parser::Parser,
-    primitive::fail::fail,
 };
 use std::alloc::Allocator;
 
@@ -20,8 +19,7 @@ pub mod named;
 pub mod namespace;
 pub mod statement;
 
-// TODO: naming
-pub enum MethodInvocation<A: Allocator> {
+pub enum SymbolAccess<A: Allocator> {
     Variable(NameString<A>),
     Method {
         name: NameString<A>,
@@ -29,11 +27,11 @@ pub enum MethodInvocation<A: Allocator> {
     },
 }
 
-impl<A: Allocator> core::fmt::Debug for MethodInvocation<A> {
+impl<A: Allocator> core::fmt::Debug for SymbolAccess<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MethodInvocation::Variable(name) => f.debug_tuple("Variable").field(name).finish(),
-            MethodInvocation::Method { name, args } => f
+            SymbolAccess::Variable(name) => f.debug_tuple("Variable").field(name).finish(),
+            SymbolAccess::Method { name, args } => f
                 .debug_struct("Method")
                 .field("name", name)
                 .field("args", args)
@@ -42,7 +40,7 @@ impl<A: Allocator> core::fmt::Debug for MethodInvocation<A> {
     }
 }
 
-impl<A: Allocator + Clone> MethodInvocation<A> {
+impl<A: Allocator + Clone> SymbolAccess<A> {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
         input: I,
         context: &mut Context<A>,
@@ -52,7 +50,6 @@ impl<A: Allocator + Clone> MethodInvocation<A> {
             NameString::p
                 .add_context("MethodInvocation")
                 .parse(input, context, alloc.clone())?;
-        println!("{:?}, {:?}", name, context);
 
         if let Some(args) = context.method_args(&name) {
             let (input, args) = many_n(args, TermArg::p)
@@ -63,13 +60,6 @@ impl<A: Allocator + Clone> MethodInvocation<A> {
         }
 
         Ok((input, Self::Variable(name)))
-        //
-        // panic!("{:?} {:?}", name, context);
-        // Err(ParserError::Failure(E::from_error_kind(
-        //     input,
-        //     ParseErrorKind::Unknown,
-        //     alloc,
-        // )))
     }
 }
 
@@ -113,15 +103,6 @@ impl<A: Allocator + Clone> TermArg<A> {
             Expr::p.boxed().map(Self::Expr),
         )
             .alt()
-            .map(|a| {
-                println!(
-                    "{:width$} matched {:x?}",
-                    "TermArg",
-                    input.clone(),
-                    width = 20
-                );
-                a
-            })
             .add_context("TermArg")
             .parse(input.clone(), context, alloc)
     }

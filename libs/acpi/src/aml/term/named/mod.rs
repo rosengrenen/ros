@@ -11,6 +11,7 @@ mod method;
 mod mutex;
 mod op_region;
 mod power_res;
+mod processor;
 mod thermal_zone;
 
 use self::{
@@ -18,14 +19,17 @@ use self::{
     create_field::{CreateConstField, CreateField},
     data_region::DataRegion,
     device::Device,
+    event::Event,
     external::External,
     field::Field,
+    index_field::IndexField,
     method::Method,
     mutex::Mutex,
     op_region::OpRegion,
     power_res::PowerRes,
     thermal_zone::ThermalZone,
 };
+use crate::aml::term::named::processor::Processor;
 
 parser_enum_alloc!(
     enum NamedObj {
@@ -43,6 +47,10 @@ parser_enum_alloc!(
         Method(Method<A>),
         // More that aren't included
         Device(Device<A>),
+        Event(Event<A>),
+        IndexField(IndexField<A>),
         Mutex(Mutex<A>),
+        // Deprecated in 6.4
+        Processor(Processor<A>),
     }
 );

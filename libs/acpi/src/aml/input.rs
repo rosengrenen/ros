@@ -37,7 +37,6 @@ where
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("LocatedInput")
             .field("span", &self.span)
-            .field("inner", &self.inner)
             .finish()
     }
 }

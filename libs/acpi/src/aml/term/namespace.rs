@@ -3,7 +3,7 @@ use crate::aml::{
     data::DataRefObj,
     name::NameString,
     ops::{AliasOp, NameOp, ScopeOp},
-    pkg_len::{pkg, pkg_length_left},
+    pkg_len::pkg_length_left,
     prefixed::prefixed,
     Context,
 };
@@ -33,45 +33,13 @@ parser_struct_alloc!(
     prefixed(AliasOp::p, (NameString::p, NameString::p))
 );
 
-pub struct Name<A: Allocator> {
-    pub name: NameString<A>,
-    pub data: DataRefObj<A>,
-}
-
-impl<A: Allocator> core::fmt::Debug for Name<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Name")
-            .field("name", &self.name)
-            .field("data", &self.data)
-            .finish()
-    }
-}
-
-impl<A: Allocator + Clone> Name<A> {
-    pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
-        input: I,
-        context: &mut Context<A>,
-        alloc: A,
-    ) -> ParseResult<I, Self, E> {
-        let (input, name) = (prefixed(NameOp::p, (NameString::p, DataRefObj::p)))
-            .map(|(name, data)| Self { name, data })
-            .map(|a| {
-                let name = stringify!(Name);
-                println!(
-                    "{:width$} matched {:x?}, {:x?}",
-                    name,
-                    a,
-                    input.clone(),
-                    width = 20
-                );
-                a
-            })
-            .add_context("Name")
-            .parse(input.clone(), context, alloc)?;
-        context.add_field(&name.name);
-        Ok((input, name))
-    }
-}
+parser_struct_alloc!(
+    struct Name {
+        name: NameString<A>,
+        data: DataRefObj<A>,
+    },
+    prefixed(NameOp::p, (NameString::p, DataRefObj::p))
+);
 
 pub struct Scope<A: Allocator> {
     pub name: NameString<A>,

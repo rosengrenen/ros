@@ -1,5 +1,5 @@
 #[macro_use]
-pub mod macros;
+mod macros;
 
 pub mod data;
 pub mod error;
@@ -15,11 +15,7 @@ use self::name::{NamePath, NameSeg};
 use crate::aml::name::{DualNamePath, MultiNamePath, NameString, NullName};
 use alloc::vec::Vec;
 use core::alloc::Allocator;
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Formatter,
-    marker::PhantomData,
-};
+use std::{collections::HashMap, marker::PhantomData};
 
 pub struct Context<A: Allocator> {
     root_scope: Scope<A>,
@@ -40,7 +36,7 @@ impl<A: Allocator + Clone> Context<A> {
     pub fn new(alloc: A) -> Self {
         Self {
             root_scope: Scope::new(),
-            current_scope: Vec::new(alloc.clone()),
+            current_scope: alloc::vec![alloc.clone(); ScopePath::new(alloc.clone())],
             alloc,
         }
     }
@@ -50,23 +46,11 @@ impl<A: Allocator + Clone> Context<A> {
             Some(current_scope) => current_scope.clone().add_name_string(name),
             None => ScopePath::from_name_string(name, self.alloc.clone()),
         };
-        println!("pushing {:?} {:?}", name, new_scope);
         self.current_scope.push(new_scope).unwrap();
     }
 
-    pub fn pop_scope(&mut self) -> ScopePath<A> {
-        println!("popping {:?}", self.current_scope);
-        self.current_scope.pop().unwrap().unwrap()
-    }
-
-    pub fn add_field_seg(&mut self, field: NameSeg) {
-        self.current_scope_mut().fields.insert(field);
-    }
-
-    pub fn add_field(&mut self, field: &NameString<A>) {
-        let (scope, name) = field.split();
-        let scope = self.current_scope_path().clone().add_name_string(&scope);
-        self.get_scope_mut(&scope).fields.insert(name);
+    pub fn pop_scope(&mut self) {
+        self.current_scope.pop().unwrap().unwrap();
     }
 
     pub fn add_method(&mut self, method: &NameString<A>, args: usize) {
@@ -75,27 +59,18 @@ impl<A: Allocator + Clone> Context<A> {
         self.get_scope_mut(&scope).methods.insert(name, args);
     }
 
-    pub fn has_field(&mut self, field: &NameString<A>) -> bool {
-        let (scope, name) = field.split();
-        let search_scope = self.current_scope_path().clone().add_name_string(&scope);
-        self.get_scope_mut(&search_scope)
-            .fields
-            .get(&name)
-            .is_some()
-    }
-
     pub fn method_args(&mut self, method: &NameString<A>) -> Option<usize> {
         let (scope, name) = method.split();
-        let search_scope = self.current_scope_path().clone().add_name_string(&scope);
-        self.get_scope_mut(&search_scope)
-            .methods
-            .get(&name)
-            .map(|args| *args)
-    }
+        let mut search_scope = self.current_scope_path().clone().add_name_string(&scope);
+        while !search_scope.segments.is_empty() {
+            if let Some(args) = self.get_scope_mut(&search_scope).methods.get(&name) {
+                return Some(*args);
+            }
 
-    fn current_scope_mut(&mut self) -> &mut Scope<A> {
-        let scope_path = self.current_scope_path().clone();
-        self.get_scope_mut(&scope_path)
+            search_scope.segments.pop().unwrap().unwrap();
+        }
+
+        None
     }
 
     fn get_scope_mut(&mut self, path: &ScopePath<A>) -> &mut Scope<A> {
@@ -115,16 +90,14 @@ impl<A: Allocator + Clone> Context<A> {
 pub struct Scope<A: Allocator> {
     scopes: HashMap<NameSeg, Scope<A>>,
     methods: HashMap<NameSeg, usize>,
-    fields: HashSet<NameSeg>,
     alloc: PhantomData<A>,
 }
 
 impl<A: Allocator> core::fmt::Debug for Scope<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Scope")
             .field("scopes", &self.scopes)
             .field("methods", &self.methods)
-            .field("variables", &self.fields)
             .finish()
     }
 }
@@ -134,7 +107,6 @@ impl<A: Allocator> Scope<A> {
         Self {
             scopes: HashMap::new(),
             methods: HashMap::new(),
-            fields: HashSet::new(),
             alloc: PhantomData,
         }
     }
@@ -143,11 +115,10 @@ impl<A: Allocator> Scope<A> {
 #[derive(Clone)]
 struct ScopePath<A: Allocator> {
     segments: Vec<NameSeg, A>,
-    alloc: A,
 }
 
 impl<A: Allocator> core::fmt::Debug for ScopePath<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ScopePath")
             .field("segments", &self.segments)
             .finish()
@@ -157,8 +128,7 @@ impl<A: Allocator> core::fmt::Debug for ScopePath<A> {
 impl<A: Allocator + Clone> ScopePath<A> {
     fn new(alloc: A) -> Self {
         Self {
-            segments: Vec::new(alloc.clone()),
-            alloc,
+            segments: Vec::new(alloc),
         }
     }
 

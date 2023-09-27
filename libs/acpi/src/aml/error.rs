@@ -46,13 +46,6 @@ where
         self
     }
 
-    fn replace(self, input: I, kind: ParseErrorKind) -> Self {
-        // TODO: evaluate if replacement is EVER needed
-        self.append(input, kind)
-        // *self.errors.last_mut().unwrap() = (input, SimpleErrorKind::Parser(kind));
-        // self
-    }
-
     fn add_context(mut self, input: I, context: &'static str) -> Self {
         self.errors
             .push((input, SimpleErrorKind::Context(context)))

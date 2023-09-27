@@ -33,8 +33,13 @@ use self::{
     module::Mod, obj_type::ObjType, pkg::Pkg, ref_of::RefOf, size_of::SizeOf, store::Store,
     timer::Timer, var_pkg::VarPkg, wait::Wait,
 };
-use super::MethodInvocation;
-use crate::aml::{data::DataRefObj, name::NameString};
+use super::SymbolAccess;
+use crate::aml::{
+    data::DataRefObj,
+    name::{NameString, Target},
+    ops::LoadOp,
+    prefixed::prefixed,
+};
 
 parser_enum_alloc!(
     enum Expr {
@@ -51,10 +56,11 @@ parser_enum_alloc!(
         FindSetRightBit(FindSetRightBit<A>),
         Index(Index<A>),
         Integer(Integer<A>),
-        Logical(Logical<A>),
-        Mid(Mid<A>),
+        Load(Load<A>),
         LoadTable(LoadTable<A>),
+        Logical(Logical<A>),
         Match(Match<A>),
+        Mid(Mid<A>),
         Mod(Mod<A>),
         ObjType(ObjType<A>),
         Pkg(Pkg<A>),
@@ -64,7 +70,7 @@ parser_enum_alloc!(
         Timer(Timer),
         VarPkg(VarPkg<A>),
         Wait(Wait<A>),
-        MethodInvocation(MethodInvocation<A>),
+        SymbolAccess(SymbolAccess<A>),
     }
 );
 
@@ -73,27 +79,17 @@ parser_enum_alloc!(
         RefOf(RefOf<A>),
         DerefOf(DerefOf<A>),
         Index(Index<A>),
-        MethodInvocation(MethodInvocation<A>),
+        SymbolAccess(SymbolAccess<A>),
     }
 );
 
-// #[derive(Debug)] pub struct Load {
-//     name: NameString<A>,
-//     target: Target<A>,
-// }
-
-// impl<A: Allocator + Clone> Load<A> {
-//     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
-//         input: I,
-//         context: &mut
-//         alloc: A,
-//     ) -> ParseResult<I, Self, E> {
-//         prefixed(LoadOp::p, (NameString::p, Target::p))
-//             .map(|(name, target)| Self { name, target })
-//             .add_context("Load")
-//             .parse(input, context, alloc)
-//     }
-// }
+parser_struct_alloc!(
+    struct Load {
+        name: NameString<A>,
+        target: Target<A>,
+    },
+    prefixed(LoadOp::p, (NameString::p, Target::p))
+);
 
 parser_enum_alloc!(
     enum PkgElement {

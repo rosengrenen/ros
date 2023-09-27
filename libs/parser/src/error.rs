@@ -15,7 +15,7 @@ impl<E> ParserError<E> {
         A: Allocator,
     {
         match self {
-            ParserError::Error(error) => ParserError::Error(error.replace(input, kind)),
+            ParserError::Error(error) => ParserError::Error(error.append(input, kind)),
             ParserError::Failure(error) => ParserError::Failure(error.append(input, kind)),
         }
     }
@@ -25,8 +25,6 @@ pub trait ParseError<I, A: Allocator>: Clone {
     fn from_error_kind(input: I, kind: ParseErrorKind, alloc: A) -> Self;
 
     fn append(self, input: I, kind: ParseErrorKind) -> Self;
-
-    fn replace(self, input: I, kind: ParseErrorKind) -> Self;
 
     fn add_context(self, input: I, context: &'static str) -> Self;
 }

@@ -63,11 +63,6 @@ impl NameSeg {
     }
 }
 
-// parser_struct_wrapper!(
-//     struct NameSeg([u8; 4]);,
-//     (lead_name_char, name_char, name_char, name_char).map(|(lead, c1, c2, c3)| [lead, c1, c2, c3])
-// );
-
 impl Display for NameSeg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", unsafe { &core::str::from_utf8_unchecked(&self.0) })
