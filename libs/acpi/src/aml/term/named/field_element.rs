@@ -37,7 +37,7 @@ pub enum Connect<A: Allocator> {
 }
 
 impl<A: Allocator> core::fmt::Debug for Connect<A> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::NameString(inner) => f.debug_tuple("NameString").field(inner).finish(),
         }

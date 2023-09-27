@@ -6,6 +6,10 @@ use super::{
     Context,
 };
 use alloc::{boxed::Box, vec::Vec};
+use core::{
+    alloc::Allocator,
+    fmt::{Debug, Display, Formatter},
+};
 use parser::{
     error::{ParseError, ParseResult},
     input::Input,
@@ -15,10 +19,6 @@ use parser::{
         item::{item, satisfy, take_one},
         take::take_while1,
     },
-};
-use std::{
-    alloc::Allocator,
-    fmt::{Debug, Display, Formatter},
 };
 
 parser_fn!(
@@ -43,7 +43,7 @@ parser_fn!(
 pub struct NameSeg([u8; 4]);
 
 impl core::fmt::Debug for NameSeg {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_tuple("NameSeg")
             .field(unsafe { &core::str::from_utf8_unchecked(&self.0) })
             .finish()
@@ -64,7 +64,7 @@ impl NameSeg {
 }
 
 impl Display for NameSeg {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", unsafe { &core::str::from_utf8_unchecked(&self.0) })
     }
 }
@@ -75,7 +75,7 @@ pub enum NameString<A: Allocator> {
 }
 
 impl<A: Allocator> core::fmt::Debug for NameString<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Absolute(name) => f.debug_tuple("Absolute").field(&name).finish(),
             Self::Relative(count, name) => {
@@ -128,7 +128,7 @@ parser_struct!(
 pub struct MultiNamePath<A: Allocator>(pub Vec<NameSeg, A>);
 
 impl<A: Allocator> core::fmt::Debug for MultiNamePath<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_tuple("MultiNamePath").field(&self.0).finish()
     }
 }
@@ -164,7 +164,7 @@ pub enum SuperName<A: Allocator> {
 }
 
 impl<A: Allocator> core::fmt::Debug for SuperName<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::SimpleName(inner) => f.debug_tuple("SimpleName").field(&inner).finish(),
             Self::DebugObj(inner) => f.debug_tuple("DebugObj").field(&inner).finish(),

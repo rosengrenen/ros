@@ -9,3 +9,4 @@ mod macros;
 pub mod boxed;
 pub mod iter;
 pub mod vec;
+pub mod collections;

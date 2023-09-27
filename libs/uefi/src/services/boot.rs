@@ -29,7 +29,7 @@ impl BootServices {
 
     pub fn get_memory_map<A: Allocator + Clone>(&self, alloc: A) -> Result<MemoryMap<A>, usize> {
         let (mut memory_map_size, mut entry_size) = self.get_memory_map_size()?;
-        let mut buffer = Vec::with_elem(0u8, memory_map_size, alloc.clone()).map_err(|_| 0usize)?;
+        let mut buffer = Vec::from_elem(0u8, memory_map_size, alloc.clone()).map_err(|_| 0usize)?;
         let mut map_key = 0;
         loop {
             let mut descriptor_version = 0;
@@ -50,7 +50,7 @@ impl BootServices {
                 return Err(status);
             }
 
-            buffer = Vec::with_elem(0, memory_map_size, alloc.clone()).map_err(|_| 0usize)?;
+            buffer = Vec::from_elem(0, memory_map_size, alloc.clone()).map_err(|_| 0usize)?;
         }
 
         Ok(MemoryMap {

@@ -1,9 +1,9 @@
 use alloc::vec::Vec;
+use core::{alloc::Allocator, fmt::Debug};
 use parser::{
     error::{FromExternalError, ParseError, ParseErrorKind},
     input::Input,
 };
-use std::{alloc::Allocator, fmt::Debug};
 
 #[derive(Copy, Clone, Debug)]
 pub enum SimpleErrorKind {

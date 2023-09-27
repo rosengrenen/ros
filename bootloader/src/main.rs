@@ -7,7 +7,6 @@
 
 mod acpi;
 mod allocator;
-mod aml;
 mod elf;
 mod print;
 
@@ -17,7 +16,6 @@ use crate::{
 };
 use acpi::DefinitionHeader;
 use alloc::vec::{PushError, Vec};
-use aml::term::TermObj;
 use bootloader_api::BootInfo;
 use core::{
     alloc::{Allocator, Layout},
@@ -267,7 +265,7 @@ fn read_kernel_executable(
     let file_name = String16::from_str("ros", &uefi_allocator).map_err(|_| 99usize)?;
     let file = root_fs.open(file_name.as_raw(), 0x3, 0x0)?;
     let info = file.get_info(&uefi_allocator)?;
-    let mut buffer = Vec::with_elem(0u8, info.file_size as usize, &uefi_allocator).unwrap();
+    let mut buffer = Vec::from_elem(0u8, info.file_size as usize, &uefi_allocator).unwrap();
     let _read_bytes = file.read(&mut buffer).unwrap();
     // TODO: impl truncate
     // buffer.truncate(read_bytes);

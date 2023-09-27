@@ -3,6 +3,14 @@
 version = 3
 
 [[package]]
+name = "acpi"
+version = "0.0.0"
+dependencies = [
+ "alloc",
+ "parser",
+]
+
+[[package]]
 name = "alloc"
 version = "0.0.0"
 
@@ -10,6 +18,7 @@ version = "0.0.0"
 name = "bootloader"
 version = "0.0.0"
 dependencies = [
+ "acpi",
  "alloc",
  "bootloader_api",
  "parser",

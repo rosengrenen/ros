@@ -1,5 +1,5 @@
+use core::fmt::Debug;
 use parser::input::Input;
-use std::fmt::Debug;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Span {
