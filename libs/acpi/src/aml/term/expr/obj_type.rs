@@ -30,7 +30,7 @@ impl<A: Allocator> core::fmt::Debug for ObjType<A> {
 impl<A: Allocator + Clone> ObjType<A> {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
         input: I,
-        context: &mut Context,
+        context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         prefixed(

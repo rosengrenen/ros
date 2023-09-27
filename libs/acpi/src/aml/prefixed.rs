@@ -11,8 +11,8 @@ pub fn prefixed<I, O1, O2, E, P1, P2, A>(first: P1, second: P2) -> Prefixed<P1, 
 where
     I: Input<Item = u8>,
     E: ParseError<I, A>,
-    P1: Parser<I, Context, A, Output = O1, Error = E>,
-    P2: Parser<I, Context, A, Output = O2, Error = E>,
+    P1: Parser<I, Context<A>, A, Output = O1, Error = E>,
+    P2: Parser<I, Context<A>, A, Output = O2, Error = E>,
     A: Allocator + Clone,
 {
     Prefixed {
@@ -29,13 +29,13 @@ pub struct Prefixed<P1, P2, E> {
     error: PhantomData<E>,
 }
 
-impl<I, O1, O2, E: ParseError<I, A>, P1, P2, A: Allocator + Clone> Parser<I, Context, A>
+impl<I, O1, O2, E: ParseError<I, A>, P1, P2, A: Allocator + Clone> Parser<I, Context<A>, A>
     for Prefixed<P1, P2, E>
 where
     I: Input<Item = u8>,
     E: ParseError<I, A>,
-    P1: Parser<I, Context, A, Output = O1, Error = E>,
-    P2: Parser<I, Context, A, Output = O2, Error = E>,
+    P1: Parser<I, Context<A>, A, Output = O1, Error = E>,
+    P2: Parser<I, Context<A>, A, Output = O2, Error = E>,
     A: Allocator + Clone,
 {
     type Output = O2;
@@ -45,7 +45,7 @@ where
     fn parse(
         self,
         input: I,
-        context: &mut Context,
+        context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<I, Self::Output, Self::Error> {
         preceded(self.first, self.second.cut())

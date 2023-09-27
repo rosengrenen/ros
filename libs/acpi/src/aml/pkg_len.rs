@@ -13,9 +13,15 @@ parser_fn!(
     }
 );
 
+parser_fn!(
+    fn pkg_length_left() -> usize {
+        pkg_length_inner.map(|(pkg_len, pkg_len_bytes_read)| pkg_len - pkg_len_bytes_read)
+    }
+);
+
 fn pkg_length_inner<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
-    context: &mut Context,
+    context: &mut Context<A>,
     alloc: A,
 ) -> ParseResult<I, (usize, usize), E> {
     let (input, lead_byte) = take_one().parse(input, context, alloc.clone())?;
@@ -45,7 +51,7 @@ pub fn pkg<I, O, E, P, A>(parser: P) -> Pkg<P, E>
 where
     I: Input<Item = u8>,
     E: ParseError<I, A>,
-    P: Parser<I, Context, A, Output = O, Error = E>,
+    P: Parser<I, Context<A>, A, Output = O, Error = E>,
     A: Allocator + Clone,
 {
     Pkg {
@@ -60,11 +66,11 @@ pub struct Pkg<P, E> {
     pub error: PhantomData<E>,
 }
 
-impl<I, O, E: ParseError<I, A>, P, A: Allocator + Clone> Parser<I, Context, A> for Pkg<P, E>
+impl<I, O, E: ParseError<I, A>, P, A: Allocator + Clone> Parser<I, Context<A>, A> for Pkg<P, E>
 where
     I: Input<Item = u8>,
     E: ParseError<I, A>,
-    P: Parser<I, Context, A, Output = O, Error = E>,
+    P: Parser<I, Context<A>, A, Output = O, Error = E>,
     A: Allocator + Clone,
 {
     type Output = O;
@@ -74,22 +80,22 @@ where
     fn parse(
         self,
         input: I,
-        context: &mut Context,
+        context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<I, Self::Output, Self::Error> {
-        let (input, (pkg_len, pkg_len_bytes_read)) =
-            pkg_length_inner
-                .add_context("pkg")
-                .parse(input, context, alloc.clone())?;
-        let (rest, input) =
-            take(pkg_len - pkg_len_bytes_read).parse(input, context, alloc.clone())?;
+        let (input, (pkg_len, pkg_len_bytes_read)) = pkg_length_inner
+            .add_context("pkg pkg_length_inner")
+            .parse(input, context, alloc.clone())?;
+        let (rest, input) = take(pkg_len - pkg_len_bytes_read)
+            .add_context("pkg take")
+            .parse(input, context, alloc.clone())?;
         println!("rest {:x?}", rest);
         let (_, output) = (
             self.parser,
             fail().add_context("whole package was not read"),
         )
             .map(|(output, _)| output)
-            .add_context("pkg")
+            .add_context("pkg parser")
             .parse(input, context, alloc.clone())?;
         Ok((rest, output))
     }

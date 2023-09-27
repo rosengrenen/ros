@@ -17,6 +17,7 @@ parser_enum_alloc!(
         Less(Less<A>),
         NotEqual(NotEqual<A>),
         Or(Or<A>),
+        Not(Not<A>),
     }
 );
 

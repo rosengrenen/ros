@@ -16,10 +16,9 @@ use parser::{
         take::take_while1,
     },
 };
-use std::fmt::Formatter;
 use std::{
     alloc::Allocator,
-    fmt::{Debug, Display},
+    fmt::{Debug, Display, Formatter},
 };
 
 parser_fn!(
@@ -40,6 +39,7 @@ parser_fn!(
     }
 );
 
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct NameSeg([u8; 4]);
 
 impl core::fmt::Debug for NameSeg {
@@ -53,7 +53,7 @@ impl core::fmt::Debug for NameSeg {
 impl NameSeg {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
         input: I,
-        context: &mut Context,
+        context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (lead_name_char, name_char, name_char, name_char)
@@ -93,7 +93,7 @@ impl<A: Allocator> core::fmt::Debug for NameString<A> {
 impl<A: Allocator + Clone> NameString<A> {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
         input: I,
-        context: &mut Context,
+        context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (
@@ -130,7 +130,7 @@ parser_struct!(
     prefixed(DualNamePrefix::p, (NameSeg::p, NameSeg::p),)
 );
 
-pub struct MultiNamePath<A: Allocator>(Vec<NameSeg, A>);
+pub struct MultiNamePath<A: Allocator>(pub Vec<NameSeg, A>);
 
 impl<A: Allocator> core::fmt::Debug for MultiNamePath<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -141,7 +141,7 @@ impl<A: Allocator> core::fmt::Debug for MultiNamePath<A> {
 impl<A: Allocator + Clone> MultiNamePath<A> {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
         input: I,
-        context: &mut Context,
+        context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         let (input, seg_count) =
@@ -181,7 +181,7 @@ impl<A: Allocator> core::fmt::Debug for SuperName<A> {
 impl<A: Allocator + Clone> SuperName<A> {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
         input: I,
-        context: &mut Context,
+        context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (

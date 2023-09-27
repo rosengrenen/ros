@@ -19,7 +19,7 @@ macro_rules! parser_struct_alloc {
         impl<A: core::alloc::Allocator + Clone> $name<A> {
             pub fn p<I: parser::input::Input<Item = u8>, E: parser::error::ParseError<I, A>>(
                 input: I,
-                context: &mut crate::aml::Context,
+                context: &mut crate::aml::Context<A>,
                 alloc: A,
             ) -> parser::error::ParseResult<I, Self, E> {
                 use parser::parser::Parser;
@@ -54,7 +54,7 @@ macro_rules! parser_struct {
         impl $name {
             pub fn p<I: parser::input::Input<Item = u8>, E: parser::error::ParseError<I, A>, A: core::alloc::Allocator + Clone>(
                 input: I,
-                context: &mut crate::aml::Context,
+                context: &mut crate::aml::Context<A>,
                 alloc: A,
             ) -> parser::error::ParseResult<I, Self, E> {
                 use parser::parser::Parser;
@@ -78,7 +78,7 @@ macro_rules! parser_struct {
 
 macro_rules! parser_struct_wrapper_alloc {
     (struct $name:ident($ty:ty);, $parser:expr) => {
-        pub struct $name<A: core::alloc::Allocator>($ty);
+        pub struct $name<A: core::alloc::Allocator>(pub $ty);
 
         impl<A: core::alloc::Allocator> core::fmt::Debug for $name<A> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -89,7 +89,7 @@ macro_rules! parser_struct_wrapper_alloc {
         impl<A: core::alloc::Allocator + Clone> $name<A> {
             pub fn p<I: parser::input::Input<Item = u8>, E: parser::error::ParseError<I, A>>(
                 input: I,
-                context: &mut crate::aml::Context,
+                context: &mut crate::aml::Context<A>,
                 alloc: A,
             ) -> parser::error::ParseResult<I, Self, E> {
                 use parser::parser::Parser;
@@ -116,7 +116,7 @@ macro_rules! parser_struct_wrapper_alloc {
 macro_rules! parser_struct_wrapper {
     (struct $name:ident($ty:ty);, $parser:expr) => {
         #[derive(Debug)]
-        pub struct $name($ty);
+        pub struct $name(pub $ty);
 
         impl $name {
             pub fn p<
@@ -125,7 +125,7 @@ macro_rules! parser_struct_wrapper {
                 A: core::alloc::Allocator + Clone,
             >(
                 input: I,
-                context: &mut crate::aml::Context,
+                context: &mut crate::aml::Context<A>,
                 alloc: A,
             ) -> parser::error::ParseResult<I, Self, E> {
                 use parser::parser::Parser;
@@ -161,7 +161,7 @@ macro_rules! parser_struct_empty {
                 A: core::alloc::Allocator + Clone,
             >(
                 input: I,
-                context: &mut crate::aml::Context,
+                context: &mut crate::aml::Context<A>,
                 alloc: A,
             ) -> parser::error::ParseResult<I, Self, E> {
                 use parser::parser::Parser;
@@ -206,7 +206,7 @@ macro_rules! parser_enum_alloc {
         impl<A: core::alloc::Allocator + Clone> $name<A> {
             pub fn p<I: parser::input::Input<Item = u8>, E: parser::error::ParseError<I, A>>(
                 input: I,
-                context: &mut crate::aml::Context,
+                context: &mut crate::aml::Context<A>,
                 alloc: A,
             ) -> parser::error::ParseResult<I, Self, E> {
                 use parser::parser::Parser;
@@ -240,7 +240,7 @@ macro_rules! parser_enum {
         impl $name {
             pub fn p<I: parser::input::Input<Item = u8>, E: parser::error::ParseError<I, A>, A: core::alloc::Allocator + Clone>(
                 input: I,
-                context: &mut crate::aml::Context,
+                context: &mut crate::aml::Context<A>,
                 alloc: A,
             ) -> parser::error::ParseResult<I, Self, E> {
                 use parser::parser::Parser;
@@ -270,7 +270,7 @@ macro_rules! parser_fn {
             A: core::alloc::Allocator + Clone,
         >(
             input: I,
-            context: &mut crate::aml::Context,
+            context: &mut crate::aml::Context<A>,
             alloc: A,
         ) -> parser::error::ParseResult<I, $ret, E> {
             use parser::parser::Parser;

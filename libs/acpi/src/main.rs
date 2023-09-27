@@ -9,19 +9,18 @@ use acpi::aml::{
     term::TermObj,
     Context,
 };
-use parser::multi::many::{many, many_n};
-use parser::parser::Parser;
+use parser::{
+    multi::many::{many, many_n},
+    parser::Parser,
+};
 use std::alloc::Global;
 
 fn main() {
     let aml = include_bytes!("../dsdt.aml");
     let aml = LocatedInput::new(aml.as_slice());
-    let mut context = Context {};
-    let res = many_n(
-        3,
-        TermObj::p::<LocatedInput<&[u8]>, SimpleError<LocatedInput<&[u8]>, Global>>,
-    )
-    .parse(aml, &mut context, Global);
+    let mut context = Context::new(Global);
+    let res = many(TermObj::p::<LocatedInput<&[u8]>, SimpleError<LocatedInput<&[u8]>, Global>>)
+        .parse(aml, &mut context, Global);
     match res {
         Ok(ast) => println!("{:#?}", ast),
         Err(e) => match e {

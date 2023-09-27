@@ -66,6 +66,20 @@ impl<T, A: Allocator> Vec<T, A> {
         self.len += 1;
         Ok(())
     }
+
+    pub fn pop(&mut self) -> Result<Option<T>, PushError> {
+        if self.len == 0 {
+            return Ok(None);
+        }
+
+        self.len -= 1;
+        let item = unsafe { self.as_ptr().add(self.len).read() };
+        Ok(Some(item))
+    }
+
+    pub fn clear(&mut self) {
+        self.len = 0;
+    }
 }
 
 #[derive(Clone, Debug)]

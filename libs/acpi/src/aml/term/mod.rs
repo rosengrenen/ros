@@ -7,9 +7,9 @@ use super::{
 use crate::aml::Context;
 use alloc::{boxed::Box, vec::Vec};
 use parser::{
-    error::{ParseError, ParseResult},
+    error::{ParseError, ParseErrorKind, ParseResult, ParserError},
     input::Input,
-    multi::many::many,
+    multi::many::{many, many_n},
     parser::Parser,
     primitive::fail::fail,
 };
@@ -20,13 +20,58 @@ pub mod named;
 pub mod namespace;
 pub mod statement;
 
-parser_struct_alloc!(
-    struct MethodInvocation {
+// TODO: naming
+pub enum MethodInvocation<A: Allocator> {
+    Variable(NameString<A>),
+    Method {
         name: NameString<A>,
         args: Vec<TermArg<A>, A>,
     },
-    (NameString::p, fail(), many(TermArg::p)).map(|(name, _, args)| (name, args))
-);
+}
+
+impl<A: Allocator> core::fmt::Debug for MethodInvocation<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MethodInvocation::Variable(name) => f.debug_tuple("Variable").field(name).finish(),
+            MethodInvocation::Method { name, args } => f
+                .debug_struct("Method")
+                .field("name", name)
+                .field("args", args)
+                .finish(),
+        }
+    }
+}
+
+impl<A: Allocator + Clone> MethodInvocation<A> {
+    pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
+        input: I,
+        context: &mut Context<A>,
+        alloc: A,
+    ) -> ParseResult<I, Self, E> {
+        let (input, name) =
+            NameString::p
+                .add_context("MethodInvocation")
+                .parse(input, context, alloc.clone())?;
+        println!("{:?}, {:?}", name, context);
+
+        if let Some(args) = context.method_args(&name) {
+            let (input, args) = many_n(args, TermArg::p)
+                .cut()
+                .add_context("MethodInvocation method")
+                .parse(input, context, alloc)?;
+            return Ok((input, Self::Method { name, args }));
+        }
+
+        Ok((input, Self::Variable(name)))
+        //
+        // panic!("{:?} {:?}", name, context);
+        // Err(ParserError::Failure(E::from_error_kind(
+        //     input,
+        //     ParseErrorKind::Unknown,
+        //     alloc,
+        // )))
+    }
+}
 
 parser_enum_alloc!(
     enum Obj {
@@ -58,7 +103,7 @@ impl<A: Allocator> core::fmt::Debug for TermArg<A> {
 impl<A: Allocator + Clone> TermArg<A> {
     pub fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
         input: I,
-        context: &mut Context,
+        context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         (

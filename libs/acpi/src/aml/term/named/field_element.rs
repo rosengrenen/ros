@@ -13,13 +13,37 @@ use parser::{
     primitive::item::item,
 };
 
-parser_struct!(
-    struct NamedField {
-        name: NameSeg,
-        len: usize,
-    },
-    (NameSeg::p, pkg_length)
-);
+#[derive(Debug)]
+pub struct NamedField {
+    pub name: NameSeg,
+    pub len: usize,
+}
+
+impl NamedField {
+    pub fn p<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
+        input: I,
+        context: &mut Context<A>,
+        alloc: A,
+    ) -> ParseResult<I, Self, E> {
+        let (input, field) = (NameSeg::p, pkg_length)
+            .map(|(name, len)| Self { name, len })
+            .map(|a| {
+                let name = stringify!(NamedField);
+                println!(
+                    "{:width$} matched {:x?}, {:x?}",
+                    name,
+                    a,
+                    input.clone(),
+                    width = 20
+                );
+                a
+            })
+            .add_context("NamedField")
+            .parse(input.clone(), context, alloc)?;
+        context.add_field_seg(field.name);
+        Ok((input, field))
+    }
+}
 
 parser_struct_empty!(struct ReservedField;, (item(0x00), pkg_length));
 
@@ -47,7 +71,7 @@ impl<A: Allocator> core::fmt::Debug for ConnectField<A> {
 impl<A: Allocator + Clone> ConnectField<A> {
     fn p<I: Input<Item = u8>, E: ParseError<I, A>>(
         input: I,
-        context: &mut Context,
+        context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<I, Self, E> {
         prefixed(
