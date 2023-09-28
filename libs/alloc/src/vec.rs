@@ -101,27 +101,33 @@ impl From<LayoutError> for PushError {
 }
 
 impl<T: Clone, A: Allocator> Vec<T, A> {
-    pub fn from_elem(value: T, n: usize, alloc: A) -> Result<Self, ()> {
-        let layout = Layout::array::<T>(n).map_err(|_| ())?;
+    pub fn with_size_elem(size: usize, value: T, alloc: A) -> Result<Self, ()> {
+        Self::with_size_f(size, || value.clone(), alloc)
+    }
+}
+
+impl<T: Default, A: Allocator> Vec<T, A> {
+    pub fn with_size_default(size: usize, alloc: A) -> Result<Self, ()> {
+        Self::with_size_f(size, Default::default, alloc)
+    }
+}
+
+impl<T, A: Allocator> Vec<T, A> {
+    pub fn with_size_f<F: Fn() -> T>(size: usize, f: F, alloc: A) -> Result<Self, ()> {
+        let layout = Layout::array::<T>(size).map_err(|_| ())?;
         let ptr = alloc.allocate(layout).map_err(|_| ())?.cast::<T>();
 
-        for i in 1..n {
+        for i in 0..size {
             unsafe {
                 let ptr = ptr.as_ptr().add(i);
-                core::ptr::write(ptr, value.clone());
-            }
-        }
-
-        if n > 0 {
-            unsafe {
-                core::ptr::write(ptr.as_ptr(), value);
+                core::ptr::write(ptr, f());
             }
         }
 
         Ok(Self {
             ptr: ptr.into(),
-            cap: layout.size(),
-            len: n,
+            cap: size,
+            len: size,
             alloc,
         })
     }

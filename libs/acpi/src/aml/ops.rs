@@ -9,135 +9,129 @@ macro_rules! op_parser {
     };
 }
 
-macro_rules! ops {
-    {$($parser:tt => $name:ident)+} => {
-        $(
-            parser_struct_empty!(
-                struct $name;, op_parser!($parser)
-            );
-        )+
+macro_rules! op {
+    ($parser:tt, $name:ident) => {
+        parser_struct_empty!(struct $name;, op_parser!($parser));
     };
 }
 
-ops! {
-    0x00 => ZeroOp
-    0x01 => OneOp
-    0x06 => AliasOp
-    0x08 => NameOp
-    0x0a => BytePrefix
-    0x0b => WordPrefix
-    0x0c => DWordPrefix
-    0x0d => StringPrefix
-    0x0e => QWordPrefix
-    0x10 => ScopeOp
-    0x11 => BufferOp
-    0x12 => PkgOp
-    0x13 => VarPkgOp
-    0x14 => MethodOp
-    0x15 => ExternalOp
-    0x2e => DualNamePrefix
-    0x2f => MultiNamePrefix
-    0x5b => ExtOpPrefix
-    (0x5b, 0x01) => MutexOp
-    (0x5b, 0x02) => EventOp
-    (0x5b, 0x12) => CondRefOfOp
-    (0x5b, 0x13) => CreateFieldOp
-    (0x5b, 0x1f) => LoadTableOp
-    (0x5b, 0x20) => LoadOp
-    (0x5b, 0x21) => StallOp
-    (0x5b, 0x22) => SleepOp
-    (0x5b, 0x23) => AcquireOp
-    (0x5b, 0x24) => SignalOp
-    (0x5b, 0x25) => WaitOp
-    (0x5b, 0x26) => ResetOp
-    (0x5b, 0x27) => ReleaseOp
-    (0x5b, 0x28) => FromBcdOp
-    (0x5b, 0x29) => ToBcdOp
-    (0x5b, 0x30) => RevisionOp
-    (0x5b, 0x31) => DebugOp
-    (0x5b, 0x32) => FatalOp
-    (0x5b, 0x33) => TimerOp
-    (0x5b, 0x80) => OpRegionOp
-    (0x5b, 0x81) => FieldOp
-    (0x5b, 0x82) => DeviceOp
-    (0x5b, 0x83) => ProcessorOp
-    (0x5b, 0x84) => PowerResOp
-    (0x5b, 0x85) => ThermalZoneOp
-    (0x5b, 0x86) => IndexFieldOp
-    (0x5b, 0x87) => BankFieldOp
-    (0x5b, 0x88) => DataRegionOp
-    0x5c => RootChar
-    0x5e => ParentPrefixChar
-    0x60 => Local0Op
-    0x61 => Local1Op
-    0x62 => Local2Op
-    0x63 => Local3Op
-    0x64 => Local4Op
-    0x65 => Local5Op
-    0x66 => Local6Op
-    0x67 => Local7Op
-    0x68 => Arg0Op
-    0x69 => Arg1Op
-    0x6a => Arg2Op
-    0x6b => Arg3Op
-    0x6c => Arg4Op
-    0x6d => Arg5Op
-    0x6e => Arg6Op
-    0x70 => StoreOp
-    0x71 => RefOfOp
-    0x72 => AddOp
-    0x73 => ConcatOp
-    0x74 => SubtractOp
-    0x75 => IncrementOp
-    0x76 => DecrementOp
-    0x77 => MultiplyOp
-    0x78 => DivideOp
-    0x79 => ShiftLeftOp
-    0x7a => ShiftRightOp
-    0x7b => AndOp
-    0x7c => NAndOp
-    0x7d => OrOp
-    0x7e => NOrOp
-    0x7f => XOrOp
-    0x80 => NotOp
-    0x81 => FindSetLeftBitOp
-    0x82 => FindSetRightBitOp
-    0x83 => DerefOfOp
-    0x84 => ConcatResOp
-    0x85 => ModOp
-    0x86 => NotifyOp
-    0x87 => SizeOfOp
-    0x88 => IndexOp
-    0x89 => MatchOp
-    0x8a => CreateDWordFieldOp
-    0x8b => CreateWordFieldOp
-    0x8c => CreateByteFieldOp
-    0x8d => CreateBitFieldOp
-    0x8e => ObjTypeOp
-    0x8f => CreateQWordFieldOp
-    0x90 => LAndOp
-    0x91 => LOrOp
-    0x92 => LNotOp
-    (0x92, 0x93) => LNotEqualOp
-    (0x92, 0x94) => LLessEqualOp
-    (0x92, 0x95) => LGreaterEqualOp
-    0x93 => LEqualOp
-    0x94 => LGreaterOp
-    0x95 => LLessOp
-    0x96 => ToBufferOp
-    0x97 => ToDecimalStringOp
-    0x98 => ToHexStringOp
-    0x99 => ToIntegerOp
-    0x9c => ToStringOp
-    0x9d => CopyObjOp
-    0x9e => MidOp
-    0x9f => ContinueOp
-    0xa0 => IfOp
-    0xa1 => ElseOp
-    0xa2 => WhileOp
-    0xa3 => NoopOp
-    0xa4 => ReturnOp
-    0xa5 => BreakOp
-    0xcc => BreakPointOp
-    0xff => OnesOp
-}
+op!(0x00, ZeroOp);
+op!(0x01, OneOp);
+op!(0x06, AliasOp);
+op!(0x08, NameOp);
+op!(0x0a, BytePrefix);
+op!(0x0b, WordPrefix);
+op!(0x0c, DWordPrefix);
+op!(0x0d, StringPrefix);
+op!(0x0e, QWordPrefix);
+op!(0x10, ScopeOp);
+op!(0x11, BufferOp);
+op!(0x12, PkgOp);
+op!(0x13, VarPkgOp);
+op!(0x14, MethodOp);
+op!(0x15, ExternalOp);
+op!(0x2e, DualNamePrefix);
+op!(0x2f, MultiNamePrefix);
+// op!(0x5b, ExtOpPrefix);
+op!((0x5b, 0x01), MutexOp);
+op!((0x5b, 0x02), EventOp);
+op!((0x5b, 0x12), CondRefOfOp);
+op!((0x5b, 0x13), CreateFieldOp);
+op!((0x5b, 0x1f), LoadTableOp);
+op!((0x5b, 0x20), LoadOp);
+op!((0x5b, 0x21), StallOp);
+op!((0x5b, 0x22), SleepOp);
+op!((0x5b, 0x23), AcquireOp);
+op!((0x5b, 0x24), SignalOp);
+op!((0x5b, 0x25), WaitOp);
+op!((0x5b, 0x26), ResetOp);
+op!((0x5b, 0x27), ReleaseOp);
+op!((0x5b, 0x28), FromBcdOp);
+op!((0x5b, 0x29), ToBcdOp);
+op!((0x5b, 0x30), RevisionOp);
+op!((0x5b, 0x31), DebugOp);
+op!((0x5b, 0x32), FatalOp);
+op!((0x5b, 0x33), TimerOp);
+op!((0x5b, 0x80), OpRegionOp);
+op!((0x5b, 0x81), FieldOp);
+op!((0x5b, 0x82), DeviceOp);
+op!((0x5b, 0x83), ProcessorOp);
+op!((0x5b, 0x84), PowerResOp);
+op!((0x5b, 0x85), ThermalZoneOp);
+op!((0x5b, 0x86), IndexFieldOp);
+op!((0x5b, 0x87), BankFieldOp);
+op!((0x5b, 0x88), DataRegionOp);
+op!(0x5c, RootChar);
+op!(0x5e, ParentPrefixChar);
+op!(0x60, Local0Op);
+op!(0x61, Local1Op);
+op!(0x62, Local2Op);
+op!(0x63, Local3Op);
+op!(0x64, Local4Op);
+op!(0x65, Local5Op);
+op!(0x66, Local6Op);
+op!(0x67, Local7Op);
+op!(0x68, Arg0Op);
+op!(0x69, Arg1Op);
+op!(0x6a, Arg2Op);
+op!(0x6b, Arg3Op);
+op!(0x6c, Arg4Op);
+op!(0x6d, Arg5Op);
+op!(0x6e, Arg6Op);
+op!(0x70, StoreOp);
+op!(0x71, RefOfOp);
+op!(0x72, AddOp);
+op!(0x73, ConcatOp);
+op!(0x74, SubtractOp);
+op!(0x75, IncrementOp);
+op!(0x76, DecrementOp);
+op!(0x77, MultiplyOp);
+op!(0x78, DivideOp);
+op!(0x79, ShiftLeftOp);
+op!(0x7a, ShiftRightOp);
+op!(0x7b, AndOp);
+op!(0x7c, NAndOp);
+op!(0x7d, OrOp);
+op!(0x7e, NOrOp);
+op!(0x7f, XOrOp);
+op!(0x80, NotOp);
+op!(0x81, FindSetLeftBitOp);
+op!(0x82, FindSetRightBitOp);
+op!(0x83, DerefOfOp);
+op!(0x84, ConcatResOp);
+op!(0x85, ModOp);
+op!(0x86, NotifyOp);
+op!(0x87, SizeOfOp);
+op!(0x88, IndexOp);
+op!(0x89, MatchOp);
+op!(0x8a, CreateDWordFieldOp);
+op!(0x8b, CreateWordFieldOp);
+op!(0x8c, CreateByteFieldOp);
+op!(0x8d, CreateBitFieldOp);
+op!(0x8e, ObjTypeOp);
+op!(0x8f, CreateQWordFieldOp);
+op!(0x90, LAndOp);
+op!(0x91, LOrOp);
+op!(0x92, LNotOp);
+op!((0x92, 0x93), LNotEqualOp);
+op!((0x92, 0x94), LLessEqualOp);
+op!((0x92, 0x95), LGreaterEqualOp);
+op!(0x93, LEqualOp);
+op!(0x94, LGreaterOp);
+op!(0x95, LLessOp);
+op!(0x96, ToBufferOp);
+op!(0x97, ToDecimalStringOp);
+op!(0x98, ToHexStringOp);
+op!(0x99, ToIntegerOp);
+op!(0x9c, ToStringOp);
+op!(0x9d, CopyObjOp);
+op!(0x9e, MidOp);
+op!(0x9f, ContinueOp);
+op!(0xa0, IfOp);
+op!(0xa1, ElseOp);
+op!(0xa2, WhileOp);
+op!(0xa3, NoopOp);
+op!(0xa4, ReturnOp);
+op!(0xa5, BreakOp);
+op!(0xcc, BreakPointOp);
+op!(0xff, OnesOp);

@@ -1,6 +1,6 @@
 use super::{
     misc::{ArgObj, DebugObj, LocalObj},
-    ops::{DualNamePrefix, MultiNamePrefix, RootChar},
+    ops::{DualNamePrefix, MultiNamePrefix, ParentPrefixChar, RootChar},
     prefixed::prefixed,
     term::expr::RefTypeOpcode,
     Context,
@@ -13,12 +13,9 @@ use core::{
 use parser::{
     error::{ParseError, ParseResult},
     input::Input,
-    multi::many::many_n,
+    multi::{fold::fold1, many::many_n},
     parser::Parser,
-    primitive::{
-        item::{item, satisfy, take_one},
-        take::take_while1,
-    },
+    primitive::item::{item, satisfy, take_one},
 };
 
 parser_fn!(
@@ -105,7 +102,7 @@ impl<A: Allocator + Clone> NameString<A> {
 
 parser_struct_wrapper!(
     struct PrefixPath(usize);,
-    take_while1::<_, E, _, _, _>(|b| b == 0x5e).map(|value| value.input_len())
+    fold1(ParentPrefixChar::p, || 0, |c, _| c + 1)
 );
 
 parser_enum_alloc!(

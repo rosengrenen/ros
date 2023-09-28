@@ -20,7 +20,12 @@ pub use self::{
 use self::name::{NamePath, NameSeg};
 use crate::aml::name::{DualNamePath, MultiNamePath, NameString, NullName};
 use alloc::{collections::HashMap, vec::Vec};
-use core::{alloc::Allocator, marker::PhantomData};
+#[allow(deprecated)]
+use core::{
+    alloc::Allocator,
+    hash::{BuildHasherDefault, SipHasher},
+    marker::PhantomData,
+};
 
 pub struct Context<A: Allocator> {
     root_scope: Scope<A>,
@@ -81,7 +86,10 @@ impl<A: Allocator + Clone> Context<A> {
     fn get_scope_mut(&mut self, path: &ScopePath<A>) -> &mut Scope<A> {
         let mut scope: &mut Scope<A> = &mut self.root_scope;
         for seg in &path.segments {
-            scope = scope.scopes.entry(*seg).or_insert(Scope::new(self.alloc.clone()))
+            scope = scope
+                .scopes
+                .entry(*seg)
+                .or_insert(Scope::new(self.alloc.clone()))
         }
 
         scope
@@ -93,8 +101,10 @@ impl<A: Allocator + Clone> Context<A> {
 }
 
 pub(crate) struct Scope<A: Allocator> {
-    scopes: HashMap<NameSeg, Scope<A>, A>,
-    methods: HashMap<NameSeg, usize, A>,
+    #[allow(deprecated)]
+    scopes: HashMap<NameSeg, Scope<A>, BuildHasherDefault<SipHasher>, A>,
+    #[allow(deprecated)]
+    methods: HashMap<NameSeg, usize, BuildHasherDefault<SipHasher>, A>,
     alloc: PhantomData<A>,
 }
 
@@ -107,11 +117,11 @@ impl<A: Allocator> core::fmt::Debug for Scope<A> {
     }
 }
 
-impl<A: Allocator  + Clone> Scope<A> {
+impl<A: Allocator + Clone> Scope<A> {
     fn new(alloc: A) -> Self {
         Self {
-            scopes: HashMap::new(alloc.clone()),
-            methods: HashMap::new(alloc),
+            scopes: HashMap::new(BuildHasherDefault::default(), alloc.clone()),
+            methods: HashMap::new(BuildHasherDefault::default(), alloc),
             alloc: PhantomData,
         }
     }
