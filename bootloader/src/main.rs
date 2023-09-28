@@ -23,6 +23,7 @@ use core::{
     alloc::{Allocator, Layout},
     fmt::{Arguments, Write},
 };
+use parser::{multi::many::many, parser::Parser};
 use serial::{SerialPort, COM1_BASE};
 use uefi::{
     allocator::UefiAllocator,
@@ -394,16 +395,15 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
     let aml_ptr = unsafe { ptr.add(1) }.cast::<u8>();
     let aml_len = hdr.length as usize - core::mem::size_of::<DefinitionHeader>();
     let aml_slice = unsafe { core::slice::from_raw_parts(aml_ptr, aml_len) };
-    sprintln!("{:x?}", &aml_slice[..64]);
     let input = LocatedInput::new(aml_slice);
     let mut context = Context::new(alloc);
-    let res = TermObj::p::<LocatedInput<&[u8]>, SimpleError<LocatedInput<&[u8]>, _>>(
+    let res = many(TermObj::p::<LocatedInput<&[u8]>, SimpleError<LocatedInput<&[u8]>, _>>).parse(
         input,
         &mut context,
         alloc,
     );
     match res {
-        Ok(_) => sprintln!("ok"),
+        Ok(ast) => sprintln!("{:?}", ast),
         Err(e) => match e {
             parser::error::ParserError::Error(_) => sprintln!("err"),
             parser::error::ParserError::Failure(e) => {
@@ -424,6 +424,5 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
             }
         },
     }
-    // sprintln!("{:?}", res);
     loop {}
 }
