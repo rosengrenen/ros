@@ -28,8 +28,8 @@ use core::{
 };
 
 pub struct Context<A: Allocator> {
-    root_scope: Scope<A>,
-    current_scope: Vec<ScopePath<A>, A>,
+    pub root_scope: Scope<A>,
+    pub current_scope: Vec<ScopePath<A>, A>,
     alloc: A,
 }
 
@@ -100,11 +100,11 @@ impl<A: Allocator + Clone> Context<A> {
     }
 }
 
-pub(crate) struct Scope<A: Allocator> {
+pub struct Scope<A: Allocator> {
     #[allow(deprecated)]
-    scopes: HashMap<NameSeg, Scope<A>, BuildHasherDefault<SipHasher>, A>,
+    pub scopes: HashMap<NameSeg, Scope<A>, BuildHasherDefault<SipHasher>, A>,
     #[allow(deprecated)]
-    methods: HashMap<NameSeg, usize, BuildHasherDefault<SipHasher>, A>,
+    pub methods: HashMap<NameSeg, usize, BuildHasherDefault<SipHasher>, A>,
     alloc: PhantomData<A>,
 }
 
@@ -128,8 +128,8 @@ impl<A: Allocator + Clone> Scope<A> {
 }
 
 #[derive(Clone)]
-struct ScopePath<A: Allocator> {
-    segments: Vec<NameSeg, A>,
+pub struct ScopePath<A: Allocator> {
+    pub segments: Vec<NameSeg, A>,
 }
 
 impl<A: Allocator> core::fmt::Debug for ScopePath<A> {

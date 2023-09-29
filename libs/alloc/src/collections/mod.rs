@@ -16,9 +16,14 @@ mod hash {
         hasher_builder: H,
     }
 
-    impl<K, V, H, A: Allocator> core::fmt::Debug for HashMap<K, V, H, A> {
+    impl<K, V, H, A> core::fmt::Debug for HashMap<K, V, H, A>
+    where
+        K: core::fmt::Debug,
+        V: core::fmt::Debug,
+        A: Allocator,
+    {
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-            f.debug_struct("HashMap").finish()
+            f.debug_map().entries(self.iter()).finish()
         }
     }
 
@@ -78,6 +83,56 @@ mod hash {
                 Some(_) => Entry::Occupied { key, map: self },
                 None => Entry::Vacant { key, map: self },
             }
+        }
+    }
+
+    impl<K, V, H, A: Allocator> HashMap<K, V, H, A> {
+        pub fn iter(&self) -> Iter<'_, K, V, H, A> {
+            Iter {
+                index: 0,
+                chain_iter: None,
+                table: self,
+            }
+        }
+    }
+
+    pub struct Iter<'iter, K, V, H, A: Allocator> {
+        index: usize,
+        chain_iter: Option<super::linked_list::Iter<'iter, (K, V)>>,
+        table: &'iter HashMap<K, V, H, A>,
+    }
+
+    impl<'iter, K, V, H, A: Allocator> Iterator for Iter<'iter, K, V, H, A> {
+        type Item = (&'iter K, &'iter V);
+
+        fn next(&mut self) -> Option<Self::Item> {
+            loop {
+                if self.index == self.table.slots.len() {
+                    return None;
+                }
+
+                match self.chain_iter.as_mut() {
+                    Some(chain_iter) => {
+                        if let Some(item) = chain_iter.next() {
+                            return Some((&item.0, &item.1));
+                        } else {
+                            self.index += 1;
+                            self.chain_iter = None;
+                        }
+                    }
+                    None => self.chain_iter = Some(unsafe { self.table.slots.get_unchecked(self.index).iter() }),
+                };
+            }
+        }
+    }
+
+    impl<'iter, K, V, H, A: Allocator> IntoIterator for &'iter HashMap<K, V, H, A> {
+        type Item = (&'iter K, &'iter V);
+
+        type IntoIter = Iter<'iter, K, V, H, A>;
+
+        fn into_iter(self) -> Self::IntoIter {
+            self.iter()
         }
     }
 

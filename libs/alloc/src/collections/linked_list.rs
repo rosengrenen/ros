@@ -10,6 +10,12 @@ pub struct LinkedList<T, A: Allocator> {
     alloc: A,
 }
 
+impl<T: core::fmt::Debug, A: Allocator> core::fmt::Debug for LinkedList<T, A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
+    }
+}
+
 struct Ends<T> {
     head: NonNull<Node<T>>,
     tail: NonNull<Node<T>>,
@@ -144,20 +150,6 @@ impl<T, A: Allocator + Clone> LinkedList<T, A> {
         self.len == 0
     }
 
-    pub fn iter(&self) -> Iter<'_, T> {
-        Iter {
-            current: self.ends.map(|ends| ends.head),
-            marker: PhantomData,
-        }
-    }
-
-    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
-        IterMut {
-            current: self.ends.map(|ends| ends.head),
-            marker: PhantomData,
-        }
-    }
-
     fn remove_node(&mut self, node_ptr: NonNull<Node<T>>) -> T {
         let node = unsafe { node_ptr.as_ref() };
         match (node.prev, node.next) {
@@ -227,6 +219,22 @@ impl<T, A: Allocator + Clone> LinkedList<T, A> {
             self.alloc.deallocate(node_ptr.cast(), Self::NODE_LAYOUT);
         }
         value
+    }
+}
+
+impl<T, A: Allocator> LinkedList<T, A> {
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter {
+            current: self.ends.map(|ends| ends.head),
+            marker: PhantomData,
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+        IterMut {
+            current: self.ends.map(|ends| ends.head),
+            marker: PhantomData,
+        }
     }
 }
 

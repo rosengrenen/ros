@@ -403,7 +403,9 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
         alloc,
     );
     match res {
-        Ok(ast) => sprintln!("{:?}", ast),
+        Ok(ast) => {
+            sprintln!("{:#?}", context);
+        }
         Err(e) => match e {
             parser::error::ParserError::Error(_) => sprintln!("err"),
             parser::error::ParserError::Failure(e) => {
