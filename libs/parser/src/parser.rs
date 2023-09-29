@@ -1,4 +1,5 @@
 use crate::branch::alt::{Alt, AltHelper};
+use crate::combinator::map_context::MapContext;
 use crate::{
     combinator::{
         add_context::AddContext,
@@ -35,6 +36,14 @@ where
         F: Fn(Self::Output) -> O + Clone,
     {
         Map { parser: self, f }
+    }
+
+    fn map_context<F>(self, f: F) -> MapContext<Self, F>
+    where
+        Self: Sized,
+        F: Fn(&Self::Output, &mut C) + Clone,
+    {
+        MapContext { parser: self, f }
     }
 
     fn map_res<O, E, F>(self, f: F) -> MapRes<Self, F, E>

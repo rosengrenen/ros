@@ -1,3 +1,4 @@
+use super::fold::FoldMN;
 use crate::{
     error::{ParseError, ParseErrorKind, ParseResult},
     input::Input,
@@ -5,8 +6,6 @@ use crate::{
 };
 use alloc::vec::Vec;
 use core::alloc::Allocator;
-
-use super::fold::FoldMN;
 
 pub fn many<I, O, E, C, P, A>(parser: P) -> impl Parser<I, C, A, Output = Vec<O, A>, Error = E>
 where
