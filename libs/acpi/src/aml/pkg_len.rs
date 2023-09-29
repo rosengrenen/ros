@@ -7,27 +7,15 @@ use parser::{
     primitive::{fail::fail, item::take_one, take::take},
 };
 
-parser_fn!(
-    fn pkg_length() -> usize {
-        pkg_length_inner.map(|(pkg_len, _)| pkg_len)
-    }
-);
-
-parser_fn!(
-    fn pkg_length_left() -> usize {
-        pkg_length_inner.map(|(pkg_len, pkg_len_bytes_read)| pkg_len - pkg_len_bytes_read)
-    }
-);
-
-fn pkg_length_inner<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
+fn pkg_length<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clone>(
     input: I,
     context: &mut Context<A>,
     alloc: A,
-) -> ParseResult<I, (usize, usize), E> {
+) -> ParseResult<I, usize, E> {
     let (input, lead_byte) = take_one().parse(input, context, alloc.clone())?;
     let extra_bytes = (lead_byte >> 6) as usize;
     if extra_bytes == 0 {
-        return Ok((input, (lead_byte as usize, 1)));
+        return Ok((input, lead_byte as usize - 1));
     }
 
     take(extra_bytes)
@@ -41,7 +29,7 @@ fn pkg_length_inner<I: Input<Item = u8>, E: ParseError<I, A>, A: Allocator + Clo
                 pkg_length |= (b as usize) << (i * 8 + 4);
             }
 
-            Ok((pkg_length, 1 + extra_bytes.input_len()))
+            Ok(pkg_length - 1 - extra_bytes.input_len())
         })
         .add_context("pkg_length")
         .parse(input, context, alloc)
@@ -83,12 +71,14 @@ where
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<I, Self::Output, Self::Error> {
-        let (input, (pkg_len, pkg_len_bytes_read)) = pkg_length_inner
-            .add_context("pkg pkg_length_inner")
-            .parse(input, context, alloc.clone())?;
-        let (rest, input) = take(pkg_len - pkg_len_bytes_read)
-            .add_context("pkg take")
-            .parse(input, context, alloc.clone())?;
+        let (input, pkg_len) =
+            pkg_length
+                .add_context("pkg")
+                .parse(input, context, alloc.clone())?;
+        let (rest, input) =
+            take(pkg_len)
+                .add_context("pkg take")
+                .parse(input, context, alloc.clone())?;
         let (_, output) = (
             self.parser,
             fail().add_context("whole package was not read"),

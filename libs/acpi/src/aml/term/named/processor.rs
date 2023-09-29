@@ -20,11 +20,12 @@ parser_struct_alloc!(
     prefixed(
         ProcessorOp::p,
         pkg((
-            NameString::p,
+            NameString::p.map_context(|name, context| context.push_scope(name)),
             byte_data,
             dword_data,
             byte_data,
             many(TermObj::p)
         )),
     )
+    .map_context(|_, context| context.pop_scope())
 );

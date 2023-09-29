@@ -201,13 +201,13 @@ impl<T, A: Allocator + Clone> LinkedList<T, A> {
     }
 
     fn create_node(&self, value: T) -> NonNull<Node<T>> {
-        let mut node_ptr = self
+        let node_ptr = self
             .alloc
             .allocate(Self::NODE_LAYOUT)
             .unwrap()
             .cast::<Node<T>>();
         unsafe {
-            *node_ptr.as_mut() = Node::new(value);
+            node_ptr.as_ptr().write(Node::new(value));
         }
 
         node_ptr

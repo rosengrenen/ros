@@ -3,20 +3,11 @@ use crate::aml::{
     data::DataRefObj,
     name::NameString,
     ops::{AliasOp, NameOp, ScopeOp},
-    pkg_len::{pkg, pkg_length_left},
+    pkg_len::pkg,
     prefixed::prefixed,
-    Context,
 };
 use alloc::vec::Vec;
-use core::alloc::Allocator;
-use parser::{
-    error::{ParseError, ParseResult},
-    input::Input,
-    multi::many::many,
-    parser::Parser,
-    primitive::{fail::fail, take::take},
-    sequence::preceded,
-};
+use parser::{multi::many::many, sequence::preceded};
 
 parser_enum_alloc!(
     enum NameSpaceModObj {

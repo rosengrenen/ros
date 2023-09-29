@@ -120,7 +120,10 @@ mod hash {
                             self.chain_iter = None;
                         }
                     }
-                    None => self.chain_iter = Some(unsafe { self.table.slots.get_unchecked(self.index).iter() }),
+                    None => {
+                        self.chain_iter =
+                            Some(unsafe { self.table.slots.get_unchecked(self.index).iter() })
+                    }
                 };
             }
         }

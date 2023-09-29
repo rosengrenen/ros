@@ -18,6 +18,12 @@ parser_struct_alloc!(
     },
     prefixed(
         PowerResOp::p,
-        pkg((NameString::p, byte_data, word_data, many(TermObj::p),)),
+        pkg((
+            NameString::p.map_context(|name, context| context.push_scope(name)),
+            byte_data,
+            word_data,
+            many(TermObj::p),
+        )),
     )
+    .map_context(|_, context| context.pop_scope())
 );

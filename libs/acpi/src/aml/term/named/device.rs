@@ -2,7 +2,7 @@ use crate::aml::{
     name::NameString, ops::DeviceOp, pkg_len::pkg, prefixed::prefixed, term::TermObj,
 };
 use alloc::vec::Vec;
-use parser::{multi::many::many, parser::Parser};
+use parser::multi::many::many;
 
 parser_struct_alloc!(
     struct Device {

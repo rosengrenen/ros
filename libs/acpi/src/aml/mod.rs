@@ -84,7 +84,7 @@ impl<A: Allocator + Clone> Context<A> {
     }
 
     fn get_scope_mut(&mut self, path: &ScopePath<A>) -> &mut Scope<A> {
-        let mut scope: &mut Scope<A> = &mut self.root_scope;
+        let mut scope = &mut self.root_scope;
         for seg in &path.segments {
             scope = scope
                 .scopes

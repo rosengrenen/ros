@@ -134,6 +134,7 @@ macro_rules! parser_struct_empty {
                 context: &mut crate::aml::Context<A>,
                 alloc: A,
             ) -> parser::error::ParseResult<I, Self, E> {
+                #[allow(unused_imports)]
                 use parser::parser::Parser;
                 $parser.map(|_| Self).add_context(stringify!($name)).parse(
                     input.clone(),

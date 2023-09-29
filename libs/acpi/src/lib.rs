@@ -5,7 +5,9 @@ pub mod aml;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::aml::{Context, LocatedInput, SimpleError, TermObj};
+    use parser::{multi::many::many, parser::Parser};
+    use std::alloc::Global;
 
     #[test]
     fn test_name() {
@@ -14,5 +16,6 @@ mod tests {
         let mut context = Context::new(Global);
         let res = many(TermObj::p::<LocatedInput<&[u8]>, SimpleError<LocatedInput<&[u8]>, Global>>)
             .parse(aml, &mut context, Global);
+        assert!(res.is_ok());
     }
 }
