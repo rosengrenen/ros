@@ -157,6 +157,28 @@ pub extern "efiapi" fn efi_main(
         );
     }
 
+    unsafe fn outb(port: u16, data: u8) {
+        unsafe {
+            core::arch::asm!("out dx, al",
+              in("al") data,
+              in("dx") port
+            );
+        }
+    }
+
+    unsafe fn inw(port: u16) -> u16 {
+        unsafe {
+            // Trust me bro
+            #[allow(unused_assignments)]
+            let mut data = 0;
+            core::arch::asm!("in al, dx",
+              in("dx") port,
+              inout("ax") data
+            );
+            data
+        }
+    }
+
     for hdr_ptr in rsdp.table_ptrs() {
         let hdr = unsafe { hdr_ptr.read() };
         if &hdr.signature == b"FACP" {
@@ -167,8 +189,21 @@ pub extern "efiapi" fn efi_main(
                 core::str::from_utf8(&hdr.signature).unwrap(),
                 fadt
             );
-            let dsdt_addr = fadt.dsdt;
-            print_dsdt(dsdt_addr as _, &bump_allocator);
+
+            let acpi_enabled = unsafe { inw(fadt.pm1a_control_block as u16) & 0x1 != 0 };
+            if acpi_enabled {
+                sprintln!("acpi already enabled")
+            } else {
+                sprintln!("enabling acpi...");
+                unsafe {
+                    outb(fadt.smi_command_port as u16, fadt.acpi_disable);
+                }
+
+                while unsafe { inw(fadt.pm1a_control_block as u16) } & 0x1 == 0 {}
+                sprintln!("acpi enabled...")
+            }
+            // let dsdt_addr = fadt.dsdt;
+            // print_dsdt(dsdt_addr as _, &bump_allocator);
         } else if &hdr.signature == b"APIC" {
             // TODO: print the entries
             print_apic(*hdr_ptr);
