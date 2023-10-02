@@ -9,7 +9,6 @@ mod acpi;
 mod allocator;
 mod elf;
 mod print;
-mod msr;
 
 use crate::{
     acpi::DefinitionHeader,
@@ -148,6 +147,9 @@ pub extern "efiapi" fn efi_main(
         );
     }
 
+    // Map Local APIC configuration
+    pml4.map_ident(VirtAddr::new(0xfee0_0000), &bump_allocator);
+
     // Identity map framebuffer
     let framebuffer_frames =
         framebuffer.height * framebuffer.width * core::mem::size_of::<BltPixel>() / 4096;
@@ -216,10 +218,6 @@ pub extern "efiapi" fn efi_main(
             );
         }
     }
-
-    let lapic_info = msr::lapic_info();
-    sprintln!("{:x?}", lapic_info);
-
 
     // Allocate stack for the kernel and map it to virtual addresses
     let stack_pages = 8;

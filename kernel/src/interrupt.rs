@@ -2,14 +2,15 @@ use core::fmt::Write;
 use serial::{SerialPort, COM1_BASE};
 use x86_64::{control::Cr2, idt::IdtEntry};
 
-use crate::DescriptorTablePointer;
+use crate::{msr::LApic, DescriptorTablePointer};
 
 pub fn init(idt: &mut [IdtEntry]) {
     // entry point, index 1 of gdt  (1 << 3) = 8, options(0x8f00) = [present, gate type is trap gate]
-    idt[0x0] = IdtEntry::new(interrupt_div0 as _, 0x8, 0x8e00);
-    idt[0x3] = IdtEntry::new(interrupt_breakpoint as _, 0x8, 0x8e00);
-    idt[0x8] = IdtEntry::new(interrupt_dbl as _, 0x8, 0x8e00);
-    idt[0xe] = IdtEntry::new(interrupt_page_fault as _, 0x8, 0x8e00);
+    idt[0x00] = IdtEntry::new(interrupt_div0 as _, 0x8, 0x8e00);
+    idt[0x03] = IdtEntry::new(interrupt_breakpoint as _, 0x8, 0x8e00);
+    idt[0x08] = IdtEntry::new(interrupt_dbl as _, 0x8, 0x8e00);
+    idt[0x0e] = IdtEntry::new(interrupt_page_fault as _, 0x8, 0x8e00);
+    idt[0x20] = IdtEntry::new(interrupt_timer as _, 0x8, 0x8e00);
     unsafe {
         let ptr = DescriptorTablePointer {
             limit: (idt.len() * core::mem::size_of::<IdtEntry>() - 1) as u16,
@@ -62,4 +63,22 @@ extern "x86-interrupt" fn interrupt_page_fault(frame: InterruptStackFrame, code:
         Cr2::read()
     )
     .unwrap();
+}
+
+// TODO: fix statics, region where data lives is probably not zeroed like it should, since setting it to default (0) value makes it garbage
+static mut COUNT: usize = 1000;
+
+extern "x86-interrupt" fn interrupt_timer(frame: InterruptStackFrame) {
+    let mut serial = SerialPort::new(COM1_BASE);
+    writeln!(
+        serial,
+        "{:?} Timer interrupt, frame: {:#x?}",
+        unsafe { COUNT },
+        frame,
+    )
+    .unwrap();
+    unsafe {
+        COUNT += 1;
+    }
+    LApic::current().write_eoi();
 }

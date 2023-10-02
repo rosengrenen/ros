@@ -2,14 +2,28 @@
 #![no_main]
 #![feature(allocator_api)]
 #![feature(abi_x86_interrupt)]
+#![feature(format_args_nl)]
 
 mod interrupt;
+mod msr;
 
 use bootloader_api::BootInfo;
 use core::{fmt::Write, panic::PanicInfo};
 use serial::{SerialPort, COM1_BASE};
 use uefi::services::graphics::BltPixel;
 use x86_64::{gdt::GdtDesc, idt::IdtEntry};
+
+#[macro_export]
+macro_rules! sprintln {
+    ($($arg:tt)*) => {
+        $crate::serial_print(format_args_nl!($($arg)*))
+    }
+}
+
+fn serial_print(args: core::fmt::Arguments) {
+    let mut serial = SerialPort::new(COM1_BASE);
+    serial.write_fmt(args).unwrap();
+}
 
 #[derive(Debug)]
 #[repr(C, packed(2))]
@@ -28,6 +42,9 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
 
     let mut serial = SerialPort::new(COM1_BASE);
     serial.configure(1);
+
+    let lapic_info = msr::lapic_info();
+    sprintln!("{:x?}", lapic_info);
 
     let gdt = unsafe { core::slice::from_raw_parts_mut(info.gdt as *mut u64, 3) };
     for entry in gdt.iter_mut() {
@@ -52,6 +69,21 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     }
     // divide_by_zero();
     // cause_page_fault();
+
+    let lapic = msr::LApic::current();
+    lapic.write_spurious_interrupt_vector((1 << 8) | 0x99);
+    lapic.write_divide_configuration(0b0011);
+    lapic.write_timer_lvt((1 << 17) | 0x20);
+    sprintln!(
+        "spurious interrupt vector {:x?}",
+        lapic.read_spurious_interrupt_vector()
+    );
+    sprintln!(
+        "divide configuration {:x?}",
+        lapic.read_divide_configuration()
+    );
+    sprintln!("timer lvt {:x?}", lapic.read_timer_lvt());
+    sprintln!("initial count {:x?}", lapic.read_initial_count());
 
     color_loop(info.framebuffer)
 }
