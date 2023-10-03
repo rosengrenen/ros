@@ -5,10 +5,8 @@
 // TODO: think about if this is necessary
 #![deny(unsafe_op_in_unsafe_fn)]
 
-// mod acpi;
 mod allocator;
 mod elf;
-mod print;
 
 use crate::{allocator::BumpAllocator, elf::mount_kernel};
 use alloc::{raw_vec::RawVec, vec::Vec};
