@@ -52,42 +52,16 @@ pub extern "efiapi" fn efi_main(
     let kernel_executable =
         read_kernel_executable(system_table.boot_services(), &uefi_allocator).unwrap();
 
-    const EFI_ACPI_TABLE_GUID: Guid = Guid(
-        0x8868e871,
-        0xe4f1,
-        0x11d3,
-        [0xbc, 0x22, 0x00, 0x80, 0xc7, 0x3c, 0x88, 0x81],
-    );
-    let rsdp = system_table
-        .configuration_table()
-        .iter()
-        .find(|entry| entry.vendor_guid == EFI_ACPI_TABLE_GUID)
-        .unwrap()
-        .vendor_table;
+    let rsdp = get_rsdp(&system_table);
 
     let memory_map = system_table
         .boot_services()
         .get_memory_map(&uefi_allocator)
         .unwrap();
-    let efi_main_region = *memory_map
-        .iter()
-        .find(|desc| {
-            (desc.physical_start..desc.physical_start + desc.number_of_pages * 4096)
-                .contains(&(efi_main as u64))
-        })
-        .unwrap();
-    let stack_pointer: u64;
-    unsafe {
-        core::arch::asm!("mov {}, rsp", out(reg) stack_pointer);
-    }
+    let efi_main_region = get_efi_main_region(&memory_map);
 
-    let efi_stack_region = *memory_map
-        .iter()
-        .find(|desc| {
-            (desc.physical_start..desc.physical_start + desc.number_of_pages * 4096)
-                .contains(&stack_pointer)
-        })
-        .unwrap();
+    let stack_pointer = get_stack_pointer();
+    let efi_stack_region = get_efi_stack_region(&memory_map, stack_pointer);
 
     let memory_map_key = memory_map.key;
     let bump_allocator = BumpAllocator::new(memory_map.iter());
@@ -187,6 +161,56 @@ pub extern "efiapi" fn efi_main(
     }
 
     unreachable!("should have jumped to kernel at this point")
+}
+
+fn get_efi_stack_region(
+    memory_map: &MemoryMap<&UefiAllocator<'_>>,
+    stack_pointer: u64,
+) -> uefi::services::boot::MemoryDescriptor {
+    let efi_stack_region = *memory_map
+        .iter()
+        .find(|desc| {
+            (desc.physical_start..desc.physical_start + desc.number_of_pages * 4096)
+                .contains(&stack_pointer)
+        })
+        .unwrap();
+    efi_stack_region
+}
+
+fn get_efi_main_region(
+    memory_map: &MemoryMap<&UefiAllocator<'_>>,
+) -> uefi::services::boot::MemoryDescriptor {
+    let efi_main_region = *memory_map
+        .iter()
+        .find(|desc| {
+            (desc.physical_start..desc.physical_start + desc.number_of_pages * 4096)
+                .contains(&(efi_main as u64))
+        })
+        .unwrap();
+    efi_main_region
+}
+
+fn get_stack_pointer() -> u64 {
+    let stack_pointer: u64;
+    unsafe {
+        core::arch::asm!("mov {}, rsp", out(reg) stack_pointer);
+    }
+    stack_pointer
+}
+
+fn get_rsdp(system_table: &uefi::SystemTable<uefi::Boot>) -> *const core::ffi::c_void {
+    const EFI_ACPI_TABLE_GUID: Guid = Guid(
+        0x8868e871,
+        0xe4f1,
+        0x11d3,
+        [0xbc, 0x22, 0x00, 0x80, 0xc7, 0x3c, 0x88, 0x81],
+    );
+    system_table
+        .configuration_table()
+        .iter()
+        .find(|entry| entry.vendor_guid == EFI_ACPI_TABLE_GUID)
+        .unwrap()
+        .vendor_table
 }
 
 #[panic_handler]
