@@ -3,6 +3,8 @@
 #![feature(allocator_api)]
 #![feature(abi_x86_interrupt)]
 #![feature(format_args_nl)]
+// TODO: think about if this is necessary
+#![deny(unsafe_op_in_unsafe_fn)]
 
 mod interrupt;
 mod msr;
@@ -10,19 +12,14 @@ mod msr;
 use bootloader_api::BootInfo;
 use core::{fmt::Write, panic::PanicInfo};
 use serial::{SerialPort, COM1_BASE};
-use uefi::services::graphics::BltPixel;
 use x86_64::{gdt::GdtDesc, idt::IdtEntry};
 
 #[macro_export]
 macro_rules! sprintln {
-    ($($arg:tt)*) => {
-        $crate::serial_print(format_args_nl!($($arg)*))
-    }
-}
-
-fn serial_print(args: core::fmt::Arguments) {
-    let mut serial = SerialPort::new(COM1_BASE);
-    serial.write_fmt(args).unwrap();
+    ($($arg:tt)*) => {{
+        let mut serial = SerialPort::new(COM1_BASE);
+        writeln!(serial, $($arg)*).unwrap();
+    }}
 }
 
 #[derive(Debug)]
@@ -36,56 +33,57 @@ pub struct DescriptorTablePointer {
 
 #[no_mangle]
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
+    sprintln!("in the kernel");
+    sprintln!("{:#x?}", info);
+    loop {}
     // Set things up
     // * Set up physical frame manager
     // Load init system
 
-    let mut serial = SerialPort::new(COM1_BASE);
-    serial.configure(1);
+    // let mut serial = SerialPort::new(COM1_BASE);
+    // serial.configure(1);
 
-    let lapic_info = msr::lapic_info();
-    sprintln!("{:x?}", lapic_info);
+    // let lapic_info = msr::lapic_info();
+    // sprintln!("{:x?}", lapic_info);
 
-    let gdt = unsafe { core::slice::from_raw_parts_mut(info.gdt as *mut u64, 3) };
-    for entry in gdt.iter_mut() {
-        *entry = 0;
-    }
+    // let gdt = unsafe { core::slice::from_raw_parts_mut(info.gdt as *mut u64, 3) };
+    // for entry in gdt.iter_mut() {
+    //     *entry = 0;
+    // }
 
-    let idt = unsafe { core::slice::from_raw_parts_mut(info.idt as *mut IdtEntry, 256) };
-    for entry in idt.iter_mut() {
-        *entry = IdtEntry::new(0, 0, 0);
-    }
+    // let idt = unsafe { core::slice::from_raw_parts_mut(info.idt as *mut IdtEntry, 256) };
+    // for entry in idt.iter_mut() {
+    //     *entry = IdtEntry::new(0, 0, 0);
+    // }
 
-    serial.write_str("setting up gdt\n").unwrap();
-    init_gdt(gdt);
-    serial.write_str("successfully set up gdt (?)\n").unwrap();
+    // serial.write_str("setting up gdt\n").unwrap();
+    // init_gdt(gdt);
+    // serial.write_str("successfully set up gdt (?)\n").unwrap();
 
-    serial.write_str("setting up idt\n").unwrap();
-    interrupt::init(idt);
-    serial.write_str("successfully set up idt (?)\n").unwrap();
+    // serial.write_str("setting up idt\n").unwrap();
+    // interrupt::init(idt);
+    // serial.write_str("successfully set up idt (?)\n").unwrap();
 
-    unsafe {
-        core::arch::asm!("int3");
-    }
-    // divide_by_zero();
-    // cause_page_fault();
+    // unsafe {
+    //     core::arch::asm!("int3");
+    // }
+    // // divide_by_zero();
+    // // cause_page_fault();
 
-    let lapic = msr::LApic::current();
-    lapic.write_spurious_interrupt_vector((1 << 8) | 0x99);
-    lapic.write_divide_configuration(0b0011);
-    lapic.write_timer_lvt((1 << 17) | 0x20);
-    sprintln!(
-        "spurious interrupt vector {:x?}",
-        lapic.read_spurious_interrupt_vector()
-    );
-    sprintln!(
-        "divide configuration {:x?}",
-        lapic.read_divide_configuration()
-    );
-    sprintln!("timer lvt {:x?}", lapic.read_timer_lvt());
-    sprintln!("initial count {:x?}", lapic.read_initial_count());
-
-    color_loop(info.framebuffer)
+    // let lapic = msr::LApic::current();
+    // lapic.write_spurious_interrupt_vector((1 << 8) | 0x99);
+    // lapic.write_divide_configuration(0b0011);
+    // lapic.write_timer_lvt((1 << 17) | 0x20);
+    // sprintln!(
+    //     "spurious interrupt vector {:x?}",
+    //     lapic.read_spurious_interrupt_vector()
+    // );
+    // sprintln!(
+    //     "divide configuration {:x?}",
+    //     lapic.read_divide_configuration()
+    // );
+    // sprintln!("timer lvt {:x?}", lapic.read_timer_lvt());
+    // sprintln!("initial count {:x?}", lapic.read_initial_count());
 }
 
 fn init_gdt(gdt: &mut [u64]) {
@@ -144,57 +142,6 @@ fn divide_by_zero() {
 fn cause_page_fault() {
     unsafe {
         *(0xdead_beef as *mut u64) = 5;
-    }
-}
-
-fn color_loop(framebuffer: bootloader_api::Framebuffer) -> ! {
-    let buffer = unsafe {
-        core::slice::from_raw_parts_mut(
-            framebuffer.base as *mut BltPixel,
-            framebuffer.width * framebuffer.height,
-        )
-    };
-
-    let mut red = 255;
-    let mut green = 0;
-    let mut blue = 0;
-    loop {
-        if red == 255 {
-            if blue > 0 {
-                blue -= 15;
-            } else if green == 255 {
-                red -= 15;
-            } else {
-                green += 15;
-            }
-        } else if green == 255 {
-            if red > 0 {
-                red -= 15;
-            } else if blue == 255 {
-                green -= 15;
-            } else {
-                blue += 15;
-            }
-        } else if blue == 255 {
-            if green > 0 {
-                green -= 15;
-            } else if red == 255 {
-                blue -= 15;
-            } else {
-                red += 15;
-            }
-        }
-
-        for y in 0..framebuffer.height {
-            for x in 0..framebuffer.width {
-                buffer[y * framebuffer.width + x] = BltPixel {
-                    blue,
-                    green,
-                    red,
-                    reserved: 255,
-                }
-            }
-        }
     }
 }
 

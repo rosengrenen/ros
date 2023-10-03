@@ -408,7 +408,6 @@ pub enum MemoryType {
     EfiPalCode,
     EfiPersistentMemory,
     EfiUnacceptedMemoryType,
-    EfiMaxMemoryType,
 }
 
 impl MemoryType {
@@ -430,7 +429,6 @@ impl MemoryType {
             MemoryType::EfiPalCode => false,
             MemoryType::EfiPersistentMemory => true,
             MemoryType::EfiUnacceptedMemoryType => false,
-            MemoryType::EfiMaxMemoryType => false,
         }
     }
 
@@ -452,7 +450,6 @@ impl MemoryType {
             MemoryType::EfiPalCode => false,
             MemoryType::EfiPersistentMemory => true,
             MemoryType::EfiUnacceptedMemoryType => false,
-            MemoryType::EfiMaxMemoryType => false,
         }
     }
 }

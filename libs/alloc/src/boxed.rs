@@ -32,8 +32,8 @@ impl<T, A: Allocator> Box<MaybeUninit<T>, A> {
     }
 
     pub unsafe fn assume_init(self) -> Box<T, A> {
-        let ptr = core::ptr::read(&self.ptr);
-        let alloc = core::ptr::read(&self.alloc);
+        let ptr = unsafe { core::ptr::read(&self.ptr) };
+        let alloc = unsafe { core::ptr::read(&self.alloc) };
         core::mem::forget(self);
         Box {
             ptr: ptr.cast(),

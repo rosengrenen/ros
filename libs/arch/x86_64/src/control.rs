@@ -89,6 +89,7 @@ impl Cr3 {
         }
     }
 
+    #[inline(always)]
     pub fn write(val: u64) {
         unsafe { core::arch::asm!("mov cr3, {}", in(reg) val) }
     }

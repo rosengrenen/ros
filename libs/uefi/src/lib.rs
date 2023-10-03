@@ -112,7 +112,7 @@ pub struct SystemTableImpl {
     configuration_table: *const ConfigurationTable,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct ConfigurationTable {
     pub vendor_guid: Guid,

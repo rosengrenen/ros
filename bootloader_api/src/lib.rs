@@ -1,30 +1,17 @@
 #![no_std]
 
-use uefi::{Runtime, SystemTable};
-
+#[derive(Debug)]
 #[repr(C)]
 pub struct BootInfo {
-    pub uefi_system_table: SystemTable<Runtime>,
-    // framebuffer
-    pub framebuffer: Framebuffer,
     // kernel - code stuffs base and size, and stack
     pub kernel: Kernel,
-    // memory regions
+    // memory regions, ranges and types
     pub memory_regions: MemoryRegions,
-    pub reserved_memory_regions: ReservedMemoryRegions,
-    pub idt: u64,
-    pub gdt: u64,
+    // acpi rsdp
+    pub rsdp: *const core::ffi::c_void,
 }
 
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct Framebuffer {
-    pub base: usize,
-    pub width: usize,
-    pub height: usize,
-    // Pixel type?
-}
-
+#[derive(Debug)]
 #[repr(C)]
 pub struct Kernel {
     /// Physical address of kernel base
@@ -35,38 +22,43 @@ pub struct Kernel {
     pub stack_base: usize,
 }
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct MemoryRegions {
     pub ptr: *const MemoryRegion,
     pub len: usize,
 }
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct MemoryRegion {
+    pub ty: MemoryRegionType,
     pub start: usize,
     pub end: usize,
 }
 
+#[derive(Debug, PartialEq)]
 #[repr(C)]
-pub struct ReservedMemoryRegions {
-    pub ptr: *const ReservedMemoryRegion,
-    pub len: usize,
-}
-
-#[repr(C)]
-pub struct ReservedMemoryRegion {
-    pub start: usize,
-    pub end: usize,
-    pub ty: ReservedMemoryType,
+pub enum MemoryRegionType {
+    KernelUsable,
+    ReservedMemoryType,
+    EfiRuntimeServicesCode,
+    EfiRuntimeServicesData,
+    UnusableMemory,
+    ACPIReclaimMemory,
+    ACPIMemoryNVS,
+    MemoryMappedIO,
+    MemoryMappedIOPortSpace,
+    PalCode,
+    UnacceptedMemoryType,
 }
 
 #[repr(C)]
 pub enum ReservedMemoryType {
     KernelCode,
     KernelStack,
-    UefiPageTable,
+    PageTable,
     BootInfo,
-    Framebuffer,
 }
 
 #[deny(improper_ctypes_definitions)]

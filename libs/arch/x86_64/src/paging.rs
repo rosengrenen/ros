@@ -76,6 +76,7 @@ impl core::fmt::Display for VirtAddr {
 #[derive(Debug)]
 pub struct FrameAllocError;
 
+// TODO: is this going here?
 pub trait FrameAllocator {
     fn allocate_frame(&self) -> Result<u64, FrameAllocError>;
 

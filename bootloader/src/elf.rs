@@ -1,6 +1,4 @@
-use alloc::{iter::IteratorCollectIn, vec::Vec};
-use core::alloc::Allocator;
-use uefi::services::boot::{AllocateType, BootServices, MemoryType};
+use crate::allocator::BumpAllocator;
 
 #[derive(Debug)]
 pub struct KernelExecutable {
@@ -11,12 +9,35 @@ pub struct KernelExecutable {
     pub entry_point: u64,
 }
 
-pub fn get_elf_entry_point_offset<A: Allocator>(
-    boot_services: &BootServices,
+pub struct Elf<'elf> {
+    bytes: &'elf [u8],
+}
+
+impl<'elf> Elf<'elf> {
+    pub fn header(&self) -> ElfHeader {
+        ElfHeader::try_from(self.bytes).unwrap()
+    }
+
+    pub fn program_headers(&self) -> &[ProgramHeader] {
+        let header = self.header();
+        assert!(header.program_header_size as usize == core::mem::size_of::<ProgramHeader>());
+        let base = unsafe {
+            self.bytes
+                .as_ptr()
+                .cast::<u8>()
+                .add(header.program_header_offset as usize)
+                .cast::<ProgramHeader>()
+        };
+        unsafe { core::slice::from_raw_parts(base, header.program_header_count as usize) }
+    }
+}
+
+pub fn mount_kernel(
     elf: &[u8],
-    alloc: &A,
+    bump_alloc: &BumpAllocator,
 ) -> Result<KernelExecutable, &'static str> {
-    let header = ElfHeader::try_from(elf).unwrap();
+    let elf = Elf { bytes: elf };
+    let header = elf.header();
     if header.magic != [0x7F, 0x45, 0x4C, 0x46] {
         return Err("Not an ELF file");
     }
@@ -25,55 +46,36 @@ pub fn get_elf_entry_point_offset<A: Allocator>(
         return Err("Not a 64-bit executable");
     }
 
-    const PROGRAM_HEADER_SIZE: usize = core::mem::size_of::<ProgramHeader>();
-    assert!(header.program_header_size as usize == PROGRAM_HEADER_SIZE);
-
-    // TODO: no alloc, just iter
-    let mut program_header_entries =
-        Vec::with_size_default(header.program_header_count as _, alloc).unwrap();
-    for i in 0..header.program_header_count {
-        let entry_start = header.program_header_offset as usize + i as usize * PROGRAM_HEADER_SIZE;
-        program_header_entries[i as usize] =
-            ProgramHeader::try_from(&elf[entry_start..entry_start + PROGRAM_HEADER_SIZE]).unwrap();
+    let load_entries = elf.program_headers().iter().filter(|e| e.ty == 1);
+    let mut kernel_virt_base = u64::MAX;
+    let mut kernel_virt_limit = 0;
+    for &entry in load_entries.clone() {
+        kernel_virt_base = kernel_virt_base.min(entry.physical_address);
+        kernel_virt_limit = kernel_virt_limit.max(entry.physical_address + entry.segment_mem_size);
     }
 
-    let load_entries: Vec<_, _> = program_header_entries
-        .into_iter()
-        .filter(|e| e.ty == 1)
-        .collect_in(alloc)
-        .unwrap();
-    let mut image_start = u64::MAX;
-    let mut image_end = 0;
-    for &entry in &load_entries {
-        image_start = image_start.min(entry.virtual_address);
-        image_end = image_end.max(entry.virtual_address + entry.segment_mem_size);
-    }
-
-    let image_size = image_end - image_start;
-    let kernel_pages = image_size as usize / 4096 + 1;
-    let kernel_addr = boot_services
-        .allocate_pages(
-            AllocateType::AllocateAnyPages,
-            MemoryType::EfiLoaderData,
-            kernel_pages,
-        )
-        .unwrap();
-    let page =
-        unsafe { core::slice::from_raw_parts_mut(kernel_addr as *mut u8, kernel_pages * 4096) };
-
-    for entry in &load_entries {
-        let file_start_addr = entry.segment_file_offset as usize;
-        let loaded_start_addr = (entry.virtual_address - image_start) as usize;
+    kernel_virt_base &= !0xfff;
+    kernel_virt_limit += 4093;
+    kernel_virt_limit &= !0xfff;
+    let kernel_frames = (kernel_virt_limit - kernel_virt_base) / 4096;
+    // TODO: allocate zeroed
+    let kernel_phys_base = bump_alloc.allocate_frames(kernel_frames).unwrap();
+    let kernel = unsafe {
+        core::slice::from_raw_parts_mut(kernel_phys_base as *mut u8, kernel_frames as usize * 4096)
+    };
+    for entry in load_entries {
+        let entry_files_offset = entry.segment_file_offset as usize;
+        let entry_phys_base = (entry.virtual_address - kernel_virt_base) as usize;
         let size = entry.segment_mem_size as usize;
-        page[loaded_start_addr..(size + loaded_start_addr)]
-            .copy_from_slice(&elf[file_start_addr..(size + file_start_addr)]);
+        kernel[entry_phys_base..(size + entry_phys_base)]
+            .copy_from_slice(&elf.bytes[entry_files_offset..(entry_files_offset + size)]);
     }
 
     Ok(KernelExecutable {
-        image_start,
-        image_end,
-        frame_addr: kernel_addr,
-        frames: kernel_pages as _,
+        image_start: kernel_virt_base,
+        image_end: kernel_virt_limit,
+        frame_addr: kernel_phys_base,
+        frames: kernel_frames,
         entry_point: header.entry,
     })
 }

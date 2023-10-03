@@ -9,9 +9,6 @@ version = "0.0.0"
 [[package]]
 name = "bootloader_api"
 version = "0.0.0"
-dependencies = [
- "uefi",
-]
 
 [[package]]
 name = "ros"
