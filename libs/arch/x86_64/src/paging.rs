@@ -78,9 +78,9 @@ pub struct FrameAllocError;
 
 // TODO: is this going here?
 pub trait FrameAllocator {
-    fn allocate_frame(&self) -> Result<u64, FrameAllocError>;
+    fn allocate_frame(&self) -> Result<usize, FrameAllocError>;
 
-    fn deallocate_frame(&self, frame: u64) -> Result<(), FrameAllocError>;
+    fn deallocate_frame(&self, frame: usize) -> Result<(), FrameAllocError>;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -230,7 +230,7 @@ impl PageTable {
             entry.page_table()
         } else {
             let new_pml3_frame = frame_allocator.allocate_frame().unwrap();
-            let new_entry = PageTableEntry(new_pml3_frame | 0x3);
+            let new_entry = PageTableEntry(new_pml3_frame as u64 | 0x3);
             unsafe {
                 *self.entries.offset(pml4_index as _) = new_entry;
             }
@@ -242,7 +242,7 @@ impl PageTable {
             entry.page_table()
         } else {
             let new_pml2_frame = frame_allocator.allocate_frame().unwrap();
-            let new_entry = PageTableEntry(new_pml2_frame | 0x3);
+            let new_entry = PageTableEntry(new_pml2_frame as u64 | 0x3);
             unsafe {
                 *pml3_table.entries.offset(pml3_index as _) = new_entry;
             }
@@ -254,7 +254,7 @@ impl PageTable {
             entry.page_table()
         } else {
             let new_pml1_frame = frame_allocator.allocate_frame().unwrap();
-            let new_entry = PageTableEntry(new_pml1_frame | 0x3);
+            let new_entry = PageTableEntry(new_pml1_frame as u64 | 0x3);
             unsafe {
                 *pml2_table.entries.offset(pml2_index as _) = new_entry;
             }

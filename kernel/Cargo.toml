@@ -10,6 +10,7 @@ panic = "abort"
 panic = "abort"
 
 [dependencies]
+alloc = { path = "../libs/alloc" }
 bootloader_api = { path = "../bootloader_api" }
 serial = { path = "../libs/serial" }
 uefi = { path = "../libs/uefi" }

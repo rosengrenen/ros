@@ -135,7 +135,7 @@ pub extern "efiapi" fn efi_main(
     let stack_frame = bump_allocator.allocate_frame().unwrap();
     pml4.map(
         VirtAddr::new(stack_end & !0xfff),
-        PhysAddr::new(stack_frame),
+        PhysAddr::new(stack_frame as u64),
         &bump_allocator,
     );
 
@@ -144,7 +144,18 @@ pub extern "efiapi" fn efi_main(
     let (_, memory_regions_offset) = boot_info_layout.extend(memory_regions_layout).unwrap();
     let boot_info_frame = bump_allocator.allocate_frame().unwrap();
     let boot_info = boot_info_frame as *mut BootInfo;
-    pml4.map_ident(VirtAddr::new(boot_info_frame), &bump_allocator);
+    pml4.map_ident(VirtAddr::new(boot_info_frame as u64), &bump_allocator);
+
+    // Copy memory regions
+    let memory_regions = unsafe {
+        core::slice::from_raw_parts_mut(
+            (boot_info_frame as usize + memory_regions_offset) as *mut MemoryRegion,
+            kernel_memory_map.len(),
+        )
+    };
+    for (to_entry, from_entry) in memory_regions.iter_mut().zip(kernel_memory_map.iter()) {
+        *to_entry = *from_entry;
+    }
 
     unsafe {
         boot_info.write(BootInfo {
@@ -155,7 +166,7 @@ pub extern "efiapi" fn efi_main(
             },
             memory_regions: bootloader_api::MemoryRegions {
                 ptr: (boot_info_frame as usize + memory_regions_offset) as _,
-                len: kernel_memory_map.len() * core::mem::size_of::<MemoryRegion>(),
+                len: kernel_memory_map.len(),
             },
             rsdp,
         })
@@ -164,7 +175,7 @@ pub extern "efiapi" fn efi_main(
     sprintln!("Bootloader is launching kernel");
 
     // Set new page table
-    Cr3::write(pml4_frame);
+    Cr3::write(pml4_frame as u64);
 
     // Jump to kernel
     unsafe {

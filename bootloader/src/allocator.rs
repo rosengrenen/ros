@@ -10,7 +10,7 @@ pub struct BumpAllocator {
 
 struct BumpAllocatorInner {
     descriptor_index: usize,
-    addr: u64,
+    addr: usize,
 }
 
 impl BumpAllocator {
@@ -32,14 +32,14 @@ impl BumpAllocator {
             memory_map_len,
             inner: BumpAllocatorInner {
                 descriptor_index: 0,
-                addr: memory_map[0].unwrap().physical_start,
+                addr: memory_map[0].unwrap().physical_start as usize,
             },
         }
     }
 }
 
 impl BumpAllocator {
-    pub fn allocate_frames(&self, num_pages: u64) -> Result<u64, AllocError> {
+    pub fn allocate_frames(&self, num_pages: usize) -> Result<usize, AllocError> {
         let inner = unsafe {
             let inner = (&self.inner) as *const BumpAllocatorInner;
             let inner = inner as *mut BumpAllocatorInner;
@@ -53,7 +53,8 @@ impl BumpAllocator {
             if inner.addr & 0xfff != 0 {
                 inner.addr = (inner.addr & !0xfff) + 4096;
             }
-            let mem_left_in_desc = mem_desc.physical_start + mem_desc_size - inner.addr;
+            let mem_left_in_desc =
+                mem_desc.physical_start as usize + mem_desc_size as usize - inner.addr;
 
             if mem_left_in_desc >= 4096 * num_pages {
                 let ptr = inner.addr;
@@ -68,17 +69,17 @@ impl BumpAllocator {
             inner.descriptor_index += 1;
             inner.addr = self.memory_map[inner.descriptor_index]
                 .unwrap()
-                .physical_start;
+                .physical_start as usize;
         }
     }
 }
 
 impl FrameAllocator for BumpAllocator {
-    fn allocate_frame(&self) -> Result<u64, FrameAllocError> {
+    fn allocate_frame(&self) -> Result<usize, FrameAllocError> {
         self.allocate_frames(1).map_err(|_| FrameAllocError)
     }
 
-    fn deallocate_frame(&self, _frame: u64) -> Result<(), FrameAllocError> {
+    fn deallocate_frame(&self, _frame: usize) -> Result<(), FrameAllocError> {
         Ok(())
     }
 }

@@ -29,7 +29,15 @@ pub struct MemoryRegions {
     pub len: usize,
 }
 
-#[derive(Debug)]
+impl core::ops::Deref for MemoryRegions {
+    type Target = [MemoryRegion];
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::slice::from_raw_parts(self.ptr, self.len) }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct MemoryRegion {
     pub ty: MemoryRegionType,
@@ -37,7 +45,7 @@ pub struct MemoryRegion {
     pub end: usize,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub enum MemoryRegionType {
     KernelUsable,
