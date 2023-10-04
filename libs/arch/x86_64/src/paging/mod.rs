@@ -20,7 +20,6 @@ pub trait FrameAllocator {
     fn allocate_frame_zeroed(&self) -> Result<u64, FrameAllocError>;
 
     fn deallocate_frame(&self, frame: u64) -> Result<(), FrameAllocError>;
-    fn deallocate_frame_zeroed(&self, frame: u64) -> Result<(), FrameAllocError>;
 }
 
 // Page map levels
@@ -206,6 +205,53 @@ impl PageTable<Pml4> {
         frame_allocator: &impl FrameAllocator,
     ) -> bool {
         self.map(VirtAddr::new(phys_addr.inner()), phys_addr, frame_allocator)
+    }
+
+    pub fn unmap(
+        &mut self,
+        virt_addr: VirtAddr,
+        frame_allocator: &impl FrameAllocator,
+    ) -> Result<PhysAddr, ()> {
+        assert!(virt_addr.inner() & 0xfff == 0);
+        let pml4_index = virt_addr.pml4_index();
+        let mut pml3 = match self.get(pml4_index) {
+            Some(entry) => match entry {
+                PageTableEntry::Page(page) => unreachable!(),
+                PageTableEntry::Table(table) => table.table(),
+            },
+            None => return Err(()),
+        };
+
+        let pml3_index = virt_addr.pml3_index();
+        let mut pml2 = match pml3.get(pml3_index) {
+            Some(entry) => match entry {
+                PageTableEntry::Page(page) => return Err(()),
+                PageTableEntry::Table(table) => table.table(),
+            },
+            None => return Err(()),
+        };
+
+        let pml2_index = virt_addr.pml2_index();
+        let mut pml1 = match pml2.get(pml2_index) {
+            Some(entry) => match entry {
+                PageTableEntry::Page(page) => return Err(()),
+                PageTableEntry::Table(table) => table.table(),
+            },
+            None => return Err(()),
+        };
+
+        let pml1_index = virt_addr.pml1_index();
+        if let Some(entry) = pml1.get(pml1_index) {
+            let frame = match entry {
+                PageTableEntry::Page(page) => page.frame(),
+                PageTableEntry::Table(_) => unreachable!(),
+            };
+            pml1.entries_mut()[pml1_index as usize] = PageTableEntryRaw::empty();
+            // TODO: check if page tables are empty and need to be removed
+            Ok(frame.addr())
+        } else {
+            Err(())
+        }
     }
 }
 

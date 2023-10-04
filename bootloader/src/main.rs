@@ -107,17 +107,6 @@ pub extern "efiapi" fn efi_main(
         );
     }
 
-    sprintln!("{:#x?}", efi_main_region);
-    sprintln!(
-        "{:x?}",
-        efi_main_region.physical_start + efi_main_region.number_of_pages * 4096
-    );
-    sprintln!("{:#x?}", efi_stack_region);
-    sprintln!(
-        "{:x?}",
-        efi_stack_region.physical_start + efi_stack_region.number_of_pages * 4096
-    );
-
     // Map kernel to virtual addresses
     for page in 0..kernel.frames {
         pml4.map(

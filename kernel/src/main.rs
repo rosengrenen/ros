@@ -14,7 +14,12 @@ mod spinlock;
 use bootloader_api::BootInfo;
 use core::{fmt::Write, panic::PanicInfo};
 use serial::{SerialPort, COM1_BASE};
-use x86_64::{gdt::GdtDesc, idt::IdtEntry};
+use x86_64::{
+    control::Cr3,
+    gdt::GdtDesc,
+    idt::IdtEntry,
+    paging::{PageTable, Pml4},
+};
 
 use crate::frame_allocator::InitFrameAllocator;
 
@@ -44,6 +49,9 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
 
     let mut serial = SerialPort::new(COM1_BASE);
     serial.configure(1);
+
+    // let pml4 = PageTable::<Pml4>::new(Cr3::read().pba_pml4 as _);
+    // pml4.unmap(virt_addr, frame_allocator);
 
     // let init_frame_allocator = InitFrameAllocator::new(memory_regions);
     // init_frame_allocator.add_allocated_frames(info.kernel.base, info.kernel.frames);

@@ -117,8 +117,4 @@ impl FrameAllocator for BumpAllocator {
     fn deallocate_frame(&self, _frame: u64) -> Result<(), FrameAllocError> {
         Ok(())
     }
-
-    fn deallocate_frame_zeroed(&self, _frame: u64) -> Result<(), FrameAllocError> {
-        Ok(())
-    }
 }

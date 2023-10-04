@@ -31,7 +31,7 @@ impl<S> PageTableEntryRaw<S> {
     const DIRTY_BIT: u64 = 6;
     const IS_PAGE_BIT: u64 = 6;
 
-    pub fn new() -> Self {
+    pub fn empty() -> Self {
         Self {
             value: 0,
             _marker: PhantomData,
@@ -152,7 +152,7 @@ pub struct PageEntry<S> {
 
 impl<S> PageEntry<S> {
     pub fn new() -> Self {
-        let mut raw = PageTableEntryRaw::new();
+        let mut raw = PageTableEntryRaw::empty();
         raw.set_present(true);
         raw.set_is_page(true);
         Self { raw }
@@ -336,7 +336,7 @@ impl<S> TableEntry<S> {
     const ADDR_MASK: u64 = 0x000f_ffff_ffff_f000;
 
     pub fn new() -> Self {
-        let mut raw = PageTableEntryRaw::new();
+        let mut raw = PageTableEntryRaw::empty();
         raw.set_present(true);
         raw.set_is_page(false);
         Self { raw }
