@@ -7,10 +7,11 @@
 
 mod allocator;
 mod elf;
+mod stack_vec;
 
 use crate::{allocator::BumpAllocator, elf::mount_kernel};
 use alloc::{raw_vec::RawVec, vec::Vec};
-use bootloader_api::{BootInfo, MemoryRegion, MemoryRegionType};
+use bootloader_api::{AllocatedFrameRange, BootInfo, MemoryRegion, MemoryRegionType};
 use core::{
     alloc::Layout,
     fmt::{Arguments, Write},
@@ -81,6 +82,11 @@ pub extern "efiapi" fn efi_main(
     let mut pml4 = PageTable::new(pml4_frame as _);
 
     // Identity map region in which main function resides, so that bootloader continues working after enabling paing, but mark the frames as usable for the kernel
+    bump_allocator.reserve_frames(
+        efi_main_region.physical_start,
+        efi_main_region.number_of_pages,
+        true,
+    );
     for frame_index in 0..efi_main_region.number_of_pages {
         pml4.map_ident(
             VirtAddr::new(efi_main_region.physical_start + frame_index * 4096),
@@ -89,6 +95,11 @@ pub extern "efiapi" fn efi_main(
     }
 
     // Do the same with the stack
+    bump_allocator.reserve_frames(
+        efi_stack_region.physical_start,
+        efi_stack_region.number_of_pages,
+        true,
+    );
     for frame_index in 0..efi_stack_region.number_of_pages {
         pml4.map_ident(
             VirtAddr::new(efi_stack_region.physical_start + frame_index * 4096),
@@ -125,21 +136,46 @@ pub extern "efiapi" fn efi_main(
         &bump_allocator,
     );
 
+    let boot_info_frame = bump_allocator.allocate_frame().unwrap();
+    pml4.map_ident(VirtAddr::new(boot_info_frame as u64), &bump_allocator);
+    let allocated_frame_ranges = bump_allocator.inner.into_inner().allocated_frames;
+
     let boot_info_layout = Layout::new::<BootInfo>().align_to(4096).unwrap();
     let memory_regions_layout = Layout::array::<MemoryRegion>(kernel_memory_map.len()).unwrap();
-    let (_, memory_regions_offset) = boot_info_layout.extend(memory_regions_layout).unwrap();
-    let boot_info_frame = bump_allocator.allocate_frame().unwrap();
+    let allocated_frame_ranges_layout =
+        Layout::array::<AllocatedFrameRange>(allocated_frame_ranges.len()).unwrap();
+    let (boot_info_layout, memory_regions_offset) =
+        boot_info_layout.extend(memory_regions_layout).unwrap();
+    let (_, allocated_frame_ranges_offset) = boot_info_layout
+        .extend(allocated_frame_ranges_layout)
+        .unwrap();
     let boot_info = boot_info_frame as *mut BootInfo;
-    pml4.map_ident(VirtAddr::new(boot_info_frame as u64), &bump_allocator);
 
     // Copy memory regions
-    let memory_regions = unsafe {
+    let boot_info_memory_regions = unsafe {
         core::slice::from_raw_parts_mut(
             (boot_info_frame as usize + memory_regions_offset) as *mut MemoryRegion,
             kernel_memory_map.len(),
         )
     };
-    for (to_entry, from_entry) in memory_regions.iter_mut().zip(kernel_memory_map.iter()) {
+    for (to_entry, from_entry) in boot_info_memory_regions
+        .iter_mut()
+        .zip(kernel_memory_map.iter())
+    {
+        *to_entry = *from_entry;
+    }
+
+    // Copy memory regions
+    let boot_info_allocated_frame_ranges = unsafe {
+        core::slice::from_raw_parts_mut(
+            (boot_info_frame as usize + allocated_frame_ranges_offset) as *mut AllocatedFrameRange,
+            allocated_frame_ranges.len(),
+        )
+    };
+    for (to_entry, from_entry) in boot_info_allocated_frame_ranges
+        .iter_mut()
+        .zip(allocated_frame_ranges.iter())
+    {
         *to_entry = *from_entry;
     }
 
@@ -151,8 +187,12 @@ pub extern "efiapi" fn efi_main(
                 stack_base: stack_end as _,
             },
             memory_regions: bootloader_api::MemoryRegions {
-                ptr: (boot_info_frame as usize + memory_regions_offset) as _,
-                len: kernel_memory_map.len(),
+                ptr: boot_info_memory_regions.as_ptr(),
+                len: boot_info_memory_regions.len(),
+            },
+            allocated_frame_ranges: bootloader_api::AllocatedFrameRanges {
+                ptr: boot_info_allocated_frame_ranges.as_ptr(),
+                len: boot_info_allocated_frame_ranges.len(),
             },
             rsdp,
         })

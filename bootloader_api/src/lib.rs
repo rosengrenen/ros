@@ -7,6 +7,7 @@ pub struct BootInfo {
     pub kernel: Kernel,
     // memory regions, ranges and types
     pub memory_regions: MemoryRegions,
+    pub allocated_frame_ranges: AllocatedFrameRanges,
     // acpi rsdp
     pub rsdp: *const core::ffi::c_void,
 }
@@ -61,12 +62,29 @@ pub enum MemoryRegionType {
     UnacceptedMemoryType,
 }
 
+#[derive(Debug)]
 #[repr(C)]
-pub enum ReservedMemoryType {
-    KernelCode,
-    KernelStack,
-    PageTable,
-    BootInfo,
+pub struct AllocatedFrameRanges {
+    pub ptr: *const AllocatedFrameRange,
+    pub len: usize,
+}
+
+impl core::ops::Deref for AllocatedFrameRanges {
+    type Target = [AllocatedFrameRange];
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::slice::from_raw_parts(self.ptr, self.len) }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+
+pub struct AllocatedFrameRange {
+    pub base: u64,
+    pub frames: usize,
+    /// True if only used by bootloader, i.e. kernel can safely deallocate frame
+    pub bootloader: bool,
 }
 
 #[deny(improper_ctypes_definitions)]

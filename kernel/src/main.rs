@@ -38,15 +38,12 @@ pub struct DescriptorTablePointer {
 #[no_mangle]
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     sprintln!("in the kernel");
-    loop {}
-    // sprintln!("{:#x?}", info);
-    // sprintln!("{:#x?}", &info.memory_regions[..]);
+    sprintln!("{:#x?}", info);
+    sprintln!("{:#x?}", &info.memory_regions[..]);
+    sprintln!("{:#x?}", &info.allocated_frame_ranges[..]);
 
-    // let mut serial = SerialPort::new(COM1_BASE);
-    // serial.configure(1);
-
-    // let memory_regions =
-    //     unsafe { core::slice::from_raw_parts(info.memory_regions.ptr, info.memory_regions.len) };
+    let mut serial = SerialPort::new(COM1_BASE);
+    serial.configure(1);
 
     // let init_frame_allocator = InitFrameAllocator::new(memory_regions);
     // init_frame_allocator.add_allocated_frames(info.kernel.base, info.kernel.frames);

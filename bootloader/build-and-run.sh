@@ -17,4 +17,4 @@ mcopy -i fat.img ../kernel/target/x86_64/release/ros ::/
 
 mkgpt -o hdimage.bin --image-size 8192 --part fat.img --type system
 # sudo qemu-system-x86_64 -m 1G -L /usr/share/ovmf/x64 -pflash /usr/share/ovmf/x64/OVMF.fd -hda hdimage.bin -serial stdio -no-reboot
-sudo qemu-system-x86_64 -m 1G -L /usr/share/ovmf/x64 -pflash /usr/share/ovmf/x64/OVMF.fd -hda hdimage.bin -nographic -no-reboot -smp 2 -d int
+sudo qemu-system-x86_64 -m 1G -L /usr/share/ovmf/x64 -pflash /usr/share/ovmf/x64/OVMF.fd -hda hdimage.bin -nographic -no-reboot -smp 2
