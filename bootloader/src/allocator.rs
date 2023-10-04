@@ -102,7 +102,23 @@ impl FrameAllocator for BumpAllocator {
         self.allocate_frames(1, false).map_err(|_| FrameAllocError)
     }
 
+    fn allocate_frame_zeroed(&self) -> Result<u64, FrameAllocError> {
+        let base = self.allocate_frame()?;
+        // TODO: make helper?
+        let frame = unsafe {
+            core::slice::from_raw_parts_mut(base as *mut u64, 4096 / core::mem::size_of::<u64>())
+        };
+        for part in frame {
+            *part = 0;
+        }
+        Ok(base)
+    }
+
     fn deallocate_frame(&self, _frame: u64) -> Result<(), FrameAllocError> {
+        Ok(())
+    }
+
+    fn deallocate_frame_zeroed(&self, _frame: u64) -> Result<(), FrameAllocError> {
         Ok(())
     }
 }

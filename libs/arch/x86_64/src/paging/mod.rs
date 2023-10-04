@@ -1,5 +1,5 @@
 mod addr;
-mod entry;
+pub mod entry;
 
 pub use self::addr::{PhysAddr, VirtAddr};
 
@@ -17,8 +17,10 @@ pub struct FrameAllocError;
 // TODO: is this going here?
 pub trait FrameAllocator {
     fn allocate_frame(&self) -> Result<u64, FrameAllocError>;
+    fn allocate_frame_zeroed(&self) -> Result<u64, FrameAllocError>;
 
     fn deallocate_frame(&self, frame: u64) -> Result<(), FrameAllocError>;
+    fn deallocate_frame_zeroed(&self, frame: u64) -> Result<(), FrameAllocError>;
 }
 
 // Page map levels
@@ -70,18 +72,30 @@ impl<S> PageTable<S> {
         &mut self,
         index: u64,
         frame_allocator: &impl FrameAllocator,
-    ) -> PageTableEntry<S> {
+    ) -> GetOrCreate<S> {
         if let Some(entry) = self.get(index) {
-            entry
+            GetOrCreate::Found(entry)
         } else {
-            let frame = frame_allocator.allocate_frame().unwrap();
+            let frame = frame_allocator.allocate_frame_zeroed().unwrap();
             let mut table_entry = TableEntry::new();
             table_entry.set_writable(true);
             table_entry.set_table_addr(PhysAddr::new(frame));
             self.entries_mut()[index as usize] = table_entry.raw();
-            PageTableEntry::Table(table_entry)
+            GetOrCreate::Created(table_entry)
         }
     }
+
+    pub fn iter(&self) -> Iter<'_, S> {
+        Iter {
+            table: self,
+            index: 0,
+        }
+    }
+}
+
+pub enum GetOrCreate<S> {
+    Found(PageTableEntry<S>),
+    Created(TableEntry<S>),
 }
 
 impl PageTable<Pml4> {
@@ -129,24 +143,48 @@ impl PageTable<Pml4> {
         assert!(phys_addr.inner() & 0xfff == 0);
 
         let pml4_index = virt_addr.pml4_index();
-        let pml4_entry = self.get_or_create(pml4_index, frame_allocator);
-        let mut pml3 = match pml4_entry {
-            PageTableEntry::Page(page) => unreachable!(),
-            PageTableEntry::Table(table) => table.table(),
+        let mut pml3 = match self.get_or_create(pml4_index, frame_allocator) {
+            GetOrCreate::Found(entry) => match entry {
+                PageTableEntry::Page(page) => unreachable!(),
+                PageTableEntry::Table(table) => table.table(),
+            },
+            GetOrCreate::Created(entry) => {
+                if !self.map_ident(entry.table_addr(), frame_allocator) {
+                    return false;
+                }
+
+                entry.table()
+            }
         };
 
         let pml3_index = virt_addr.pml3_index();
-        let pml3_entry = pml3.get_or_create(pml3_index, frame_allocator);
-        let mut pml2 = match pml3_entry {
-            PageTableEntry::Page(page) => return false,
-            PageTableEntry::Table(table) => table.table(),
+        let mut pml2 = match pml3.get_or_create(pml3_index, frame_allocator) {
+            GetOrCreate::Found(entry) => match entry {
+                PageTableEntry::Page(page) => return false,
+                PageTableEntry::Table(table) => table.table(),
+            },
+            GetOrCreate::Created(entry) => {
+                if !self.map_ident(entry.table_addr(), frame_allocator) {
+                    return false;
+                }
+
+                entry.table()
+            }
         };
 
         let pml2_index = virt_addr.pml2_index();
-        let pml2_entry = pml2.get_or_create(pml2_index, frame_allocator);
-        let mut pml1 = match pml2_entry {
-            PageTableEntry::Page(_) => return false,
-            PageTableEntry::Table(table) => table.table(),
+        let mut pml1 = match pml2.get_or_create(pml2_index, frame_allocator) {
+            GetOrCreate::Found(entry) => match entry {
+                PageTableEntry::Page(page) => return false,
+                PageTableEntry::Table(table) => table.table(),
+            },
+            GetOrCreate::Created(entry) => {
+                if !self.map_ident(entry.table_addr(), frame_allocator) {
+                    return false;
+                }
+
+                entry.table()
+            }
         };
 
         let pml1_index = virt_addr.pml1_index();
@@ -164,13 +202,30 @@ impl PageTable<Pml4> {
 
     pub fn map_ident(
         &mut self,
-        virt_addr: VirtAddr,
+        phys_addr: PhysAddr,
         frame_allocator: &impl FrameAllocator,
     ) -> bool {
-        self.map(
-            virt_addr,
-            unsafe { PhysAddr::new(virt_addr.inner()) },
-            frame_allocator,
-        )
+        self.map(VirtAddr::new(phys_addr.inner()), phys_addr, frame_allocator)
+    }
+}
+
+pub struct Iter<'iter, S> {
+    table: &'iter PageTable<S>,
+    index: u64,
+}
+
+impl<'iter, S> Iterator for Iter<'iter, S> {
+    type Item = (usize, PageTableEntry<S>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.index < 512 {
+            let cur_index = self.index;
+            self.index += 1;
+            if let Some(entry) = self.table.get(cur_index) {
+                return Some((cur_index as usize, entry));
+            }
+        }
+
+        None
     }
 }

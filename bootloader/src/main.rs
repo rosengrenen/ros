@@ -89,7 +89,7 @@ pub extern "efiapi" fn efi_main(
     );
     for frame_index in 0..efi_main_region.number_of_pages {
         pml4.map_ident(
-            VirtAddr::new(efi_main_region.physical_start + frame_index * 4096),
+            PhysAddr::new(efi_main_region.physical_start + frame_index * 4096),
             &bump_allocator,
         );
     }
@@ -102,7 +102,7 @@ pub extern "efiapi" fn efi_main(
     );
     for frame_index in 0..efi_stack_region.number_of_pages {
         pml4.map_ident(
-            VirtAddr::new(efi_stack_region.physical_start + frame_index * 4096),
+            PhysAddr::new(efi_stack_region.physical_start + frame_index * 4096),
             &bump_allocator,
         );
     }
@@ -137,7 +137,7 @@ pub extern "efiapi" fn efi_main(
     );
 
     let boot_info_frame = bump_allocator.allocate_frame().unwrap();
-    pml4.map_ident(VirtAddr::new(boot_info_frame as u64), &bump_allocator);
+    pml4.map_ident(PhysAddr::new(boot_info_frame as u64), &bump_allocator);
     let allocated_frame_ranges = bump_allocator.inner.into_inner().allocated_frames;
 
     let boot_info_layout = Layout::new::<BootInfo>().align_to(4096).unwrap();

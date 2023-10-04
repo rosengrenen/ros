@@ -1,4 +1,4 @@
-use core::marker::PhantomData;
+use core::{fmt::Debug, marker::PhantomData};
 
 use crate::frame::{Frame1GiB, Frame2MiB, Frame4KiB};
 
@@ -127,13 +127,25 @@ impl<S> PageTableEntryRaw<S> {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum PageTableEntry<S> {
     Page(PageEntry<S>),
     Table(TableEntry<S>),
 }
 
-#[derive(Clone, Copy, Debug)]
+impl<S> Debug for PageTableEntry<S>
+where
+    PageEntry<S>: Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Page(page) => f.debug_tuple("Page").field(page).finish(),
+            Self::Table(table) => f.debug_tuple("Table").field(table).finish(),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct PageEntry<S> {
     raw: PageTableEntryRaw<S>,
 }
@@ -203,6 +215,20 @@ impl<S> PageEntry<S> {
     }
 }
 
+impl Debug for PageEntry<Pml4> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("PageEntry")
+            .field("writable", &self.writable())
+            .field("user_accessible", &self.user_accessible())
+            .field("page_level_write_through", &self.page_level_write_through())
+            .field("page_level_cache_disable", &self.page_level_cache_disable())
+            .field("accessed", &self.accessed())
+            .field("dirty", &self.dirty())
+            .field("marker", &self.raw._marker)
+            .finish()
+    }
+}
+
 impl PageEntry<Pml3> {
     const ADDR_MASK: u64 = 0x000f_ffff_c000_0000;
 
@@ -213,6 +239,21 @@ impl PageEntry<Pml3> {
     pub fn set_frame(&mut self, frame: Frame1GiB) {
         self.raw.value &= !Self::ADDR_MASK;
         self.raw.value |= frame.addr().inner() & Self::ADDR_MASK;
+    }
+}
+
+impl Debug for PageEntry<Pml3> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("PageEntry")
+            .field("writable", &self.writable())
+            .field("user_accessible", &self.user_accessible())
+            .field("page_level_write_through", &self.page_level_write_through())
+            .field("page_level_cache_disable", &self.page_level_cache_disable())
+            .field("accessed", &self.accessed())
+            .field("dirty", &self.dirty())
+            .field("frame", &self.frame())
+            .field("marker", &self.raw._marker)
+            .finish()
     }
 }
 
@@ -229,6 +270,21 @@ impl PageEntry<Pml2> {
     }
 }
 
+impl Debug for PageEntry<Pml2> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("PageEntry")
+            .field("writable", &self.writable())
+            .field("user_accessible", &self.user_accessible())
+            .field("page_level_write_through", &self.page_level_write_through())
+            .field("page_level_cache_disable", &self.page_level_cache_disable())
+            .field("accessed", &self.accessed())
+            .field("dirty", &self.dirty())
+            .field("frame", &self.frame())
+            .field("marker", &self.raw._marker)
+            .finish()
+    }
+}
+
 impl PageEntry<Pml1> {
     const ADDR_MASK: u64 = 0x000f_ffff_ffff_f000;
 
@@ -242,9 +298,38 @@ impl PageEntry<Pml1> {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+impl Debug for PageEntry<Pml1> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("PageEntry")
+            .field("writable", &self.writable())
+            .field("user_accessible", &self.user_accessible())
+            .field("page_level_write_through", &self.page_level_write_through())
+            .field("page_level_cache_disable", &self.page_level_cache_disable())
+            .field("accessed", &self.accessed())
+            .field("dirty", &self.dirty())
+            .field("frame", &self.frame())
+            .field("marker", &self.raw._marker)
+            .finish()
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct TableEntry<S> {
     raw: PageTableEntryRaw<S>,
+}
+
+impl<S> Debug for TableEntry<S> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("TableEntry")
+            .field("writable", &self.writable())
+            .field("user_accessible", &self.user_accessible())
+            .field("page_level_write_through", &self.page_level_write_through())
+            .field("page_level_cache_disable", &self.page_level_cache_disable())
+            .field("accessed", &self.accessed())
+            .field("addr", &self.table_addr())
+            .field("marker", &self.raw._marker)
+            .finish()
+    }
 }
 
 impl<S> TableEntry<S> {

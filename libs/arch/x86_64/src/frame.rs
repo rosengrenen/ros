@@ -6,6 +6,7 @@ pub enum Frame {
     Frame4KiB(Frame4KiB),
 }
 
+#[derive(Debug)]
 pub struct Frame1GiB {
     addr: PhysAddr,
 }
@@ -24,6 +25,7 @@ impl Frame1GiB {
     }
 }
 
+#[derive(Debug)]
 pub struct Frame2MiB {
     addr: PhysAddr,
 }
@@ -42,6 +44,7 @@ impl Frame2MiB {
     }
 }
 
+#[derive(Debug)]
 pub struct Frame4KiB {
     addr: PhysAddr,
 }
