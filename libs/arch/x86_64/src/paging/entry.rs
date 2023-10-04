@@ -7,7 +7,7 @@ use super::{PageTable, PhysAddr, Pml1, Pml2, Pml3, Pml4};
 #[derive(Debug)]
 #[repr(C)]
 pub struct PageTableEntryRaw<S> {
-    pub value: usize,
+    pub value: u64,
     _marker: PhantomData<S>,
 }
 
@@ -22,18 +22,18 @@ impl<S> Clone for PageTableEntryRaw<S> {
 }
 
 impl<S> PageTableEntryRaw<S> {
-    const PRESENT_BIT: usize = 0;
-    const WRITABLE_BIT: usize = 1;
-    const USER_ACCESIBLE_BIT: usize = 2;
-    const PAGE_LEVEL_WRITE_THROUGH_BIT: usize = 3;
-    const PAGE_LEVEL_CACHE_BIT: usize = 4;
-    const ACCESSED_BIT: usize = 5;
-    const DIRTY_BIT: usize = 6;
-    const IS_PAGE_BIT: usize = 6;
+    const PRESENT_BIT: u64 = 0;
+    const WRITABLE_BIT: u64 = 1;
+    const USER_ACCESIBLE_BIT: u64 = 2;
+    const PAGE_LEVEL_WRITE_THROUGH_BIT: u64 = 3;
+    const PAGE_LEVEL_CACHE_BIT: u64 = 4;
+    const ACCESSED_BIT: u64 = 5;
+    const DIRTY_BIT: u64 = 6;
+    const IS_PAGE_BIT: u64 = 6;
 
-    pub fn new(value: usize) -> Self {
+    pub fn new() -> Self {
         Self {
-            value,
+            value: 0,
             _marker: PhantomData,
         }
     }
@@ -111,14 +111,14 @@ impl<S> PageTableEntryRaw<S> {
     }
 
     pub fn set_user_bits(&mut self, bits: u16) {
-        let bits = bits as usize;
+        let bits = bits as u64;
         self.value &= !(0b11 << 9);
         self.value |= (bits & 0b11) << 9;
         self.value &= !(0b111_1111 << 52);
         self.value |= ((bits >> 2) & 0b111_1111) << 52;
     }
 
-    fn set_bit(&mut self, bit: usize, value: bool) {
+    fn set_bit(&mut self, bit: u64, value: bool) {
         if value {
             self.value |= (1 << bit);
         } else {
@@ -127,21 +127,26 @@ impl<S> PageTableEntryRaw<S> {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum PageTableEntry<S> {
     Page(PageEntry<S>),
     Table(TableEntry<S>),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct PageEntry<S> {
     raw: PageTableEntryRaw<S>,
 }
 
 impl<S> PageEntry<S> {
-    pub fn new(mut raw: PageTableEntryRaw<S>) -> Self {
+    pub fn new() -> Self {
+        let mut raw = PageTableEntryRaw::new();
         raw.set_present(true);
         raw.set_is_page(true);
+        Self { raw }
+    }
+
+    pub fn from_raw(raw: PageTableEntryRaw<S>) -> Self {
         Self { raw }
     }
 
@@ -199,34 +204,60 @@ impl<S> PageEntry<S> {
 }
 
 impl PageEntry<Pml3> {
+    const ADDR_MASK: u64 = 0x000f_ffff_c000_0000;
+
     pub fn frame(&self) -> Frame1GiB {
-        Frame1GiB::new(unsafe { PhysAddr::new(self.raw.value & 0x000f_ffff_c000_0000) })
+        Frame1GiB::new(PhysAddr::new(self.raw.value & Self::ADDR_MASK))
+    }
+
+    pub fn set_frame(&mut self, frame: Frame1GiB) {
+        self.raw.value &= !Self::ADDR_MASK;
+        self.raw.value |= frame.addr().inner() & Self::ADDR_MASK;
     }
 }
 
 impl PageEntry<Pml2> {
+    const ADDR_MASK: u64 = 0x000f_ffff_ffe0_0000;
+
     pub fn frame(&self) -> Frame2MiB {
-        Frame2MiB::new(unsafe { PhysAddr::new(self.raw.value & 0x000f_ffff_ffe0_0000) })
+        Frame2MiB::new(PhysAddr::new(self.raw.value & Self::ADDR_MASK))
+    }
+
+    pub fn set_frame(&mut self, frame: Frame2MiB) {
+        self.raw.value &= !Self::ADDR_MASK;
+        self.raw.value |= frame.addr().inner() & Self::ADDR_MASK;
     }
 }
 
 impl PageEntry<Pml1> {
+    const ADDR_MASK: u64 = 0x000f_ffff_ffff_f000;
+
     pub fn frame(&self) -> Frame4KiB {
-        Frame4KiB::new(unsafe { PhysAddr::new(self.raw.value & 0x000f_ffff_ffff_f000) })
+        Frame4KiB::new(PhysAddr::new(self.raw.value & Self::ADDR_MASK))
+    }
+
+    pub fn set_frame(&mut self, frame: Frame4KiB) {
+        self.raw.value &= !Self::ADDR_MASK;
+        self.raw.value |= frame.addr().inner() & Self::ADDR_MASK;
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct TableEntry<S> {
     raw: PageTableEntryRaw<S>,
 }
 
 impl<S> TableEntry<S> {
-    const ADDR_MASK: usize = 0x000f_ffff_ffff_f000;
+    const ADDR_MASK: u64 = 0x000f_ffff_ffff_f000;
 
-    pub fn new(mut raw: PageTableEntryRaw<S>) -> Self {
+    pub fn new() -> Self {
+        let mut raw = PageTableEntryRaw::new();
         raw.set_present(true);
         raw.set_is_page(false);
+        Self { raw }
+    }
+
+    pub fn from_raw(raw: PageTableEntryRaw<S>) -> Self {
         Self { raw }
     }
 
@@ -280,7 +311,7 @@ impl<S> TableEntry<S> {
 
     pub fn set_table_addr(&mut self, addr: PhysAddr) {
         self.raw.value &= !Self::ADDR_MASK;
-        self.raw.value |= addr.inner() * Self::ADDR_MASK;
+        self.raw.value |= addr.inner() & Self::ADDR_MASK;
     }
 }
 

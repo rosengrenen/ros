@@ -19,7 +19,7 @@ pub struct Kernel {
     /// Number of frames the kernel occupies
     pub frames: usize,
     /// Physical address
-    pub stack_base: usize,
+    pub stack_base: u64,
 }
 
 #[derive(Debug)]
@@ -41,8 +41,8 @@ impl core::ops::Deref for MemoryRegions {
 #[repr(C)]
 pub struct MemoryRegion {
     pub ty: MemoryRegionType,
-    pub start: usize,
-    pub end: usize,
+    pub start: u64,
+    pub end: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -47,6 +47,7 @@ pub extern "efiapi" fn efi_main(
     system_table: uefi::SystemTable<uefi::Uninit>,
 ) -> uefi::Status {
     let system_table = system_table.init();
+    system_table.con_out().reset(false).unwrap();
     let uefi_allocator = UefiAllocator::new(system_table.boot_services());
 
     let kernel_executable =
@@ -77,7 +78,7 @@ pub extern "efiapi" fn efi_main(
         .unwrap();
 
     let pml4_frame = bump_allocator.allocate_frame().unwrap();
-    let pml4 = PageTable::new(pml4_frame as _);
+    let mut pml4 = PageTable::new(pml4_frame as _);
 
     // Identity map region in which main function resides, so that bootloader continues working after enabling paing, but mark the frames as usable for the kernel
     for frame_index in 0..efi_main_region.number_of_pages {
@@ -94,6 +95,17 @@ pub extern "efiapi" fn efi_main(
             &bump_allocator,
         );
     }
+
+    sprintln!("{:#x?}", efi_main_region);
+    sprintln!(
+        "{:x?}",
+        efi_main_region.physical_start + efi_main_region.number_of_pages * 4096
+    );
+    sprintln!("{:#x?}", efi_stack_region);
+    sprintln!(
+        "{:x?}",
+        efi_stack_region.physical_start + efi_stack_region.number_of_pages * 4096
+    );
 
     // Map kernel to virtual addresses
     for page in 0..kernel.frames {
@@ -252,13 +264,13 @@ fn optimize_memory_map<'uefi>(
                 && last.ty == MemoryRegionType::KernelUsable
                 && mem_type == MemoryRegionType::KernelUsable
             {
-                last.end += desc.number_of_pages as usize * 4096;
+                last.end += desc.number_of_pages * 4096;
             } else {
                 mem_regions
                     .push(MemoryRegion {
                         ty: mem_type,
-                        start: desc.physical_start as usize,
-                        end: desc.physical_start as usize + desc.number_of_pages as usize * 4096,
+                        start: desc.physical_start,
+                        end: desc.physical_start + desc.number_of_pages * 4096,
                     })
                     .unwrap();
             }
@@ -266,8 +278,8 @@ fn optimize_memory_map<'uefi>(
             mem_regions
                 .push(MemoryRegion {
                     ty: mem_type,
-                    start: desc.physical_start as usize,
-                    end: desc.physical_start as usize + desc.number_of_pages as usize * 4096,
+                    start: desc.physical_start,
+                    end: desc.physical_start + desc.number_of_pages * 4096,
                 })
                 .unwrap();
         }

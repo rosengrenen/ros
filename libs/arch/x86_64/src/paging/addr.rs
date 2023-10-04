@@ -2,30 +2,30 @@ use core::fmt;
 
 #[derive(Clone, Copy, Debug)]
 pub struct PhysAddr {
-    addr: usize,
+    addr: u64,
 }
 
 impl PhysAddr {
-    pub unsafe fn new(addr: usize) -> Self {
+    pub fn new(addr: u64) -> Self {
         Self { addr }
     }
 
-    pub fn inner(&self) -> usize {
+    pub fn inner(&self) -> u64 {
         self.addr
     }
 
-    pub unsafe fn add(&self, offset: usize) -> Self {
+    pub fn add(&self, offset: u64) -> Self {
         Self {
             addr: self.addr + offset,
         }
     }
 
-    pub unsafe fn as_ptr<T>(&self) -> *const T {
+    pub fn as_ptr<T>(&self) -> *const T {
         // TODO: is alignment checking necessary?
         self.addr as *const T
     }
 
-    pub unsafe fn as_ptr_mut<T>(&mut self) -> *mut T {
+    pub fn as_ptr_mut<T>(&mut self) -> *mut T {
         // TODO: is alignment checking necessary?
         self.addr as *mut T
     }
@@ -39,31 +39,31 @@ impl fmt::Display for PhysAddr {
 
 #[derive(Clone, Copy)]
 pub struct VirtAddr {
-    addr: usize,
+    addr: u64,
 }
 
 impl VirtAddr {
-    pub fn new(addr: usize) -> Self {
+    pub fn new(addr: u64) -> Self {
         Self { addr }
     }
 
-    pub fn inner(&self) -> usize {
+    pub fn inner(&self) -> u64 {
         self.addr
     }
 
-    pub fn pml4_index(&self) -> usize {
+    pub fn pml4_index(&self) -> u64 {
         self.addr >> 39 & 0x1ff
     }
 
-    pub fn pml3_index(&self) -> usize {
+    pub fn pml3_index(&self) -> u64 {
         self.addr >> 30 & 0x1ff
     }
 
-    pub fn pml2_index(&self) -> usize {
+    pub fn pml2_index(&self) -> u64 {
         self.addr >> 21 & 0x1ff
     }
 
-    pub fn pml1_index(&self) -> usize {
+    pub fn pml1_index(&self) -> u64 {
         self.addr >> 12 & 0x1ff
     }
 }

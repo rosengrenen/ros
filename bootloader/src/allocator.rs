@@ -10,7 +10,8 @@ pub struct BumpAllocator {
 
 struct BumpAllocatorInner {
     descriptor_index: usize,
-    addr: usize,
+    addr: u64,
+    num_frames: u64,
 }
 
 impl BumpAllocator {
@@ -32,14 +33,15 @@ impl BumpAllocator {
             memory_map_len,
             inner: RefCell::new(BumpAllocatorInner {
                 descriptor_index: 0,
-                addr: memory_map[0].unwrap().physical_start as usize,
+                addr: memory_map[0].unwrap().physical_start,
+                num_frames: 0,
             }),
         }
     }
 }
 
 impl BumpAllocator {
-    pub fn allocate_frames(&self, num_pages: usize) -> Result<usize, AllocError> {
+    pub fn allocate_frames(&self, num_frames: u64) -> Result<u64, AllocError> {
         let mut inner = self.inner.borrow_mut();
         loop {
             let mem_desc = &self.memory_map[inner.descriptor_index].unwrap();
@@ -49,11 +51,11 @@ impl BumpAllocator {
                 inner.addr = (inner.addr & !0xfff) + 4096;
             }
 
-            let mem_left_in_desc =
-                mem_desc.physical_start as usize + mem_desc_size as usize - inner.addr;
-            if mem_left_in_desc >= 4096 * num_pages {
+            let mem_left_in_desc = mem_desc.physical_start + mem_desc_size - inner.addr;
+            if mem_left_in_desc >= 4096 * num_frames {
                 let ptr = inner.addr;
-                inner.addr += 4096 * num_pages;
+                inner.addr += 4096 * num_frames;
+                inner.num_frames += num_frames;
                 return Ok(ptr);
             }
 
@@ -64,17 +66,17 @@ impl BumpAllocator {
             inner.descriptor_index += 1;
             inner.addr = self.memory_map[inner.descriptor_index]
                 .unwrap()
-                .physical_start as usize;
+                .physical_start;
         }
     }
 }
 
 impl FrameAllocator for BumpAllocator {
-    fn allocate_frame(&self) -> Result<usize, FrameAllocError> {
+    fn allocate_frame(&self) -> Result<u64, FrameAllocError> {
         self.allocate_frames(1).map_err(|_| FrameAllocError)
     }
 
-    fn deallocate_frame(&self, _frame: usize) -> Result<(), FrameAllocError> {
+    fn deallocate_frame(&self, _frame: u64) -> Result<(), FrameAllocError> {
         Ok(())
     }
 }

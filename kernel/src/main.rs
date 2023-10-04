@@ -38,44 +38,45 @@ pub struct DescriptorTablePointer {
 #[no_mangle]
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     sprintln!("in the kernel");
-    sprintln!("{:#x?}", info);
-    sprintln!("{:#x?}", &info.memory_regions[..]);
+    loop {}
+    // sprintln!("{:#x?}", info);
+    // sprintln!("{:#x?}", &info.memory_regions[..]);
 
-    let mut serial = SerialPort::new(COM1_BASE);
-    serial.configure(1);
+    // let mut serial = SerialPort::new(COM1_BASE);
+    // serial.configure(1);
 
-    let memory_regions =
-        unsafe { core::slice::from_raw_parts(info.memory_regions.ptr, info.memory_regions.len) };
+    // let memory_regions =
+    //     unsafe { core::slice::from_raw_parts(info.memory_regions.ptr, info.memory_regions.len) };
 
-    let init_frame_allocator = InitFrameAllocator::new(memory_regions);
-    init_frame_allocator.add_allocated_frames(info.kernel.base as _, info.kernel.frames);
-    init_frame_allocator.add_allocated_frames(info.kernel.stack_base, 1);
-    init_frame_allocator.add_allocated_frames(info as *const _ as usize, 1);
+    // let init_frame_allocator = InitFrameAllocator::new(memory_regions);
+    // init_frame_allocator.add_allocated_frames(info.kernel.base, info.kernel.frames);
+    // init_frame_allocator.add_allocated_frames(info.kernel.stack_base, 1);
+    // init_frame_allocator.add_allocated_frames(info as *const _ as u64, 1);
 
-    let lapic_info = msr::lapic_info();
-    sprintln!("{:x?}", lapic_info);
+    // let lapic_info = msr::lapic_info();
+    // sprintln!("{:x?}", lapic_info);
 
-    let gdt = unsafe { core::slice::from_raw_parts_mut(info.gdt as *mut u64, 3) };
-    for entry in gdt.iter_mut() {
-        *entry = 0;
-    }
+    // let gdt = unsafe { core::slice::from_raw_parts_mut(info.gdt as *mut u64, 3) };
+    // for entry in gdt.iter_mut() {
+    //     *entry = 0;
+    // }
 
-    let idt = unsafe { core::slice::from_raw_parts_mut(info.idt as *mut IdtEntry, 256) };
-    for entry in idt.iter_mut() {
-        *entry = IdtEntry::new(0, 0, 0);
-    }
+    // let idt = unsafe { core::slice::from_raw_parts_mut(info.idt as *mut IdtEntry, 256) };
+    // for entry in idt.iter_mut() {
+    //     *entry = IdtEntry::new(0, 0, 0);
+    // }
 
-    serial.write_str("setting up gdt\n").unwrap();
-    init_gdt(gdt);
-    serial.write_str("successfully set up gdt (?)\n").unwrap();
+    // serial.write_str("setting up gdt\n").unwrap();
+    // init_gdt(gdt);
+    // serial.write_str("successfully set up gdt (?)\n").unwrap();
 
-    serial.write_str("setting up idt\n").unwrap();
-    interrupt::init(idt);
-    serial.write_str("successfully set up idt (?)\n").unwrap();
+    // serial.write_str("setting up idt\n").unwrap();
+    // interrupt::init(idt);
+    // serial.write_str("successfully set up idt (?)\n").unwrap();
 
-    unsafe {
-        core::arch::asm!("int3");
-    }
+    // unsafe {
+    //     core::arch::asm!("int3");
+    // }
     // divide_by_zero();
     // cause_page_fault();
     loop {}

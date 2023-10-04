@@ -11,7 +11,7 @@ pub struct InitFrameAllocator<'a> {
 struct InitFrameAllocatorInner<'a> {
     memory_regions: &'a [MemoryRegion],
     descriptor_index: usize,
-    addr: usize,
+    addr: u64,
 }
 
 impl<'a> InitFrameAllocator<'a> {
@@ -27,7 +27,7 @@ impl<'a> InitFrameAllocator<'a> {
 }
 
 impl<'a> InitFrameAllocator<'a> {
-    pub fn allocate_frames(&self, num_frames: usize) -> Result<usize, AllocError> {
+    pub fn allocate_frames(&self, num_frames: u64) -> Result<u64, AllocError> {
         let mut lock = self.inner.lock();
         loop {
             let mem_region = lock.memory_regions[lock.descriptor_index];
@@ -47,9 +47,9 @@ impl<'a> InitFrameAllocator<'a> {
         }
     }
 
-    pub fn add_allocated_frames(&self, base: usize, num_frames: usize) {
+    pub fn add_allocated_frames(&self, base: u64, num_frames: usize) {
         let mut lock = self.inner.lock();
-        let end = base + num_frames * 4096;
+        let end = base + num_frames as u64 * 4096;
         if end < lock.addr {
             return;
         }
@@ -65,11 +65,11 @@ impl<'a> InitFrameAllocator<'a> {
 }
 
 impl<'a> FrameAllocator for InitFrameAllocator<'a> {
-    fn allocate_frame(&self) -> Result<usize, FrameAllocError> {
+    fn allocate_frame(&self) -> Result<u64, FrameAllocError> {
         self.allocate_frames(1).map_err(|_| FrameAllocError)
     }
 
-    fn deallocate_frame(&self, _frame: usize) -> Result<(), FrameAllocError> {
+    fn deallocate_frame(&self, _frame: u64) -> Result<(), FrameAllocError> {
         Ok(())
     }
 }

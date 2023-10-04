@@ -6,6 +6,7 @@ pub use self::addr::{PhysAddr, VirtAddr};
 use self::entry::{PageTableEntry, PageTableEntryRaw};
 use crate::{
     control::{Cr0, Cr3},
+    frame::{Frame1GiB, Frame4KiB},
     paging::entry::{PageEntry, TableEntry},
 };
 use core::{fmt::Write, marker::PhantomData};
@@ -15,19 +16,19 @@ pub struct FrameAllocError;
 
 // TODO: is this going here?
 pub trait FrameAllocator {
-    fn allocate_frame(&self) -> Result<usize, FrameAllocError>;
+    fn allocate_frame(&self) -> Result<u64, FrameAllocError>;
 
-    fn deallocate_frame(&self, frame: usize) -> Result<(), FrameAllocError>;
+    fn deallocate_frame(&self, frame: u64) -> Result<(), FrameAllocError>;
 }
 
 // Page map levels
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Pml4;
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Pml3;
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Pml2;
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Pml1;
 
 // TODO: synchronisation
@@ -51,32 +52,33 @@ impl<S> PageTable<S> {
         unsafe { core::slice::from_raw_parts_mut(self.entries, 512) }
     }
 
-    pub fn get(&self, index: usize) -> Option<PageTableEntry<S>> {
+    pub fn get(&self, index: u64) -> Option<PageTableEntry<S>> {
         assert!(index < 512);
-        let entry = &self.entries()[index];
+        let entry = &self.entries()[index as usize];
         let entry = *entry;
         if !entry.present() {
             return None;
         }
 
         Some(match entry.is_page() {
-            true => PageTableEntry::Page(PageEntry::new(entry)),
-            false => PageTableEntry::Table(TableEntry::new(entry)),
+            true => PageTableEntry::Page(PageEntry::from_raw(entry)),
+            false => PageTableEntry::Table(TableEntry::from_raw(entry)),
         })
     }
 
     pub fn get_or_create(
         &mut self,
-        index: usize,
+        index: u64,
         frame_allocator: &impl FrameAllocator,
     ) -> PageTableEntry<S> {
         if let Some(entry) = self.get(index) {
             entry
         } else {
             let frame = frame_allocator.allocate_frame().unwrap();
-            let mut table_entry = TableEntry::new(PageTableEntryRaw::new(0));
+            let mut table_entry = TableEntry::new();
             table_entry.set_writable(true);
-            self.entries_mut()[index] = table_entry.raw();
+            table_entry.set_table_addr(PhysAddr::new(frame));
+            self.entries_mut()[index as usize] = table_entry.raw();
             PageTableEntry::Table(table_entry)
         }
     }
@@ -113,7 +115,7 @@ impl PageTable<Pml4> {
         let pml1_entry = pml1.get(pml1_index)?;
         match pml1_entry {
             PageTableEntry::Page(page) => Some(unsafe { page.frame().with_offset(virt_addr) }),
-            PageTableEntry::Table(_) => unreachable!(),
+            PageTableEntry::Table(table) => unreachable!("{:?}", table),
         }
     }
 
@@ -152,9 +154,10 @@ impl PageTable<Pml4> {
             false
         } else {
             let frame = frame_allocator.allocate_frame().unwrap();
-            let mut page_netry = PageEntry::new(PageTableEntryRaw::new(0));
-            page_netry.set_writable(true);
-            pml1.entries_mut()[pml1_index] = page_netry.raw();
+            let mut page_entry = PageEntry::<Pml1>::new();
+            page_entry.set_writable(true);
+            page_entry.set_frame(Frame4KiB::new(phys_addr));
+            pml1.entries_mut()[pml1_index as usize] = page_entry.raw();
             true
         }
     }
