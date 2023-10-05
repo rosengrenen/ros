@@ -1,9 +1,8 @@
 use bootloader_api::AllocatedFrameRange;
 use core::{alloc::AllocError, cell::RefCell};
+use stack_vec::StackVec;
 use uefi::services::boot::MemoryDescriptor;
 use x86_64::paging::{FrameAllocError, FrameAllocator};
-
-use crate::stack_vec::StackVec;
 
 pub struct BumpAllocator {
     mem_regions: StackVec<128, MemoryDescriptor>,

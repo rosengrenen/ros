@@ -1,3 +1,5 @@
+#![no_std]
+
 use core::fmt::Debug;
 use core::mem::MaybeUninit;
 use core::ops::{Index, IndexMut};
@@ -68,6 +70,14 @@ impl<const N: usize, T> StackVec<N, T> {
         Some(unsafe { self.array[index].assume_init_ref() })
     }
 
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        if index >= self.len {
+            return None;
+        }
+
+        Some(unsafe { self.array[index].assume_init_mut() })
+    }
+
     pub fn iter(&self) -> Iter<'_, N, T> {
         Iter {
             vec: self,
@@ -84,7 +94,7 @@ impl<const N: usize, T> Index<usize> for StackVec<N, T> {
             panic!("index >= len");
         }
 
-        unsafe { self.array.get_unchecked(index).assume_init_ref() }
+        self.get(index).unwrap()
     }
 }
 
@@ -94,7 +104,7 @@ impl<const N: usize, T> IndexMut<usize> for StackVec<N, T> {
             panic!("index >= len");
         }
 
-        unsafe { self.array.get_unchecked_mut(index).assume_init_mut() }
+        self.get_mut(index).unwrap()
     }
 }
 
@@ -112,3 +122,19 @@ impl<'iter, const N: usize, T> Iterator for Iter<'iter, N, T> {
         item
     }
 }
+
+// Lifetime issues, not sure how to fix it
+// pub struct IterMut<'iter, const N: usize, T> {
+//     vec: &'iter mut StackVec<N, T>,
+//     index: usize,
+// }
+
+// impl<'iter, const N: usize, T> Iterator for IterMut<'iter, N, T> {
+//     type Item = &'iter mut T;
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         let item = self.vec.get_mut(self.index);
+//         self.index += 1;
+//         item
+//     }
+// }

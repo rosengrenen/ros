@@ -13,5 +13,6 @@ panic = "abort"
 alloc = { path = "../libs/alloc" }
 bootloader_api = { path = "../bootloader_api" }
 serial = { path = "../libs/serial" }
+stack_vec = { path = "../libs/stack_vec" }
 uefi = { path = "../libs/uefi" }
 x86_64 = { path = "../libs/arch/x86_64" }

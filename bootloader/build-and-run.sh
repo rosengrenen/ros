@@ -11,7 +11,6 @@ mformat -i fat.img -f 2880 ::
 mmd -i fat.img ::/EFI
 mmd -i fat.img ::/EFI/BOOT
 mcopy -i fat.img target/x86_64-unknown-uefi/debug/BOOTX64.EFI ::/EFI/BOOT
-mcopy -i fat.img banner.txt ::/
 cd ../kernel && cargo build --release && cd -
 mcopy -i fat.img ../kernel/target/x86_64/release/ros ::/
 
