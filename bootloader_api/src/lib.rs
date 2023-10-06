@@ -20,7 +20,8 @@ pub struct Kernel {
     /// Number of frames the kernel occupies
     pub frames: usize,
     /// Physical address
-    pub stack_base: u64,
+    pub stack_start: u64,
+    pub stack_end: u64,
 }
 
 #[derive(Debug)]

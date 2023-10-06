@@ -17,18 +17,6 @@ pub struct FrameAllocError;
 // TODO: is this going here?
 pub trait FrameAllocator {
     fn allocate_frame(&self) -> Result<u64, FrameAllocError>;
-    fn allocate_frame_zeroed(&self) -> Result<u64, FrameAllocError> {
-        let base = self.allocate_frame()?;
-        let frame = unsafe {
-            // TODO: assumes 4k page
-            core::slice::from_raw_parts_mut(base as *mut u64, 4096 / core::mem::size_of::<u64>())
-        };
-        for part in frame {
-            *part = 0;
-        }
-
-        Ok(base)
-    }
 
     fn deallocate_frame(&self, frame: u64) -> Result<(), FrameAllocError>;
 }
@@ -86,7 +74,8 @@ impl<S> PageTable<S> {
         if let Some(entry) = self.get(index) {
             GetOrCreate::Found(entry)
         } else {
-            let frame = frame_allocator.allocate_frame_zeroed().unwrap();
+            let frame = frame_allocator.allocate_frame().unwrap();
+            // TODO: clear the thing, needs to be mapped tho :(
             let mut table_entry = TableEntry::new();
             table_entry.set_writable(true);
             table_entry.set_table_addr(PhysAddr::new(frame));

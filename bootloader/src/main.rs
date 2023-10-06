@@ -7,7 +7,6 @@
 
 mod allocator;
 mod elf;
-mod stack_vec;
 
 use crate::{allocator::BumpAllocator, elf::mount_kernel};
 use alloc::{raw_vec::RawVec, vec::Vec};
@@ -117,13 +116,17 @@ pub extern "efiapi" fn efi_main(
     }
 
     // Allocate stack for the kernel and map it to virtual addresses
-    let stack_end: u64 = 0xffff_ffff_ffff_fff8;
-    let stack_frame = bump_allocator.allocate_frame().unwrap();
-    pml4.map(
-        VirtAddr::new(stack_end & !0xfff),
-        PhysAddr::new(stack_frame as u64),
-        &bump_allocator,
-    );
+    let kernel_stack_frames = 16;
+    let stack_start: u64 = 0xffff_ffff_ffff_fff8;
+    let stack_end = (stack_start & !0xfff) - (kernel_stack_frames - 1) * 4096;
+    for i in 0..kernel_stack_frames {
+        let stack_frame = bump_allocator.allocate_frame().unwrap();
+        pml4.map(
+            VirtAddr::new(stack_end + i * 4096),
+            PhysAddr::new(stack_frame as u64),
+            &bump_allocator,
+        );
+    }
 
     let boot_info_frame = bump_allocator.allocate_frame().unwrap();
     pml4.map_ident(PhysAddr::new(boot_info_frame as u64), &bump_allocator);
@@ -173,7 +176,8 @@ pub extern "efiapi" fn efi_main(
             kernel: bootloader_api::Kernel {
                 base: kernel.image_start,
                 frames: kernel.frames as _,
-                stack_base: stack_end as _,
+                stack_start,
+                stack_end,
             },
             memory_regions: bootloader_api::MemoryRegions {
                 ptr: boot_info_memory_regions.as_ptr(),
@@ -195,7 +199,7 @@ pub extern "efiapi" fn efi_main(
     // Jump to kernel
     unsafe {
         core::arch::asm!("mov rsp, {}; jmp {}",
-          in(reg) stack_end,
+          in(reg) stack_start,
           in(reg) kernel.entry_point,
           in("rdi") boot_info_frame,
         );

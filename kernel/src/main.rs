@@ -6,14 +6,16 @@
 // TODO: think about if this is necessary
 #![deny(unsafe_op_in_unsafe_fn)]
 
+mod frame_allocator;
 mod init_frame_allocator;
 mod interrupt;
+mod kernel_page_allocator;
 mod msr;
 mod spinlock;
 
-use crate::init_frame_allocator::InitFrameAllocator;
+use crate::{init_frame_allocator::InitFrameAllocator, kernel_page_allocator::KernelPageAllocator};
 use bootloader_api::BootInfo;
-use core::{fmt::Write, panic::PanicInfo};
+use core::panic::PanicInfo;
 use serial::{SerialPort, COM1_BASE};
 use x86_64::{
     control::Cr3,
@@ -24,6 +26,8 @@ use x86_64::{
 #[macro_export]
 macro_rules! sprintln {
     ($($arg:tt)*) => {{
+        use serial::{SerialPort, COM1_BASE};
+        use core::fmt::Write;
         let mut serial = SerialPort::new(COM1_BASE);
         writeln!(serial, $($arg)*).unwrap();
     }}
@@ -51,6 +55,21 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     let init_frame_allocator =
         InitFrameAllocator::new(&info.memory_regions[..], &info.allocated_frame_ranges[..]);
     let page_table = PageTable::<Pml4>::new(Cr3::read().pba_pml4 as _);
+    let init_page_allocator = KernelPageAllocator::new(
+        info.kernel.base + info.kernel.frames as u64 + 4096,
+        512 * 1024 * 1024,
+        &init_frame_allocator,
+        page_table,
+    );
+    loop {}
+
+    for i in 0..10 {
+        sprintln!("{:x}", init_page_allocator.allocate_pages(1));
+    }
+
+    for i in 0..10 {
+        sprintln!("{:x}", init_page_allocator.allocate_pages(8));
+    }
 
     // pml4.unmap(virt_addr, frame_allocator);
 
