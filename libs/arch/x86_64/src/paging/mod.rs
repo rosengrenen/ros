@@ -75,6 +75,14 @@ impl<S> PageTable<S> {
             GetOrCreate::Found(entry)
         } else {
             let frame = frame_allocator.allocate_frame().unwrap();
+            for a in unsafe {
+                core::slice::from_raw_parts_mut(
+                    frame as *mut u64,
+                    4096 / core::mem::size_of::<u64>(),
+                )
+            } {
+                *a = 0;
+            }
             // TODO: clear the thing, needs to be mapped tho :(
             let mut table_entry = TableEntry::new();
             table_entry.set_writable(true);
@@ -148,9 +156,6 @@ impl PageTable<Pml4> {
                 PageTableEntry::Table(table) => table.table(),
             },
             GetOrCreate::Created(entry) => {
-                if !self.map_ident(entry.table_addr(), frame_allocator) {
-                    return false;
-                }
 
                 entry.table()
             }
@@ -163,9 +168,6 @@ impl PageTable<Pml4> {
                 PageTableEntry::Table(table) => table.table(),
             },
             GetOrCreate::Created(entry) => {
-                if !self.map_ident(entry.table_addr(), frame_allocator) {
-                    return false;
-                }
 
                 entry.table()
             }
@@ -178,9 +180,6 @@ impl PageTable<Pml4> {
                 PageTableEntry::Table(table) => table.table(),
             },
             GetOrCreate::Created(entry) => {
-                if !self.map_ident(entry.table_addr(), frame_allocator) {
-                    return false;
-                }
 
                 entry.table()
             }
@@ -190,7 +189,6 @@ impl PageTable<Pml4> {
         if let Some(entry) = pml1.get(pml1_index) {
             false
         } else {
-            let frame = frame_allocator.allocate_frame().unwrap();
             let mut page_entry = PageEntry::<Pml1>::new();
             page_entry.set_writable(true);
             page_entry.set_frame(Frame4KiB::new(phys_addr));

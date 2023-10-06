@@ -26,7 +26,7 @@ use uefi::{
 };
 use x86_64::{
     control::Cr3,
-    paging::{FrameAllocator, PageTable, PhysAddr, VirtAddr},
+    paging::{entry::PageTableEntry, FrameAllocator, PageTable, PhysAddr, VirtAddr},
 };
 
 #[macro_export]
@@ -59,10 +59,6 @@ pub extern "efiapi" fn efi_main(
         .boot_services()
         .get_memory_map(&uefi_allocator)
         .unwrap();
-    let efi_main_region = get_efi_main_region(&memory_map);
-
-    let stack_pointer = get_stack_pointer();
-    let efi_stack_region = get_efi_stack_region(&memory_map, stack_pointer);
 
     let memory_map_key = memory_map.key;
     let bump_allocator = BumpAllocator::new(memory_map.iter());
@@ -78,37 +74,27 @@ pub extern "efiapi" fn efi_main(
         .unwrap();
 
     let pml4_frame = bump_allocator.allocate_frame().unwrap();
-    let mut pml4 = PageTable::new(pml4_frame as _);
 
-    // Identity map region in which main function resides, so that bootloader continues working after enabling paing, but mark the frames as usable for the kernel
-    bump_allocator.reserve_frames(
-        efi_main_region.physical_start,
-        efi_main_region.number_of_pages,
-        true,
-    );
-    for frame_index in 0..efi_main_region.number_of_pages {
-        pml4.map_ident(
-            PhysAddr::new(efi_main_region.physical_start + frame_index * 4096),
-            &bump_allocator,
-        );
-    }
+    let mut page_table = PageTable::new(pml4_frame as _);
 
-    // Do the same with the stack
-    bump_allocator.reserve_frames(
-        efi_stack_region.physical_start,
-        efi_stack_region.number_of_pages,
-        true,
-    );
-    for frame_index in 0..efi_stack_region.number_of_pages {
-        pml4.map_ident(
-            PhysAddr::new(efi_stack_region.physical_start + frame_index * 4096),
-            &bump_allocator,
-        );
+    for region in kernel_memory_map.iter() {
+        match region.ty {
+            MemoryRegionType::ReservedMemoryType => continue,
+            MemoryRegionType::UnusableMemory => continue,
+            MemoryRegionType::MemoryMappedIO => continue,
+            MemoryRegionType::MemoryMappedIOPortSpace => continue,
+            MemoryRegionType::UnacceptedMemoryType => continue,
+            _ => (),
+        };
+        for addr in (region.start..region.end).step_by(4096) {
+            page_table.map_ident(PhysAddr::new(addr), &bump_allocator);
+        }
     }
 
     // Map kernel to virtual addresses
+    // TODO: make text segment read/execute only
     for page in 0..kernel.frames {
-        pml4.map(
+        page_table.map(
             VirtAddr::new(kernel.image_start + page * 4096),
             PhysAddr::new(kernel.frame_addr + page * 4096),
             &bump_allocator,
@@ -116,20 +102,16 @@ pub extern "efiapi" fn efi_main(
     }
 
     // Allocate stack for the kernel and map it to virtual addresses
-    let kernel_stack_frames = 16;
+    let stack_frame = bump_allocator.allocate_frame().unwrap();
     let stack_start: u64 = 0xffff_ffff_ffff_fff8;
-    let stack_end = (stack_start & !0xfff) - (kernel_stack_frames - 1) * 4096;
-    for i in 0..kernel_stack_frames {
-        let stack_frame = bump_allocator.allocate_frame().unwrap();
-        pml4.map(
-            VirtAddr::new(stack_end + i * 4096),
-            PhysAddr::new(stack_frame as u64),
-            &bump_allocator,
-        );
-    }
+    let stack_end = stack_start & !0xfff;
+    page_table.map(
+        VirtAddr::new(stack_end),
+        PhysAddr::new(stack_frame as u64),
+        &bump_allocator,
+    );
 
     let boot_info_frame = bump_allocator.allocate_frame().unwrap();
-    pml4.map_ident(PhysAddr::new(boot_info_frame as u64), &bump_allocator);
     let allocated_frame_ranges = bump_allocator.inner.into_inner().allocated_frames;
 
     let boot_info_layout = Layout::new::<BootInfo>().align_to(4096).unwrap();
@@ -191,10 +173,10 @@ pub extern "efiapi" fn efi_main(
         })
     }
 
-    sprintln!("Bootloader is launching kernel");
-
     // Set new page table
     Cr3::write(pml4_frame as u64);
+
+    sprintln!("Bootloader is launching kernel");
 
     // Jump to kernel
     unsafe {
@@ -206,41 +188,6 @@ pub extern "efiapi" fn efi_main(
     }
 
     unreachable!("should have jumped to kernel at this point")
-}
-
-fn get_efi_stack_region(
-    memory_map: &MemoryMap<&UefiAllocator<'_>>,
-    stack_pointer: u64,
-) -> uefi::services::boot::MemoryDescriptor {
-    let efi_stack_region = *memory_map
-        .iter()
-        .find(|desc| {
-            (desc.physical_start..desc.physical_start + desc.number_of_pages * 4096)
-                .contains(&stack_pointer)
-        })
-        .unwrap();
-    efi_stack_region
-}
-
-fn get_efi_main_region(
-    memory_map: &MemoryMap<&UefiAllocator<'_>>,
-) -> uefi::services::boot::MemoryDescriptor {
-    let efi_main_region = *memory_map
-        .iter()
-        .find(|desc| {
-            (desc.physical_start..desc.physical_start + desc.number_of_pages * 4096)
-                .contains(&(efi_main as u64))
-        })
-        .unwrap();
-    efi_main_region
-}
-
-fn get_stack_pointer() -> u64 {
-    let stack_pointer: u64;
-    unsafe {
-        core::arch::asm!("mov {}, rsp", out(reg) stack_pointer);
-    }
-    stack_pointer
 }
 
 fn get_rsdp(system_table: &uefi::SystemTable<uefi::Boot>) -> *const core::ffi::c_void {

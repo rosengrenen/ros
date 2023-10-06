@@ -52,6 +52,8 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     let mut serial = SerialPort::new(COM1_BASE);
     serial.configure(1);
 
+    // TODO: all usable memory is now identity mapped!!!
+    loop {}
     let init_frame_allocator =
         InitFrameAllocator::new(&info.memory_regions[..], &info.allocated_frame_ranges[..]);
     let page_table = PageTable::<Pml4>::new(Cr3::read().pba_pml4 as _);
@@ -61,7 +63,6 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         &init_frame_allocator,
         page_table,
     );
-    loop {}
 
     for i in 0..10 {
         sprintln!("{:x}", init_page_allocator.allocate_pages(1));
