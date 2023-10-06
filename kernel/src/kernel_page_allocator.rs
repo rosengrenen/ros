@@ -23,21 +23,24 @@ impl KernelPageAllocator {
         let frames = heap_size_bytes / 4096 / 8 / 4096;
         for frame in 0..frames {
             let frame_base = frame_allocator.allocate_frame().unwrap();
-            sprintln!("{:x?}", frame_base);
             page_table.map(
                 VirtAddr::new(kernel_end + 4096 * frame),
                 PhysAddr::new(frame_base),
                 frame_allocator,
             );
         }
-        loop {}
 
-        let bitmap = unsafe {
+        let cap = frames as usize * 4096 / core::mem::size_of::<u64>();
+        let mut bitmap = unsafe {
             RawVec::from_raw_parts(
                 kernel_end as *mut u64,
-                frames as usize * 4096 / core::mem::size_of::<u64>(),
+                cap,
             )
         };
+        for _ in 0..cap {
+          bitmap.push(0).unwrap();
+        }
+
         Self {
             inner: Mutex::new(KernelPageAllocatorInner {
                 bitmap,

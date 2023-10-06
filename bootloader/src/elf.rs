@@ -59,7 +59,7 @@ pub fn mount_kernel(
     kernel_virt_limit &= !0xfff;
     let kernel_frames = (kernel_virt_limit - kernel_virt_base) / 4096;
     // TODO: allocate zeroed
-    let kernel_phys_base = bump_alloc.allocate_frames(kernel_frames, true).unwrap();
+    let kernel_phys_base = bump_alloc.allocate_frames(kernel_frames).unwrap();
     let kernel = unsafe {
         core::slice::from_raw_parts_mut(kernel_phys_base as *mut u8, kernel_frames as usize * 4096)
     };

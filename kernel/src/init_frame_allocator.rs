@@ -1,17 +1,24 @@
-use crate::spinlock::Mutex;
+use crate::{spinlock::Mutex, sprintln};
+use alloc::raw_vec::RawVec;
 use bootloader_api::{AllocatedFrameRange, MemoryRegion};
-use stack_vec::StackVec;
 use x86_64::paging::{FrameAllocError, FrameAllocator};
 
+#[derive(Debug)]
 pub struct InitFrameAllocator<'a> {
     inner: Mutex<InitFrameAllocatorInner<'a>>,
 }
 
+#[derive(Debug)]
 struct InitFrameAllocatorInner<'a> {
+    inner: InitFrameAllocatorInnerInner<'a>,
+    allocated_frame_ranges: RawVec<AllocatedFrameRange>,
+}
+
+#[derive(Debug)]
+struct InitFrameAllocatorInnerInner<'a> {
     memory_regions: &'a [MemoryRegion],
     addr: u64,
     index: usize,
-    allocated_frame_ranges: StackVec<128, AllocatedFrameRange>,
 }
 
 impl<'a> InitFrameAllocator<'a> {
@@ -22,55 +29,53 @@ impl<'a> InitFrameAllocator<'a> {
         // Allocated frame ranges from bootloader
         allocated_frame_ranges_bl: &[AllocatedFrameRange],
     ) -> Self {
-        let mut max_allocated_addr = 0;
-        for range in allocated_frame_ranges_bl
+        let max_allocated_addr = allocated_frame_ranges_bl
             .iter()
-            // This ignores bootloader only frames, which can be problematic since they are to be
-            .filter(|range| !range.bootloader)
-        {
-            let range_end = range.base + range.frames as u64 * Self::FRAME_SIZE;
-            let in_region = memory_regions
-                .iter()
-                .filter(|region| match region.ty {
-                    bootloader_api::MemoryRegionType::KernelUsable => true,
-                    _ => false,
-                })
-                .find(|region| (region.start..region.end).contains(&range_end))
-                .is_some();
-            if in_region {
-                max_allocated_addr = max_allocated_addr.max(range_end);
-            }
-        }
+            .map(|range| range.base + range.frames as u64 * 4096)
+            .max()
+            .unwrap();
 
         let index = memory_regions
             .iter()
             .enumerate()
-            .find(|(_, region)| (region.start..region.end).contains(&max_allocated_addr))
+            .find(|(_, region)| (region.start..=region.end).contains(&max_allocated_addr))
             .unwrap()
             .0;
 
-        let mut allocated_frame_ranges = StackVec::new();
+        let mut inner = InitFrameAllocatorInnerInner {
+            memory_regions,
+            index,
+            addr: max_allocated_addr,
+        };
+        let frame = Self::next_frame_addr(&mut inner).unwrap();
+
+        let mut allocated_frame_ranges = unsafe {
+            RawVec::from_raw_parts(
+                frame as *mut AllocatedFrameRange,
+                Self::FRAME_SIZE as usize / core::mem::size_of::<AllocatedFrameRange>(),
+            )
+        };
         for range in allocated_frame_ranges_bl.iter() {
-            allocated_frame_ranges.push(*range);
+            allocated_frame_ranges.push(*range).unwrap();
         }
 
+        let mut inner = InitFrameAllocatorInner {
+            inner,
+            allocated_frame_ranges,
+        };
+        Self::mark_frame_as_allocated(&mut inner, frame);
+
         Self {
-            inner: Mutex::new(InitFrameAllocatorInner {
-                memory_regions,
-                index,
-                addr: max_allocated_addr,
-                allocated_frame_ranges,
-            }),
+            inner: Mutex::new(inner),
         }
     }
 
-    fn next_frame_addr(inner: &mut InitFrameAllocatorInner) -> Result<u64, FrameAllocError> {
+    fn next_frame_addr(inner: &mut InitFrameAllocatorInnerInner) -> Result<u64, FrameAllocError> {
         loop {
             let mem_region = inner.memory_regions[inner.index];
             let mem_left_in_region = mem_region.end - inner.addr;
             if mem_left_in_region >= Self::FRAME_SIZE {
                 let ptr = inner.addr;
-                Self::mark_frame_as_allocated(inner, ptr);
                 inner.addr += Self::FRAME_SIZE;
                 return Ok(ptr);
             }
@@ -88,7 +93,7 @@ impl<'a> InitFrameAllocator<'a> {
         let mut existing_index = None;
         for (i, entry) in inner.allocated_frame_ranges.iter().enumerate() {
             let entry_end = entry.base + entry.frames as u64 * Self::FRAME_SIZE;
-            if entry_end == base && !entry.bootloader {
+            if entry_end == base {
                 existing_index = Some(i);
                 break;
             }
@@ -97,18 +102,20 @@ impl<'a> InitFrameAllocator<'a> {
         if let Some(index) = existing_index {
             inner.allocated_frame_ranges[index].frames += 1;
         } else {
-            inner.allocated_frame_ranges.push(AllocatedFrameRange {
-                base,
-                frames: 1,
-                bootloader: false,
-            });
+            inner
+                .allocated_frame_ranges
+                .push(AllocatedFrameRange { base, frames: 1 })
+                .unwrap();
         }
     }
 }
 
 impl<'a> FrameAllocator for InitFrameAllocator<'a> {
     fn allocate_frame(&self) -> Result<u64, FrameAllocError> {
-        Self::next_frame_addr(&mut self.inner.lock())
+        let mut inner = self.inner.lock();
+        let base = Self::next_frame_addr(&mut inner.inner)?;
+        Self::mark_frame_as_allocated(&mut inner, base);
+        Ok(base)
     }
 
     fn deallocate_frame(&self, _frame: u64) -> Result<(), FrameAllocError> {

@@ -26,7 +26,7 @@ use uefi::{
 };
 use x86_64::{
     control::Cr3,
-    paging::{entry::PageTableEntry, FrameAllocator, PageTable, PhysAddr, VirtAddr},
+    paging::{FrameAllocator, PageTable, PhysAddr, VirtAddr},
 };
 
 #[macro_export]
@@ -77,6 +77,7 @@ pub extern "efiapi" fn efi_main(
 
     let mut page_table = PageTable::new(pml4_frame as _);
 
+    // TODO: map first 4gb always, using LARGE pages
     for region in kernel_memory_map.iter() {
         match region.ty {
             MemoryRegionType::ReservedMemoryType => continue,

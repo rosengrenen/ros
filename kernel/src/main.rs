@@ -20,7 +20,7 @@ use serial::{SerialPort, COM1_BASE};
 use x86_64::{
     control::Cr3,
     gdt::GdtDesc,
-    paging::{PageTable, Pml4},
+    paging::{PageTable, Pml4, FrameAllocator},
 };
 
 #[macro_export]
@@ -48,23 +48,24 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     sprintln!("{:#x?}", info);
     sprintln!("{:#x?}", &info.memory_regions[..]);
     sprintln!("{:#x?}", &info.allocated_frame_ranges[..]);
+   
 
     let mut serial = SerialPort::new(COM1_BASE);
     serial.configure(1);
 
     // TODO: all usable memory is now identity mapped!!!
-    loop {}
+    // UPDATE: first 4gb should be mapped
     let init_frame_allocator =
         InitFrameAllocator::new(&info.memory_regions[..], &info.allocated_frame_ranges[..]);
     let page_table = PageTable::<Pml4>::new(Cr3::read().pba_pml4 as _);
     let init_page_allocator = KernelPageAllocator::new(
-        info.kernel.base + info.kernel.frames as u64 + 4096,
+        info.kernel.base + info.kernel.frames as u64 * 4096,
         512 * 1024 * 1024,
         &init_frame_allocator,
         page_table,
     );
 
-    for i in 0..10 {
+    for i in 0..16 {
         sprintln!("{:x}", init_page_allocator.allocate_pages(1));
     }
 

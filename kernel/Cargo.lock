@@ -17,17 +17,12 @@ dependencies = [
  "alloc",
  "bootloader_api",
  "serial",
- "stack_vec",
  "uefi",
  "x86_64",
 ]
 
 [[package]]
 name = "serial"
-version = "0.0.0"
-
-[[package]]
-name = "stack_vec"
 version = "0.0.0"
 
 [[package]]

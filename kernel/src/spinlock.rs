@@ -1,12 +1,25 @@
 use core::{
     cell::UnsafeCell,
+    fmt,
     ops::{Deref, DerefMut},
-    sync::atomic::AtomicBool,
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 pub struct Mutex<T> {
     value: UnsafeCell<T>,
     locked: AtomicBool,
+}
+
+impl<T: fmt::Debug> fmt::Debug for Mutex<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.locked.load(Ordering::Relaxed) {
+            true => f.debug_tuple("Locked").field(&self.value).finish(),
+            false => f
+                .debug_tuple("Free")
+                .field(unsafe { &*self.value.get() })
+                .finish(),
+        }
+    }
 }
 
 impl<T> Mutex<T> {

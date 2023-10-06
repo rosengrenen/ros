@@ -84,8 +84,6 @@ impl core::ops::Deref for AllocatedFrameRanges {
 pub struct AllocatedFrameRange {
     pub base: u64,
     pub frames: usize,
-    /// True if only used by bootloader, i.e. kernel can safely deallocate frame
-    pub bootloader: bool,
 }
 
 #[deny(improper_ctypes_definitions)]

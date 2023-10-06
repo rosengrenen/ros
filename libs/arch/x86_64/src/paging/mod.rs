@@ -34,7 +34,9 @@ pub struct Pml1;
 // TODO: synchronisation
 
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(4096))]
+// TODO: the alignment shouldn't make any difference for now, but can't be created on the stack if alignment is that high
+// #[repr(C, align(4096))]
+#[repr(C)]
 pub struct PageTable<S> {
     pub entries: *mut PageTableEntryRaw<S>,
 }
