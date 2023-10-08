@@ -20,7 +20,7 @@ use serial::{SerialPort, COM1_BASE};
 use x86_64::{
     control::Cr3,
     gdt::GdtDesc,
-    paging::{PageTable, Pml4, FrameAllocator},
+    paging::{FrameAllocator, PageTable, Pml4},
 };
 
 #[macro_export]
@@ -46,9 +46,6 @@ pub struct DescriptorTablePointer {
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     sprintln!("in the kernel");
     sprintln!("{:#x?}", info);
-    sprintln!("{:#x?}", &info.memory_regions[..]);
-    sprintln!("{:#x?}", &info.allocated_frame_ranges[..]);
-   
 
     let mut serial = SerialPort::new(COM1_BASE);
     serial.configure(1);

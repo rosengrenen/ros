@@ -1,6 +1,7 @@
 #![no_std]
 
-#[derive(Debug)]
+use core::fmt;
+
 #[repr(C)]
 pub struct BootInfo {
     // kernel - code stuffs base and size, and stack
@@ -10,6 +11,17 @@ pub struct BootInfo {
     pub allocated_frame_ranges: AllocatedFrameRanges,
     // acpi rsdp
     pub rsdp: *const core::ffi::c_void,
+}
+
+impl fmt::Debug for BootInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BootInfo")
+            .field("kernel", &self.kernel)
+            .field("memory_regions", &&self.memory_regions[..])
+            .field("allocated_frame_ranges", &&self.allocated_frame_ranges[..])
+            .field("rsdp", &self.rsdp)
+            .finish()
+    }
 }
 
 #[derive(Debug)]

@@ -208,7 +208,7 @@ fn get_rsdp(system_table: &uefi::SystemTable<uefi::Boot>) -> *const core::ffi::c
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
-    sprintln!("{:?}", info);
+    sprintln!("{}", info);
     loop {}
 }
 
