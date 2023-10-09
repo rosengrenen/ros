@@ -2,7 +2,7 @@ use core::fmt::Write;
 use serial::{SerialPort, COM1_BASE};
 use x86_64::{control::Cr2, idt::IdtEntry};
 
-use crate::{msr::LApic, DescriptorTablePointer, LAPIC};
+use crate::{DescriptorTablePointer, LAPIC};
 
 pub fn init(idt: &mut [IdtEntry]) {
     // entry point, index 1 of gdt  (1 << 3) = 8, options(0x8f00) = [present, gate type is trap gate]
@@ -13,7 +13,7 @@ pub fn init(idt: &mut [IdtEntry]) {
     idt[0x20] = IdtEntry::new(interrupt_timer as _, 0x8, 0x8e00);
     unsafe {
         let ptr = DescriptorTablePointer {
-            limit: (idt.len() * core::mem::size_of::<IdtEntry>() - 1) as u16,
+            limit: (core::mem::size_of_val(idt) - 1) as u16,
             base: idt.as_ptr() as _,
         };
         core::arch::asm!("cli");

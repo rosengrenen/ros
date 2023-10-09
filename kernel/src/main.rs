@@ -13,7 +13,10 @@ mod kernel_page_allocator;
 mod msr;
 mod spinlock;
 
-use crate::{init_frame_allocator::InitFrameAllocator, kernel_page_allocator::KernelPageAllocator};
+use crate::{
+    frame_allocator::KernelFrameAllocator, init_frame_allocator::InitFrameAllocator,
+    kernel_page_allocator::KernelPageAllocator,
+};
 use bootloader_api::BootInfo;
 use core::panic::PanicInfo;
 use serial::{SerialPort, COM1_BASE};
@@ -64,28 +67,26 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         &init_frame_allocator,
         page_table,
     );
+    let frame_allocator = KernelFrameAllocator::new(
+        &info.memory_regions[..],
+        init_frame_allocator,
+        &page_allocator,
+        page_table,
+    );
 
     let gdt = {
-        let frame = init_frame_allocator.allocate_frame().unwrap();
+        let frame = frame_allocator.allocate_frame().unwrap();
         let page = page_allocator.allocate_pages(1);
-        page_table.map(
-            VirtAddr::new(page),
-            PhysAddr::new(frame),
-            &init_frame_allocator,
-        );
+        page_table.map(VirtAddr::new(page), PhysAddr::new(frame), &frame_allocator);
         unsafe {
             core::slice::from_raw_parts_mut(page as *mut u64, 4096 / core::mem::size_of::<u64>())
         }
     };
 
     let idt = {
-        let frame = init_frame_allocator.allocate_frame().unwrap();
+        let frame = frame_allocator.allocate_frame().unwrap();
         let page = page_allocator.allocate_pages(1);
-        page_table.map(
-            VirtAddr::new(page),
-            PhysAddr::new(frame),
-            &init_frame_allocator,
-        );
+        page_table.map(VirtAddr::new(page), PhysAddr::new(frame), &frame_allocator);
         unsafe {
             core::slice::from_raw_parts_mut(
                 page as *mut IdtEntry,
@@ -118,7 +119,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
             page_table.map(
                 VirtAddr::new(page),
                 PhysAddr::new(lapic.base),
-                &init_frame_allocator,
+                &frame_allocator,
             );
             msr::LApic { base: page }
         }

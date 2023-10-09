@@ -1,4 +1,4 @@
-use crate::{spinlock::Mutex, sprintln};
+use crate::spinlock::Mutex;
 use alloc::raw_vec::RawVec;
 use x86_64::paging::{FrameAllocator, PageTable, PhysAddr, Pml4, VirtAddr};
 
@@ -8,7 +8,6 @@ pub struct KernelPageAllocator {
 
 struct KernelPageAllocatorInner {
     bitmap: RawVec<u64>,
-    page_table: PageTable<Pml4>,
     start_addr: u64,
 }
 
@@ -31,21 +30,15 @@ impl KernelPageAllocator {
         }
 
         let cap = frames as usize * 4096 / core::mem::size_of::<u64>();
-        let mut bitmap = unsafe {
-            RawVec::from_raw_parts(
-                kernel_end as *mut u64,
-                cap,
-            )
-        };
+        let mut bitmap = unsafe { RawVec::from_raw_parts(kernel_end as *mut u64, cap) };
         for _ in 0..cap {
-          bitmap.push(0).unwrap();
+            bitmap.push(0).unwrap();
         }
 
         Self {
             inner: Mutex::new(KernelPageAllocatorInner {
                 bitmap,
-                page_table,
-                start_addr: kernel_end + frames as u64 * 4096,
+                start_addr: kernel_end + frames * 4096,
             }),
         }
     }

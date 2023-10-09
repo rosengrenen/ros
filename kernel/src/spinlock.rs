@@ -34,19 +34,21 @@ impl<T> Mutex<T> {
         while self
             .locked
             .swap(true, core::sync::atomic::Ordering::Acquire)
-            == true
         {}
         MutexGuard { mutex: self }
     }
 
-    fn release(&self) {
-        if self
+    fn unlock(&self) {
+        if !self
             .locked
             .swap(false, core::sync::atomic::Ordering::AcqRel)
-            == false
         {
             panic!("already released");
         }
+    }
+
+    pub fn into_inner(self) -> T {
+        self.value.into_inner()
     }
 }
 
@@ -70,6 +72,6 @@ impl<'mutex, T> DerefMut for MutexGuard<'mutex, T> {
 
 impl<'mutex, T> Drop for MutexGuard<'mutex, T> {
     fn drop(&mut self) {
-        self.mutex.release()
+        self.mutex.unlock()
     }
 }

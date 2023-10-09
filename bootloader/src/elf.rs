@@ -56,7 +56,7 @@ pub fn mount_kernel(
     }
 
     kernel_virt_base &= !0xfff;
-    kernel_virt_limit += 4093;
+    kernel_virt_limit += 4095;
     kernel_virt_limit &= !0xfff;
     let kernel_frames = (kernel_virt_limit - kernel_virt_base) / 4096;
     // TODO: allocate zeroed

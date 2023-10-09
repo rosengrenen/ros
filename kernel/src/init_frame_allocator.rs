@@ -1,4 +1,4 @@
-use crate::{spinlock::Mutex, sprintln};
+use crate::spinlock::Mutex;
 use alloc::raw_vec::RawVec;
 use bootloader_api::{AllocatedFrameRange, MemoryRegion};
 use x86_64::paging::{FrameAllocError, FrameAllocator};
@@ -107,6 +107,10 @@ impl<'a> InitFrameAllocator<'a> {
                 .push(AllocatedFrameRange { base, frames: 1 })
                 .unwrap();
         }
+    }
+
+    pub fn allocated_frame_ranges(self) -> RawVec<AllocatedFrameRange> {
+        self.inner.into_inner().allocated_frame_ranges
     }
 }
 
