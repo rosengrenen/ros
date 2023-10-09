@@ -20,7 +20,8 @@ use serial::{SerialPort, COM1_BASE};
 use x86_64::{
     control::Cr3,
     gdt::GdtDesc,
-    paging::{FrameAllocator, PageTable, Pml4},
+    idt::IdtEntry,
+    paging::{FrameAllocator, PageTable, PhysAddr, Pml4, VirtAddr},
 };
 
 #[macro_export]
@@ -42,6 +43,8 @@ pub struct DescriptorTablePointer {
     pub base: u64,
 }
 
+pub static mut LAPIC: msr::LApic = msr::LApic { base: 0 };
+
 #[no_mangle]
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     sprintln!("in the kernel");
@@ -54,71 +57,93 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     // UPDATE: first 4gb should be mapped
     let init_frame_allocator =
         InitFrameAllocator::new(&info.memory_regions[..], &info.allocated_frame_ranges[..]);
-    let page_table = PageTable::<Pml4>::new(Cr3::read().pba_pml4 as _);
-    let init_page_allocator = KernelPageAllocator::new(
+    let mut page_table = PageTable::<Pml4>::new(Cr3::read().pba_pml4 as _);
+    let page_allocator = KernelPageAllocator::new(
         info.kernel.base + info.kernel.frames as u64 * 4096,
         512 * 1024 * 1024,
         &init_frame_allocator,
         page_table,
     );
 
-    for i in 0..16 {
-        sprintln!("{:x}", init_page_allocator.allocate_pages(1));
+    let gdt = {
+        let frame = init_frame_allocator.allocate_frame().unwrap();
+        let page = page_allocator.allocate_pages(1);
+        page_table.map(
+            VirtAddr::new(page),
+            PhysAddr::new(frame),
+            &init_frame_allocator,
+        );
+        unsafe {
+            core::slice::from_raw_parts_mut(page as *mut u64, 4096 / core::mem::size_of::<u64>())
+        }
+    };
+
+    let idt = {
+        let frame = init_frame_allocator.allocate_frame().unwrap();
+        let page = page_allocator.allocate_pages(1);
+        page_table.map(
+            VirtAddr::new(page),
+            PhysAddr::new(frame),
+            &init_frame_allocator,
+        );
+        unsafe {
+            core::slice::from_raw_parts_mut(
+                page as *mut IdtEntry,
+                4096 / core::mem::size_of::<IdtEntry>(),
+            )
+        }
+    };
+
+    let lapic_info = msr::lapic_info();
+    sprintln!("{:x?}", lapic_info);
+
+    sprintln!("setting up gdt");
+    init_gdt(gdt);
+    sprintln!("successfully set up gdt (?)");
+
+    sprintln!("setting up idt");
+    interrupt::init(idt);
+    sprintln!("successfully set up idt (?)");
+
+    unsafe {
+        core::arch::asm!("int3");
     }
-
-    for i in 0..10 {
-        sprintln!("{:x}", init_page_allocator.allocate_pages(8));
-    }
-
-    // pml4.unmap(virt_addr, frame_allocator);
-
-    // let init_frame_allocator = InitFrameAllocator::new(memory_regions);
-    // init_frame_allocator.add_allocated_frames(info.kernel.base, info.kernel.frames);
-    // init_frame_allocator.add_allocated_frames(info.kernel.stack_base, 1);
-    // init_frame_allocator.add_allocated_frames(info as *const _ as u64, 1);
-
-    // let lapic_info = msr::lapic_info();
-    // sprintln!("{:x?}", lapic_info);
-
-    // let gdt = unsafe { core::slice::from_raw_parts_mut(info.gdt as *mut u64, 3) };
-    // for entry in gdt.iter_mut() {
-    //     *entry = 0;
-    // }
-
-    // let idt = unsafe { core::slice::from_raw_parts_mut(info.idt as *mut IdtEntry, 256) };
-    // for entry in idt.iter_mut() {
-    //     *entry = IdtEntry::new(0, 0, 0);
-    // }
-
-    // serial.write_str("setting up gdt\n").unwrap();
-    // init_gdt(gdt);
-    // serial.write_str("successfully set up gdt (?)\n").unwrap();
-
-    // serial.write_str("setting up idt\n").unwrap();
-    // interrupt::init(idt);
-    // serial.write_str("successfully set up idt (?)\n").unwrap();
-
-    // unsafe {
-    //     core::arch::asm!("int3");
-    // }
     // divide_by_zero();
     // cause_page_fault();
-    loop {}
 
-    // let lapic = msr::LApic::current();
-    // lapic.write_spurious_interrupt_vector((1 << 8) | 0x99);
-    // lapic.write_divide_configuration(0b0011);
-    // lapic.write_timer_lvt((1 << 17) | 0x20);
-    // sprintln!(
-    //     "spurious interrupt vector {:x?}",
-    //     lapic.read_spurious_interrupt_vector()
-    // );
-    // sprintln!(
-    //     "divide configuration {:x?}",
-    //     lapic.read_divide_configuration()
-    // );
-    // sprintln!("timer lvt {:x?}", lapic.read_timer_lvt());
-    // sprintln!("initial count {:x?}", lapic.read_initial_count());
+    unsafe {
+        LAPIC = {
+            let lapic = msr::LApic::current();
+            let page = page_allocator.allocate_pages(1);
+            page_table.map(
+                VirtAddr::new(page),
+                PhysAddr::new(lapic.base),
+                &init_frame_allocator,
+            );
+            msr::LApic { base: page }
+        }
+    };
+    sprintln!("{:x?}", page_table.translate(VirtAddr::new(0xfee0_0000)));
+    unsafe {
+        LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
+        LAPIC.write_divide_configuration(0b0011);
+        LAPIC.write_timer_lvt((1 << 17) | 0x20);
+        sprintln!(
+            "spurious interrupt vector {:x?}",
+            LAPIC.read_spurious_interrupt_vector()
+        );
+        sprintln!(
+            "divide configuration {:x?}",
+            LAPIC.read_divide_configuration()
+        );
+        sprintln!("timer lvt {:x?}", LAPIC.read_timer_lvt());
+        sprintln!("initial count {:x?}", LAPIC.read_initial_count());
+    }
+
+    loop {
+        unsafe { core::arch::asm!("hlt") };
+        sprintln!("Waking up from halt");
+    }
 }
 
 fn init_gdt(gdt: &mut [u64]) {

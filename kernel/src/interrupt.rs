@@ -2,7 +2,7 @@ use core::fmt::Write;
 use serial::{SerialPort, COM1_BASE};
 use x86_64::{control::Cr2, idt::IdtEntry};
 
-use crate::{msr::LApic, DescriptorTablePointer};
+use crate::{msr::LApic, DescriptorTablePointer, LAPIC};
 
 pub fn init(idt: &mut [IdtEntry]) {
     // entry point, index 1 of gdt  (1 << 3) = 8, options(0x8f00) = [present, gate type is trap gate]
@@ -63,10 +63,10 @@ extern "x86-interrupt" fn interrupt_page_fault(frame: InterruptStackFrame, code:
         Cr2::read()
     )
     .unwrap();
+    loop {}
 }
 
-// TODO: fix statics, region where data lives is probably not zeroed like it should, since setting it to default (0) value makes it garbage
-static mut COUNT: usize = 1000;
+static mut COUNT: usize = 0;
 
 extern "x86-interrupt" fn interrupt_timer(frame: InterruptStackFrame) {
     let mut serial = SerialPort::new(COM1_BASE);
@@ -79,6 +79,6 @@ extern "x86-interrupt" fn interrupt_timer(frame: InterruptStackFrame) {
     .unwrap();
     unsafe {
         COUNT += 1;
+        LAPIC.write_eoi();
     }
-    LApic::current().write_eoi();
 }

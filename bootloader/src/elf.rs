@@ -1,4 +1,4 @@
-use crate::allocator::BumpAllocator;
+use crate::{allocator::BumpAllocator, sprintln};
 
 #[derive(Debug)]
 pub struct KernelExecutable {
@@ -46,6 +46,7 @@ pub fn mount_kernel(
         return Err("Not a 64-bit executable");
     }
 
+    sprintln!("{:#x?}", elf.program_headers().iter());
     let load_entries = elf.program_headers().iter().filter(|e| e.ty == 1);
     let mut kernel_virt_base = u64::MAX;
     let mut kernel_virt_limit = 0;
@@ -66,9 +67,14 @@ pub fn mount_kernel(
     for entry in load_entries {
         let entry_files_offset = entry.segment_file_offset as usize;
         let entry_phys_base = (entry.virtual_address - kernel_virt_base) as usize;
-        let size = entry.segment_mem_size as usize;
-        kernel[entry_phys_base..(size + entry_phys_base)]
-            .copy_from_slice(&elf.bytes[entry_files_offset..(entry_files_offset + size)]);
+        let file_size = entry.segment_file_size as usize;
+        kernel[entry_phys_base..(file_size + entry_phys_base)]
+            .copy_from_slice(&elf.bytes[entry_files_offset..(entry_files_offset + file_size)]);
+        // Zero remaining bytes
+        let mem_size = entry.segment_mem_size as usize;
+        for i in entry_phys_base + file_size..entry_phys_base + mem_size {
+            kernel[i] = 0;
+        }
     }
 
     Ok(KernelExecutable {

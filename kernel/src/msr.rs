@@ -38,7 +38,7 @@ pub fn lapic_info() -> LApicInfo {
 }
 
 pub struct LApic {
-    base: u64,
+    pub base: u64,
 }
 
 impl LApic {
