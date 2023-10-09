@@ -1,4 +1,4 @@
-use crate::{allocator::BumpAllocator, sprintln};
+use crate::allocator::BumpAllocator;
 
 #[derive(Debug)]
 pub struct KernelExecutable {

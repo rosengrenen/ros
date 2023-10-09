@@ -47,9 +47,8 @@ impl BumpAllocator {
             let mem_desc_size = mem_desc.number_of_pages * Self::FRAME_SIZE;
             let mem_left_in_desc = mem_desc.physical_start + mem_desc_size - inner.addr;
             if mem_left_in_desc >= Self::FRAME_SIZE * num_frames {
-                let base = inner.addr;
-                Self::reserve_frames_inner(&mut inner, base, num_frames);
                 let ptr = inner.addr;
+                Self::reserve_frames(&mut inner, ptr, num_frames);
                 inner.addr += 4096 * num_frames;
                 return Ok(ptr);
             }
@@ -63,16 +62,7 @@ impl BumpAllocator {
         }
     }
 
-    pub fn reserve_frames(&self, base: u64, num_frames: u64) {
-        let mut inner = self.inner.borrow_mut();
-        Self::reserve_frames_inner(&mut inner, base, num_frames)
-    }
-
-    fn reserve_frames_inner(
-        inner: &mut BumpAllocatorInner,
-        base: u64,
-        num_frames: u64,
-    ) {
+    fn reserve_frames(inner: &mut BumpAllocatorInner, base: u64, num_frames: u64) {
         let mut existing_index = None;
         for (i, entry) in inner.allocated_frames.iter().enumerate() {
             let entry_end = entry.base + entry.frames as u64 * Self::FRAME_SIZE;
@@ -99,6 +89,6 @@ impl FrameAllocator for BumpAllocator {
     }
 
     fn deallocate_frame(&self, _frame: u64) -> Result<(), FrameAllocError> {
-        Ok(())
+        unimplemented!()
     }
 }

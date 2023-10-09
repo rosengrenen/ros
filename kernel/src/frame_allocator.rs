@@ -89,7 +89,8 @@ impl KernelFrameAllocator {
             inner: Mutex::new(inner),
         };
 
-        me.deallocate_frame(allocated_frame_ranges.as_ptr() as u64).unwrap();
+        me.deallocate_frame(allocated_frame_ranges.as_ptr() as u64)
+            .unwrap();
 
         me
     }
