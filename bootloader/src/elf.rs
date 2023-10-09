@@ -46,7 +46,6 @@ pub fn mount_kernel(
         return Err("Not a 64-bit executable");
     }
 
-    sprintln!("{:#x?}", elf.program_headers().iter());
     let load_entries = elf.program_headers().iter().filter(|e| e.ty == 1);
     let mut kernel_virt_base = u64::MAX;
     let mut kernel_virt_limit = 0;

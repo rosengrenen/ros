@@ -11,6 +11,8 @@ struct KernelPageAllocatorInner {
     start_addr: u64,
 }
 
+
+// TODO: buddy allocation
 impl KernelPageAllocator {
     pub fn new(
         mut kernel_end: u64,

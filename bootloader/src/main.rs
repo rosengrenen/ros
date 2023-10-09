@@ -259,7 +259,7 @@ fn optimize_memory_map<'uefi>(
             mem_regions
                 .push(MemoryRegion {
                     ty: mem_type,
-                    start: desc.physical_start,
+                    start: desc.physical_start.max(0x1000),
                     end: desc.physical_start + desc.number_of_pages * 4096,
                 })
                 .unwrap();

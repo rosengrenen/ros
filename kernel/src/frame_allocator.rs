@@ -1,6 +1,6 @@
 use crate::{
-    init_frame_allocator::InitFrameAllocator, kernel_page_allocator::KernelPageAllocator,
-    spinlock::Mutex,
+    bitmap::Bitmap, init_frame_allocator::InitFrameAllocator,
+    kernel_page_allocator::KernelPageAllocator, spinlock::Mutex,
 };
 use alloc::raw_vec::RawVec;
 use bootloader_api::MemoryRegion;
@@ -14,7 +14,7 @@ pub struct KernelFrameAllocator {
 
 #[derive(Debug)]
 struct KernelFrameAllocatorInner {
-    regions: RawVec<(MemoryRegion, RawVec<u64>)>,
+    regions: RawVec<(MemoryRegion, Bitmap)>,
 }
 
 impl KernelFrameAllocator {
@@ -28,11 +28,11 @@ impl KernelFrameAllocator {
             .iter()
             .filter(|region| matches!(region.ty, bootloader_api::MemoryRegionType::KernelUsable));
         let mut regions_layout =
-            Layout::array::<(MemoryRegion, RawVec<u64>)>(memory_map.clone().count()).unwrap();
+            Layout::array::<(MemoryRegion, Bitmap)>(memory_map.clone().count()).unwrap();
         for region in memory_map.clone() {
             let region_frames = (region.end - region.start) as usize / 4096;
             let bitmap_bytes = region_frames / 8;
-            let bitmap_u64 = bitmap_bytes / 8 + 1;
+            let bitmap_u64 = bitmap_bytes / 64;
             let (layout, _) = regions_layout
                 .extend(Layout::array::<u64>(bitmap_u64).unwrap())
                 .unwrap();
@@ -51,28 +51,24 @@ impl KernelFrameAllocator {
         }
 
         let mut regions_layout =
-            Layout::array::<(MemoryRegion, RawVec<u64>)>(memory_map.clone().count()).unwrap();
+            Layout::array::<(MemoryRegion, Bitmap)>(memory_map.clone().count()).unwrap();
         let mut regions = unsafe {
             RawVec::from_raw_parts(
-                pages as *mut (MemoryRegion, RawVec<u64>),
+                pages as *mut (MemoryRegion, Bitmap),
                 memory_map.clone().count(),
             )
         };
         for region in memory_map {
             let region_frames = (region.end - region.start) as usize / 4096;
             let bitmap_bytes = region_frames / 8;
-            let bitmap_u64 = bitmap_bytes / 4 + 1;
+            let bitmap_u64 = bitmap_bytes / 8;
             let (layout, offset) = regions_layout
-                .extend(Layout::array::<u64>(bitmap_u64).unwrap())
+                .extend(Layout::array::<u8>(bitmap_u64).unwrap())
                 .unwrap();
             regions_layout = layout;
-            let mut bitmap = unsafe {
-                RawVec::from_raw_parts((pages as usize + offset) as *mut u64, bitmap_u64)
+            let bitmap = unsafe {
+                Bitmap::from_raw_parts((pages as usize + offset) as *mut u64, region_frames)
             };
-            for _ in 0..bitmap_u64 {
-                bitmap.push(0).unwrap();
-            }
-
             regions.push((*region, bitmap)).unwrap();
         }
 
@@ -81,48 +77,38 @@ impl KernelFrameAllocator {
         // Copy allocated frames from init allocator
         let allocated_frame_ranges = frame_allocator.allocated_frame_ranges();
         for range in allocated_frame_ranges.iter() {
-            for frame in 0..range.frames {
-                Self::mark_frame_as_allocated(&mut inner, range.base + frame as u64 * 4096);
+            // We assume that a range is contained within a region
+            let (region, bitmap) = inner.get_region_mut(range.base).unwrap();
+            let base_index = (range.base - region.start) as usize / 4096;
+            for frame_index in 0..range.frames {
+                bitmap.set_bit(base_index + frame_index);
             }
         }
 
-        // Mark the ends the bitmaps as allocated
-        for (region, bitmap) in inner.regions.iter_mut() {
-            let region_frames = (region.end - region.start) as usize / 4096;
-            let trailing_bits = bitmap.len() * 8 - region_frames;
-            if trailing_bits > 0 {
-                *bitmap.last_mut().unwrap() = !((1 << (63 - trailing_bits)) - 1);
-            }
-        }
-
-        Self {
+        let me = Self {
             inner: Mutex::new(inner),
-        }
+        };
+
+        me.deallocate_frame(allocated_frame_ranges.as_ptr() as u64).unwrap();
+
+        me
     }
 
-    fn set_frame_state(inner: &mut KernelFrameAllocatorInner, frame_base: u64, allocated: bool) {
-        if let Some((region, bitmap)) = inner
+    pub fn allocated_frames(&self) -> usize {
+        let inner = self.inner.lock();
+        inner
             .regions
+            .iter()
+            .map(|(_, bitmap)| bitmap.iter().filter(|bit| *bit).count())
+            .sum()
+    }
+}
+
+impl KernelFrameAllocatorInner {
+    fn get_region_mut(&mut self, frame_base: u64) -> Option<&mut (MemoryRegion, Bitmap)> {
+        self.regions
             .iter_mut()
             .find(|(region, _)| (region.start..region.end).contains(&frame_base))
-        {
-            let bit_offset = (frame_base - region.start) as usize / 4096;
-            let u64_index = bit_offset / 64;
-            let bit_index = bit_offset % 64;
-            if allocated {
-                bitmap[u64_index] |= 1 << bit_index;
-            } else {
-                bitmap[u64_index] &= !(1 << bit_index);
-            }
-        }
-    }
-
-    fn mark_frame_as_allocated(inner: &mut KernelFrameAllocatorInner, frame_base: u64) {
-        Self::set_frame_state(inner, frame_base, true)
-    }
-
-    fn mark_frame_as_deallocated(inner: &mut KernelFrameAllocatorInner, frame_base: u64) {
-        Self::set_frame_state(inner, frame_base, false)
     }
 }
 
@@ -132,19 +118,10 @@ impl FrameAllocator for KernelFrameAllocator {
 
         // Linear search for empty page
         for (region, bitmap) in inner.regions.iter_mut() {
-            for (map_index, entry) in bitmap
-                .iter_mut()
-                .enumerate()
-                .filter(|(_, a)| **a != 0xffff_ffff_ffff_ffff)
-            {
-                for entry_index in 0..64 {
-                    if (*entry >> entry_index) & 0x1 == 0 {
-                        let frame_base =
-                            region.start + (map_index * 64 + entry_index) as u64 * 4096;
-                        Self::mark_frame_as_allocated(&mut inner, frame_base);
-                        return Ok(frame_base);
-                    }
-                }
+            if let Some(index) = bitmap.find_free_index() {
+                let frame_base = region.start + index as u64 * 4096;
+                bitmap.set_bit(index);
+                return Ok(frame_base);
             }
         }
 
@@ -153,7 +130,13 @@ impl FrameAllocator for KernelFrameAllocator {
 
     fn deallocate_frame(&self, frame: u64) -> Result<(), FrameAllocError> {
         let mut inner = self.inner.lock();
-        Self::mark_frame_as_deallocated(&mut inner, frame);
+        let (region, bitmap) = inner.get_region_mut(frame).unwrap();
+        let index = (frame - region.start) as usize / 4096;
+        if !bitmap.get_bit(index) {
+            panic!("Frame is not allocated");
+        }
+
+        bitmap.clear_bit(index);
         Ok(())
     }
 }

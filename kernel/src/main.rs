@@ -6,6 +6,7 @@
 // TODO: think about if this is necessary
 #![deny(unsafe_op_in_unsafe_fn)]
 
+mod bitmap;
 mod frame_allocator;
 mod init_frame_allocator;
 mod interrupt;
@@ -50,8 +51,7 @@ pub static mut LAPIC: msr::LApic = msr::LApic { base: 0 };
 
 #[no_mangle]
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
-    sprintln!("in the kernel");
-    sprintln!("{:#x?}", info);
+    sprintln!("Kernel is starting...");
 
     let mut serial = SerialPort::new(COM1_BASE);
     serial.configure(1);
@@ -74,6 +74,9 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         page_table,
     );
 
+    let allocated_frames = frame_allocator.allocated_frames();
+    sprintln!("Allocated frames: {:?}(KiB)", allocated_frames);
+
     let gdt = {
         let frame = frame_allocator.allocate_frame().unwrap();
         let page = page_allocator.allocate_pages(1);
@@ -95,23 +98,20 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         }
     };
 
-    let lapic_info = msr::lapic_info();
-    sprintln!("{:x?}", lapic_info);
-
-    sprintln!("setting up gdt");
+    sprintln!("Setting up GDT...");
     init_gdt(gdt);
-    sprintln!("successfully set up gdt (?)");
 
-    sprintln!("setting up idt");
+    sprintln!("Setting up IDT...");
     interrupt::init(idt);
-    sprintln!("successfully set up idt (?)");
 
     unsafe {
+        sprintln!("Testing breakpoint interrupt...");
         core::arch::asm!("int3");
     }
     // divide_by_zero();
     // cause_page_fault();
 
+    sprintln!("Setting up Local APIC for timer interrupts...");
     unsafe {
         LAPIC = {
             let lapic = msr::LApic::current();
@@ -124,21 +124,10 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
             msr::LApic { base: page }
         }
     };
-    sprintln!("{:x?}", page_table.translate(VirtAddr::new(0xfee0_0000)));
     unsafe {
         LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
-        LAPIC.write_divide_configuration(0b0011);
+        LAPIC.write_divide_configuration(0b1010);
         LAPIC.write_timer_lvt((1 << 17) | 0x20);
-        sprintln!(
-            "spurious interrupt vector {:x?}",
-            LAPIC.read_spurious_interrupt_vector()
-        );
-        sprintln!(
-            "divide configuration {:x?}",
-            LAPIC.read_divide_configuration()
-        );
-        sprintln!("timer lvt {:x?}", LAPIC.read_timer_lvt());
-        sprintln!("initial count {:x?}", LAPIC.read_initial_count());
     }
 
     loop {
