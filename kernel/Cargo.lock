@@ -3,6 +3,14 @@
 version = 3
 
 [[package]]
+name = "acpi"
+version = "0.0.0"
+dependencies = [
+ "alloc",
+ "parser",
+]
+
+[[package]]
 name = "alloc"
 version = "0.0.0"
 
@@ -11,11 +19,20 @@ name = "bootloader_api"
 version = "0.0.0"
 
 [[package]]
-name = "ros"
+name = "parser"
 version = "0.0.0"
 dependencies = [
  "alloc",
+]
+
+[[package]]
+name = "ros"
+version = "0.0.0"
+dependencies = [
+ "acpi",
+ "alloc",
  "bootloader_api",
+ "parser",
  "serial",
  "uefi",
  "x86_64",

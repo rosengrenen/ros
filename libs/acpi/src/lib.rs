@@ -2,6 +2,7 @@
 #![feature(allocator_api)]
 
 pub mod aml;
+pub mod tables;
 
 #[cfg(test)]
 mod tests {

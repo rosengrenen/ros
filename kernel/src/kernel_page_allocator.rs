@@ -20,7 +20,7 @@ impl KernelPageAllocator {
         mut page_table: PageTable<Pml4>,
     ) -> Self {
         kernel_end = (kernel_end + 4096) & !0xfff;
-        let frames = heap_size_bytes / 4096 / 8 / 4096;
+        let frames = heap_size_bytes / 4096 / 8 / 4096 + 1;
         for frame in 0..frames {
             let frame_base = frame_allocator.allocate_frame().unwrap();
             page_table.map(

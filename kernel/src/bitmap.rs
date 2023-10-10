@@ -1,6 +1,5 @@
-use core::fmt;
-
 use alloc::raw_vec::RawVec;
+use core::fmt;
 
 pub struct Bitmap {
     vec: RawVec<u64>,
@@ -19,6 +18,11 @@ impl Bitmap {
         let mut vec = unsafe { RawVec::from_raw_parts(ptr, vec_len) };
         for _ in 0..vec_len {
             vec.push(0).unwrap();
+        }
+
+        let trailing_bits = vec_len * 64 - len;
+        if trailing_bits > 0 {
+            vec[vec_len - 1] = !((1 << (64 - trailing_bits)) - 1);
         }
 
         Self { vec, len }
@@ -59,6 +63,10 @@ impl Bitmap {
             bitmap: self,
             index: 0,
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
     }
 
     fn binary_bit_search_64(entry: u64) -> usize {

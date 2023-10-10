@@ -31,8 +31,7 @@ impl KernelFrameAllocator {
             Layout::array::<(MemoryRegion, Bitmap)>(memory_map.clone().count()).unwrap();
         for region in memory_map.clone() {
             let region_frames = (region.end - region.start) as usize / 4096;
-            let bitmap_bytes = region_frames / 8;
-            let bitmap_u64 = bitmap_bytes / 64;
+            let bitmap_u64 = (region_frames + 63) / 64;
             let (layout, _) = regions_layout
                 .extend(Layout::array::<u64>(bitmap_u64).unwrap())
                 .unwrap();
@@ -60,10 +59,9 @@ impl KernelFrameAllocator {
         };
         for region in memory_map {
             let region_frames = (region.end - region.start) as usize / 4096;
-            let bitmap_bytes = region_frames / 8;
-            let bitmap_u64 = bitmap_bytes / 8;
+            let bitmap_u64 = (region_frames + 63) / 64;
             let (layout, offset) = regions_layout
-                .extend(Layout::array::<u8>(bitmap_u64).unwrap())
+                .extend(Layout::array::<u64>(bitmap_u64).unwrap())
                 .unwrap();
             regions_layout = layout;
             let bitmap = unsafe {

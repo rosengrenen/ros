@@ -8,6 +8,7 @@
 
 mod bitmap;
 mod frame_allocator;
+mod heap;
 mod init_frame_allocator;
 mod interrupt;
 mod kernel_page_allocator;
@@ -15,11 +16,16 @@ mod msr;
 mod spinlock;
 
 use crate::{
-    frame_allocator::KernelFrameAllocator, init_frame_allocator::InitFrameAllocator,
+    frame_allocator::KernelFrameAllocator, heap::Heap, init_frame_allocator::InitFrameAllocator,
     kernel_page_allocator::KernelPageAllocator,
 };
+use acpi::{
+    aml::{Context, LocatedInput, SimpleError, SimpleErrorKind, TermObj},
+    tables::{DefinitionHeader, Fadt, Rsdp},
+};
 use bootloader_api::BootInfo;
-use core::panic::PanicInfo;
+use core::{alloc::Allocator, panic::PanicInfo};
+use parser::{multi::many::many, parser::Parser};
 use serial::{SerialPort, COM1_BASE};
 use x86_64::{
     control::Cr3,
@@ -58,21 +64,38 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
 
     // TODO: all usable memory is now identity mapped!!!
     // UPDATE: first 4gb should be mapped
+    sprintln!("Creating init frame allocator...");
     let init_frame_allocator =
         InitFrameAllocator::new(&info.memory_regions[..], &info.allocated_frame_ranges[..]);
     let mut page_table = PageTable::<Pml4>::new(Cr3::read().pba_pml4 as _);
+    sprintln!("Creating page allocator...");
     let page_allocator = KernelPageAllocator::new(
         info.kernel.base + info.kernel.frames as u64 * 4096,
-        512 * 1024 * 1024,
+        32 * 1024 * 1024,
         &init_frame_allocator,
         page_table,
     );
+    sprintln!("Creating frame allocator...");
     let frame_allocator = KernelFrameAllocator::new(
         &info.memory_regions[..],
         init_frame_allocator,
         &page_allocator,
         page_table,
     );
+
+    // Allocate more stack pages
+    {
+        let target_pages = 32;
+        let current_pages = (info.kernel.stack_start - info.kernel.stack_end + 4095) / 4096;
+        for i in 0..target_pages - current_pages {
+            let frame = frame_allocator.allocate_frame().unwrap();
+            page_table.map(
+                VirtAddr::new(info.kernel.stack_end - (i + 1) * 4096),
+                PhysAddr::new(frame),
+                &frame_allocator,
+            );
+        }
+    };
 
     let allocated_frames = frame_allocator.allocated_frames();
     sprintln!("Allocated frames: {:?}(KiB)", allocated_frames);
@@ -108,6 +131,15 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         sprintln!("Testing breakpoint interrupt...");
         core::arch::asm!("int3");
     }
+
+    sprintln!("Creating heap allocator...");
+    let heap = Heap::new(
+        8 * 1024 * 1024,
+        &frame_allocator,
+        &page_allocator,
+        page_table,
+    );
+
     // divide_by_zero();
     // cause_page_fault();
 
@@ -128,6 +160,19 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
         LAPIC.write_divide_configuration(0b1010);
         LAPIC.write_timer_lvt((1 << 17) | 0x20);
+    }
+
+    // info.rsdp
+    let rsdp = unsafe { Rsdp::from_addr(info.rsdp as u64) };
+    for table_ptr in rsdp.table_ptrs() {
+        let header = unsafe { table_ptr.read() };
+        if &header.signature == b"FACP" {
+            let ptr = *table_ptr as *const Fadt;
+            let fadt = unsafe { ptr.read() };
+            let dsdt_addr = fadt.dsdt;
+            sprintln!("Reading dsdt...");
+            print_dsdt(dsdt_addr as u64, &heap);
+        }
     }
 
     loop {
@@ -193,6 +238,46 @@ fn cause_page_fault() {
     unsafe {
         *(0xdead_beef as *mut u64) = 5;
     }
+}
+
+fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
+    let ptr = dsdt_addr as *const DefinitionHeader;
+    let hdr = unsafe { ptr.read() };
+    let aml_ptr = unsafe { ptr.add(1) }.cast::<u8>();
+    let aml_len = hdr.length as usize - core::mem::size_of::<DefinitionHeader>();
+    let aml_slice = unsafe { core::slice::from_raw_parts(aml_ptr, aml_len) };
+    let input = LocatedInput::new(aml_slice);
+    let mut context = Context::new(alloc);
+    let res = many(TermObj::p::<LocatedInput<&[u8]>, SimpleError<LocatedInput<&[u8]>, _>>).parse(
+        input,
+        &mut context,
+        alloc,
+    );
+    match res {
+        Ok(ast) => {
+            sprintln!("{:#?}", context);
+        }
+        Err(e) => match e {
+            parser::error::ParserError::Error(_) => sprintln!("err"),
+            parser::error::ParserError::Failure(e) => {
+                sprintln!("fail");
+                for (i, e) in e.errors.iter() {
+                    match e {
+                        SimpleErrorKind::Context(context) => {
+                            sprintln!(
+                                "{:x?} {:x?} {:x?}",
+                                context,
+                                i.span,
+                                &i.inner[0..i.inner.len().min(32)]
+                            );
+                        }
+                        SimpleErrorKind::Parser(_) => (),
+                    }
+                }
+            }
+        },
+    }
+    loop {}
 }
 
 /// This function is called on panic.

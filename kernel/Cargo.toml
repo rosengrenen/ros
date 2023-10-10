@@ -10,8 +10,10 @@ panic = "abort"
 panic = "abort"
 
 [dependencies]
+acpi = { path = "../libs/acpi" }
 alloc = { path = "../libs/alloc" }
 bootloader_api = { path = "../bootloader_api" }
+parser = { path = "../libs/parser" }
 serial = { path = "../libs/serial" }
 uefi = { path = "../libs/uefi" }
 x86_64 = { path = "../libs/arch/x86_64" }
