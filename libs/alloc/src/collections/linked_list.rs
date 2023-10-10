@@ -16,21 +16,11 @@ impl<T: core::fmt::Debug, A: Allocator> core::fmt::Debug for LinkedList<T, A> {
     }
 }
 
+#[derive(Debug)]
 struct Ends<T> {
     head: NonNull<Node<T>>,
     tail: NonNull<Node<T>>,
 }
-
-impl<T> Clone for Ends<T> {
-    fn clone(&self) -> Self {
-        Self {
-            head: self.head,
-            tail: self.tail,
-        }
-    }
-}
-
-impl<T> Copy for Ends<T> {}
 
 impl<T> Ends<T> {
     fn new(head: NonNull<Node<T>>, tail: NonNull<Node<T>>) -> Self {
@@ -42,7 +32,15 @@ impl<T> Ends<T> {
     }
 }
 
-impl<T, A: Allocator + Clone> LinkedList<T, A> {
+impl<T> Clone for Ends<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Copy for Ends<T> {}
+
+impl<T, A: Allocator> LinkedList<T, A> {
     const NODE_LAYOUT: Layout = Layout::new::<Node<T>>();
 
     pub fn new(alloc: A) -> Self {
@@ -53,8 +51,18 @@ impl<T, A: Allocator + Clone> LinkedList<T, A> {
         }
     }
 
-    pub fn push(&mut self, value: T) -> &mut T {
-        self.insert(self.len, value)
+    pub fn push(&mut self, value: T) {
+        let mut node_ptr = self.create_node(value);
+        let node = unsafe { node_ptr.as_mut() };
+        self.len += 1;
+        match &mut self.ends {
+            Some(ends) => {
+                ends.tail_mut().next = Some(node_ptr);
+                node.prev = Some(ends.tail);
+                ends.tail = node_ptr;
+            }
+            None => self.ends = Some(Ends::new(node_ptr, node_ptr)),
+        }
     }
 
     pub fn pop(&mut self) -> Option<T> {
@@ -81,30 +89,22 @@ impl<T, A: Allocator + Clone> LinkedList<T, A> {
         let mut node_ptr = self.create_node(value);
         let node = unsafe { node_ptr.as_mut() };
 
-        self.ends = match self.ends {
+        let mut next_node_ptr = self.get_index(index);
+        let next_node = unsafe { next_node_ptr.as_mut() };
+        self.ends = match &mut self.ends {
             Some(mut ends) => {
-                if index == self.len {
-                    // Insert back
-                    node.prev = Some(ends.tail);
-                    ends.tail_mut().next = Some(node_ptr);
-                    ends.tail = node_ptr;
-                } else {
-                    let mut next_node_ptr = self.get_index(index);
-                    let next_node = unsafe { next_node_ptr.as_mut() };
+                node.prev = next_node.prev;
+                node.next = Some(next_node_ptr);
+                next_node.prev = Some(node_ptr);
 
-                    node.prev = next_node.prev;
-                    node.next = Some(next_node_ptr);
-                    next_node.prev = Some(node_ptr);
-
-                    // Check if new head needs to be set
-                    match node.prev {
-                        Some(mut prev_node_ptr) => {
-                            let prev_node = unsafe { prev_node_ptr.as_mut() };
-                            prev_node.next = Some(node_ptr);
-                        }
-                        None => {
-                            ends.head = node_ptr;
-                        }
+                // Check if new head needs to be set
+                match node.prev {
+                    Some(mut prev_node_ptr) => {
+                        let prev_node = unsafe { prev_node_ptr.as_mut() };
+                        prev_node.next = Some(node_ptr);
+                    }
+                    None => {
+                        ends.head = node_ptr;
                     }
                 }
 
@@ -118,10 +118,7 @@ impl<T, A: Allocator + Clone> LinkedList<T, A> {
 
     pub fn remove(&mut self, index: usize) -> T {
         let node_ptr = self.get_index(index);
-
-        let value = self.remove_node(node_ptr);
-        self.len -= 1;
-        value
+        self.remove_node(node_ptr)
     }
 
     pub fn retain<F: Fn(&T) -> bool>(&mut self, f: F) {
@@ -142,6 +139,17 @@ impl<T, A: Allocator + Clone> LinkedList<T, A> {
         }
     }
 
+    pub fn clear(&mut self) {
+        while !self.is_empty() {
+            self.remove(0);
+        }
+    }
+
+    pub fn get(&self, index: usize) -> &T {
+        let node_ptr = self.get_index(index);
+        unsafe { &node_ptr.as_ref().value }
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }
@@ -150,40 +158,13 @@ impl<T, A: Allocator + Clone> LinkedList<T, A> {
         self.len == 0
     }
 
-    fn remove_node(&mut self, node_ptr: NonNull<Node<T>>) -> T {
-        let node = unsafe { node_ptr.as_ref() };
-        match (node.prev, node.next) {
-            (Some(mut prev_node_ptr), Some(mut next_node_ptr)) => {
-                let prev_node = unsafe { prev_node_ptr.as_mut() };
-                let next_node = unsafe { next_node_ptr.as_mut() };
-                prev_node.next = Some(next_node_ptr);
-                next_node.prev = Some(prev_node_ptr);
-            }
-            (Some(mut prev_node_ptr), None) => {
-                let prev_node = unsafe { prev_node_ptr.as_mut() };
-                prev_node.next = None;
-                self.ends.unwrap().tail = prev_node_ptr;
-            }
-            (None, Some(mut next_node_ptr)) => {
-                let next_node = unsafe { next_node_ptr.as_mut() };
-                next_node.prev = None;
-                self.ends.unwrap().head = next_node_ptr;
-            }
-            (None, None) => {
-                self.ends = None;
-            }
-        }
-
-        self.destroy_node(node_ptr)
-    }
-
     fn get_index(&self, index: usize) -> NonNull<Node<T>> {
         if index >= self.len {
             panic!("index >= len");
         }
 
         let ends = self.ends.as_ref().expect("empty");
-        if index < self.len / 2 {
+        if index <= self.len / 2 {
             let mut node = ends.head;
             for _ in 0..index {
                 node = unsafe { node.as_ref().next.unwrap() };
@@ -198,6 +179,40 @@ impl<T, A: Allocator + Clone> LinkedList<T, A> {
 
             node
         }
+    }
+
+    fn remove_node(&mut self, node_ptr: NonNull<Node<T>>) -> T {
+        self.len -= 1;
+        let node = unsafe { node_ptr.as_ref() };
+        match (node.prev, node.next) {
+            (Some(mut prev_node_ptr), Some(mut next_node_ptr)) => {
+                let prev_node = unsafe { prev_node_ptr.as_mut() };
+                let next_node = unsafe { next_node_ptr.as_mut() };
+                prev_node.next = Some(next_node_ptr);
+                next_node.prev = Some(prev_node_ptr);
+            }
+            (Some(mut prev_node_ptr), None) => {
+                let prev_node = unsafe { prev_node_ptr.as_mut() };
+                prev_node.next = None;
+                match &mut self.ends {
+                    Some(ends) => ends.tail = prev_node_ptr,
+                    None => unreachable!(),
+                }
+            }
+            (None, Some(mut next_node_ptr)) => {
+                let next_node = unsafe { next_node_ptr.as_mut() };
+                next_node.prev = None;
+                match &mut self.ends {
+                    Some(ends) => ends.head = next_node_ptr,
+                    None => unreachable!(),
+                }
+            }
+            (None, None) => {
+                self.ends = None;
+            }
+        }
+
+        self.destroy_node(node_ptr)
     }
 
     fn create_node(&self, value: T) -> NonNull<Node<T>> {
@@ -225,16 +240,22 @@ impl<T, A: Allocator + Clone> LinkedList<T, A> {
 impl<T, A: Allocator> LinkedList<T, A> {
     pub fn iter(&self) -> Iter<'_, T> {
         Iter {
-            current: self.ends.map(|ends| ends.head),
+            current: self.ends.as_ref().map(|ends| ends.head),
             marker: PhantomData,
         }
     }
 
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         IterMut {
-            current: self.ends.map(|ends| ends.head),
+            current: self.ends.as_ref().map(|ends| ends.head),
             marker: PhantomData,
         }
+    }
+}
+
+impl<T, A: Allocator> Drop for LinkedList<T, A> {
+    fn drop(&mut self) {
+        self.clear()
     }
 }
 
@@ -272,6 +293,7 @@ impl<'iter, T> Iterator for IterMut<'iter, T> {
     }
 }
 
+#[derive(Debug)]
 struct Node<T> {
     value: T,
     prev: Option<NonNull<Node<T>>>,
@@ -285,5 +307,79 @@ impl<T> Node<T> {
             prev: None,
             next: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn push_back() {
+        let mut list = LinkedList::<u64, _>::new(&std::alloc::Global);
+        list.push(1);
+        list.push(2);
+        assert_eq!(list.get(0), &1);
+        assert_eq!(list.get(1), &2);
+        assert_eq!(list.iter().count(), 2);
+    }
+
+    #[test]
+    fn remove() {
+        let mut list = LinkedList::<u64, _>::new(&std::alloc::Global);
+        list.push(1);
+        list.push(2);
+        list.push(3);
+        list.push(4);
+        list.push(5);
+        list.remove(2);
+        list.remove(0);
+        assert_eq!(list.get(0), &2);
+        assert_eq!(list.get(1), &4);
+        assert_eq!(list.get(2), &5);
+        assert_eq!(list.iter().count(), 3);
+    }
+
+    #[test]
+    fn clear() {
+        let mut list = LinkedList::<u64, _>::new(&std::alloc::Global);
+        list.push(1);
+        list.push(2);
+        list.push(3);
+        list.push(4);
+        list.push(5);
+        list.clear();
+        assert!(list.is_empty());
+        assert_eq!(list.iter().count(), 0);
+    }
+
+    #[test]
+    fn insert() {
+        let mut list = LinkedList::<u64, _>::new(&std::alloc::Global);
+        list.push(1);
+        list.push(2);
+        list.push(3);
+        list.insert(0, 4);
+        list.insert(3, 5);
+        assert_eq!(list.get(0), &4);
+        assert_eq!(list.get(1), &1);
+        assert_eq!(list.get(2), &2);
+        assert_eq!(list.get(3), &5);
+        assert_eq!(list.get(4), &3);
+        assert_eq!(list.iter().count(), 5);
+    }
+
+    #[test]
+    fn retain() {
+        let mut list = LinkedList::<u64, _>::new(&std::alloc::Global);
+        list.push(1);
+        list.push(2);
+        list.push(3);
+        list.insert(0, 4);
+        list.insert(3, 5);
+        list.retain(|e| *e % 2 == 0);
+        assert_eq!(list.get(0), &4);
+        assert_eq!(list.get(1), &2);
+        assert_eq!(list.iter().count(), 2);
     }
 }

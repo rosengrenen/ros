@@ -16,7 +16,9 @@ mod msr;
 mod spinlock;
 
 use crate::{
-    frame_allocator::KernelFrameAllocator, heap::Heap, init_frame_allocator::InitFrameAllocator,
+    frame_allocator::KernelFrameAllocator,
+    heap::{Heap, HeapInner},
+    init_frame_allocator::InitFrameAllocator,
     kernel_page_allocator::KernelPageAllocator,
 };
 use acpi::{
@@ -68,6 +70,21 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     let init_frame_allocator =
         InitFrameAllocator::new(&info.memory_regions[..], &info.allocated_frame_ranges[..]);
     let mut page_table = PageTable::<Pml4>::new(Cr3::read().pba_pml4 as _);
+
+    {
+        sprintln!("Expanding stack...");
+        let target_pages = 16;
+        let current_pages = (info.kernel.stack_start - info.kernel.stack_end + 4095) / 4096;
+        for i in 0..target_pages - current_pages {
+            let frame = init_frame_allocator.allocate_frame().unwrap();
+            page_table.map(
+                VirtAddr::new(info.kernel.stack_end - (i + 1) * 4096),
+                PhysAddr::new(frame),
+                &init_frame_allocator,
+            );
+        }
+    };
+
     sprintln!("Creating page allocator...");
     let page_allocator = KernelPageAllocator::new(
         info.kernel.base + info.kernel.frames as u64 * 4096,
@@ -82,20 +99,6 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         &page_allocator,
         page_table,
     );
-
-    // Allocate more stack pages
-    {
-        let target_pages = 32;
-        let current_pages = (info.kernel.stack_start - info.kernel.stack_end + 4095) / 4096;
-        for i in 0..target_pages - current_pages {
-            let frame = frame_allocator.allocate_frame().unwrap();
-            page_table.map(
-                VirtAddr::new(info.kernel.stack_end - (i + 1) * 4096),
-                PhysAddr::new(frame),
-                &frame_allocator,
-            );
-        }
-    };
 
     let allocated_frames = frame_allocator.allocated_frames();
     sprintln!("Allocated frames: {:?}(KiB)", allocated_frames);
@@ -134,45 +137,73 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
 
     sprintln!("Creating heap allocator...");
     let heap = Heap::new(
-        8 * 1024 * 1024,
+        24 * 1024 * 1024,
         &frame_allocator,
         &page_allocator,
         page_table,
     );
 
-    // divide_by_zero();
-    // cause_page_fault();
-
-    sprintln!("Setting up Local APIC for timer interrupts...");
-    unsafe {
-        LAPIC = {
-            let lapic = msr::LApic::current();
-            let page = page_allocator.allocate_pages(1);
-            page_table.map(
-                VirtAddr::new(page),
-                PhysAddr::new(lapic.base),
-                &frame_allocator,
-            );
-            msr::LApic { base: page }
+    let enabled_timer = false;
+    if enabled_timer {
+        sprintln!("Setting up Local APIC for timer interrupts...");
+        unsafe {
+            LAPIC = {
+                let lapic = msr::LApic::current();
+                let page = page_allocator.allocate_pages(1);
+                page_table.map(
+                    VirtAddr::new(page),
+                    PhysAddr::new(lapic.base),
+                    &frame_allocator,
+                );
+                msr::LApic { base: page }
+            }
+        };
+        unsafe {
+            LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
+            LAPIC.write_divide_configuration(0b1010);
+            LAPIC.write_timer_lvt((1 << 17) | 0x20);
         }
-    };
-    unsafe {
-        LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
-        LAPIC.write_divide_configuration(0b1010);
-        LAPIC.write_timer_lvt((1 << 17) | 0x20);
     }
 
-    // info.rsdp
+    {
+        let heap = heap.inner.lock();
+        sprintln!(
+            "Heap max: {}K, heap current: {}K",
+            heap.max_allocated_bytes / 1024,
+            heap.allocated_bytes / 1024
+        );
+    }
+
+    sprintln!("Reading rsdp at {:x?}...", info.rsdp);
     let rsdp = unsafe { Rsdp::from_addr(info.rsdp as u64) };
     for table_ptr in rsdp.table_ptrs() {
         let header = unsafe { table_ptr.read() };
         if &header.signature == b"FACP" {
-            let ptr = *table_ptr as *const Fadt;
-            let fadt = unsafe { ptr.read() };
+            let ptr = table_ptr as *const Fadt;
+            let fadt = unsafe { ptr.read_unaligned() };
             let dsdt_addr = fadt.dsdt;
             sprintln!("Reading dsdt...");
             print_dsdt(dsdt_addr as u64, &heap);
         }
+    }
+
+    {
+        let mut heap = heap.inner.lock();
+        let heap: &mut HeapInner = &mut heap;
+        heap.defragment();
+        let free_bytes = heap
+            .free_spaces
+            .iter()
+            .map(|(start, end)| end - start)
+            .sum::<u64>();
+        sprintln!("free bytes: {:x?}", free_bytes);
+        sprintln!("free bytes: {:x?}", 24 * 1024 * 1024 - free_bytes);
+        sprintln!("{:x?}", heap);
+        sprintln!(
+            "Heap max: {}K, heap current: {}K",
+            heap.max_allocated_bytes / 1024,
+            heap.allocated_bytes / 1024
+        );
     }
 
     loop {
@@ -228,25 +259,13 @@ fn reload_segments() {
     }
 }
 
-#[allow(dead_code)]
-fn divide_by_zero() {
-    unsafe { core::arch::asm!("mov dx, 0; div dx") }
-}
-
-#[allow(dead_code)]
-fn cause_page_fault() {
-    unsafe {
-        *(0xdead_beef as *mut u64) = 5;
-    }
-}
-
 fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
     let ptr = dsdt_addr as *const DefinitionHeader;
     let hdr = unsafe { ptr.read() };
-    let aml_ptr = unsafe { ptr.add(1) }.cast::<u8>();
-    let aml_len = hdr.length as usize - core::mem::size_of::<DefinitionHeader>();
-    let aml_slice = unsafe { core::slice::from_raw_parts(aml_ptr, aml_len) };
-    let input = LocatedInput::new(aml_slice);
+    let dsdt_ptr = dsdt_addr as *const u8;
+    let dsdt_len = hdr.length;
+    let dsdt_slice = unsafe { core::slice::from_raw_parts(dsdt_ptr, dsdt_len as usize) };
+    let input = LocatedInput::new(&dsdt_slice[core::mem::size_of::<DefinitionHeader>()..]);
     let mut context = Context::new(alloc);
     let res = many(TermObj::p::<LocatedInput<&[u8]>, SimpleError<LocatedInput<&[u8]>, _>>).parse(
         input,
@@ -254,8 +273,8 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
         alloc,
     );
     match res {
-        Ok(ast) => {
-            sprintln!("{:#?}", context);
+        Ok(_ast) => {
+            sprintln!("Dsdt ok!");
         }
         Err(e) => match e {
             parser::error::ParserError::Error(_) => sprintln!("err"),
@@ -277,7 +296,6 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
             }
         },
     }
-    loop {}
 }
 
 /// This function is called on panic.

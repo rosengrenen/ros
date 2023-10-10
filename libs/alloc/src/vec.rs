@@ -172,6 +172,11 @@ impl<T, A: Allocator> DerefMut for Vec<T, A> {
 
 impl<T, A: Allocator> Drop for Vec<T, A> {
     fn drop(&mut self) {
+        for i in 0..self.len() {
+            unsafe {
+                core::ptr::drop_in_place(self.ptr.as_ptr().add(i));
+            }
+        }
         if self.cap > 0 {
             let layout = Layout::array::<T>(self.cap)
                 .expect("layout was used to allocate memory, so should always be valid");

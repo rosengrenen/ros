@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 #![feature(allocator_api)]
 #![feature(layout_for_ptr)]
 #![feature(ptr_internals)]

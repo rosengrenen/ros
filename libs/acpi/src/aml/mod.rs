@@ -66,15 +66,19 @@ impl<A: Allocator + Clone> Context<A> {
     pub(crate) fn add_method(&mut self, method: &NameString<A>, args: usize) {
         let (scope, name) = method.split();
         let scope = self.current_scope_path().clone().add_name_string(&scope);
-        self.get_scope_mut(&scope).methods.insert(name, args);
+        self.get_or_create_scope_mut(&scope)
+            .methods
+            .insert(name, args);
     }
 
     pub(crate) fn method_args(&mut self, method: &NameString<A>) -> Option<usize> {
         let (scope, name) = method.split();
         let mut search_scope = self.current_scope_path().clone().add_name_string(&scope);
         while !search_scope.segments.is_empty() {
-            if let Some(args) = self.get_scope_mut(&search_scope).methods.get(&name) {
-                return Some(*args);
+            if let Some(scope) = self.get_scope(&search_scope) {
+                if let Some(args) = scope.methods.get(&name) {
+                    return Some(*args);
+                }
             }
 
             search_scope.segments.pop().unwrap().unwrap();
@@ -83,7 +87,7 @@ impl<A: Allocator + Clone> Context<A> {
         None
     }
 
-    fn get_scope_mut(&mut self, path: &ScopePath<A>) -> &mut Scope<A> {
+    fn get_or_create_scope_mut(&mut self, path: &ScopePath<A>) -> &mut Scope<A> {
         let mut scope = &mut self.root_scope;
         for seg in &path.segments {
             scope = scope
@@ -93,6 +97,18 @@ impl<A: Allocator + Clone> Context<A> {
         }
 
         scope
+    }
+
+    fn get_scope(&self, path: &ScopePath<A>) -> Option<&Scope<A>> {
+        let mut scope = &self.root_scope;
+        for seg in &path.segments {
+            scope = match scope.scopes.get(seg) {
+                Some(scope) => scope,
+                None => return None,
+            };
+        }
+
+        Some(scope)
     }
 
     fn current_scope_path(&self) -> &ScopePath<A> {

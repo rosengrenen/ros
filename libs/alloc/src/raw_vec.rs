@@ -52,45 +52,20 @@ impl<T> RawVec<T> {
     pub fn clear(&mut self) {
         self.len = 0;
     }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn cap(&self) -> usize {
+        self.cap
+    }
 }
 
 #[derive(Clone, Debug)]
 pub enum PushError {
     MaxCapacity,
 }
-
-// impl<T: Clone> RawVec<T> {
-//     pub fn with_size_elem(size: usize, value: T) -> Result<Self, ()> {
-//         Self::with_size_f(size, || value.clone())
-//     }
-// }
-
-// impl<T: Default> RawVec<T> {
-//     pub fn with_size_default(size: usizelloc: A) -> Result<Self, ()> {
-//         Self::with_size_f(size, Default::defaultlloc)
-//     }
-// }
-
-// impl<T> RawVec<T> {
-//     pub fn with_size_f<F: Fn() -> T>(size: usize, f: Flloc: A) -> Result<Self, ()> {
-//         let layout = Layout::array::<T>(size).map_err(|_| ())?;
-//         let ptr = alloc.allocate(layout).map_err(|_| ())?.cast::<T>();
-
-//         for i in 0..size {
-//             unsafe {
-//                 let ptr = ptr.as_ptr().add(i);
-//                 core::ptr::write(ptr, f());
-//             }
-//         }
-
-//         Ok(Self {
-//             ptr: ptr.into(),
-//             cap: size,
-//             len: size,
-//             alloc,
-//         })
-//     }
-// }
 
 impl<T> Deref for RawVec<T> {
     type Target = [T];

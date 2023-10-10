@@ -17,7 +17,7 @@ impl<T, A: Allocator> Box<T, A> {
         let ptr = alloc.allocate(layout)?;
         let ptr: Unique<T> = ptr.cast().into();
         unsafe {
-            core::ptr::write(ptr.as_ptr(), value);
+            ptr.as_ptr().write(value);
         }
         Ok(Self { ptr, alloc })
     }
@@ -65,6 +65,7 @@ impl<T: ?Sized, A: Allocator> DerefMut for Box<T, A> {
 impl<T: ?Sized, A: Allocator> Drop for Box<T, A> {
     fn drop(&mut self) {
         unsafe {
+            core::ptr::drop_in_place(self.ptr.as_ptr());
             let layout = Layout::for_value_raw(self.ptr.as_ptr());
             self.alloc.deallocate(self.ptr.cast().into(), layout)
         }

@@ -103,14 +103,17 @@ pub extern "efiapi" fn efi_main(
     }
 
     // Allocate stack for the kernel and map it to virtual addresses
-    let stack_frame = bump_allocator.allocate_frame().unwrap();
+    let kernel_stack_frames = 4;
     let stack_start: u64 = 0xffff_ffff_ffff_fff8;
-    let stack_end = stack_start & !0xfff;
-    page_table.map(
-        VirtAddr::new(stack_end),
-        PhysAddr::new(stack_frame as u64),
-        &bump_allocator,
-    );
+    let stack_end = stack_start & !0xfff - (kernel_stack_frames - 1) * 4096;
+    for frame in 0..kernel_stack_frames {
+        let stack_frame = bump_allocator.allocate_frame().unwrap();
+        page_table.map(
+            VirtAddr::new(stack_end + frame * 4096),
+            PhysAddr::new(stack_frame as u64),
+            &bump_allocator,
+        );
+    }
 
     let boot_info_frame = bump_allocator.allocate_frame().unwrap();
     let allocated_frame_ranges = bump_allocator.inner.into_inner().allocated_frames;

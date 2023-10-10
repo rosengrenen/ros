@@ -6,10 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# acpi = { path = "../libs/acpi" }
 alloc = { path = "../libs/alloc" }
 bootloader_api = { path = "../bootloader_api" }
-# parser = { path = "../libs/parser" }
 serial = { path = "../libs/serial" }
 stack_vec = { path = "../libs/stack_vec" }
 uefi = { path = "../libs/uefi" }

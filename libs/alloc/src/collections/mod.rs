@@ -30,7 +30,7 @@ mod hash {
     impl<K: Hash + PartialEq, V, H: BuildHasher, A: Allocator + Clone> HashMap<K, V, H, A> {
         pub fn new(hasher_builder: H, alloc: A) -> Self {
             Self {
-                slots: Vec::with_size_f(100, || LinkedList::new(alloc.clone()), alloc.clone())
+                slots: Vec::with_size_f(10, || LinkedList::new(alloc.clone()), alloc.clone())
                     .unwrap(),
                 key: PhantomData,
                 hasher_builder,
@@ -63,12 +63,12 @@ mod hash {
             None
         }
 
-        pub fn insert(&mut self, key: K, value: V) -> &mut V {
+        pub fn insert(&mut self, key: K, value: V) {
             self.remove(&key);
             let hash = self.hasher_builder.hash_one(&key) as usize;
             let index = hash % self.slots.len();
             let chain = unsafe { self.slots.get_unchecked_mut(index) };
-            &mut chain.push((key, value)).1
+            chain.push((key, value));
         }
 
         pub fn remove(&mut self, key: &K) {
@@ -150,11 +150,16 @@ mod hash {
         },
     }
 
-    impl<'map, K: Hash + PartialEq, V, H: BuildHasher, A: Allocator + Clone> Entry<'map, K, V, H, A> {
+    impl<'map, K: Hash + PartialEq + Clone, V, H: BuildHasher, A: Allocator + Clone>
+        Entry<'map, K, V, H, A>
+    {
         pub fn or_insert(self, value: V) -> &'map mut V {
             match self {
                 Entry::Occupied { key, map } => map.get_mut(&key).unwrap(),
-                Entry::Vacant { key, map } => map.insert(key, value),
+                Entry::Vacant { key, map } => {
+                    map.insert(key.clone(), value);
+                    map.get_mut(&key).unwrap()
+                }
             }
         }
     }

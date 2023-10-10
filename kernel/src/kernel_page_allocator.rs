@@ -1,5 +1,4 @@
-use crate::spinlock::Mutex;
-use alloc::raw_vec::RawVec;
+use crate::{bitmap::Bitmap, spinlock::Mutex};
 use x86_64::paging::{FrameAllocator, PageTable, PhysAddr, Pml4, VirtAddr};
 
 pub struct KernelPageAllocator {
@@ -7,7 +6,7 @@ pub struct KernelPageAllocator {
 }
 
 struct KernelPageAllocatorInner {
-    bitmap: RawVec<u64>,
+    bitmap: Bitmap,
     start_addr: u64,
 }
 
@@ -20,7 +19,8 @@ impl KernelPageAllocator {
         mut page_table: PageTable<Pml4>,
     ) -> Self {
         kernel_end = (kernel_end + 4096) & !0xfff;
-        let frames = heap_size_bytes / 4096 / 8 / 4096 + 1;
+        let num_pages = (heap_size_bytes + 4095) / 4096;
+        let frames = (num_pages + 4095) / 4096;
         for frame in 0..frames {
             let frame_base = frame_allocator.allocate_frame().unwrap();
             page_table.map(
@@ -30,11 +30,7 @@ impl KernelPageAllocator {
             );
         }
 
-        let cap = frames as usize * 4096 / core::mem::size_of::<u64>();
-        let mut bitmap = unsafe { RawVec::from_raw_parts(kernel_end as *mut u64, cap) };
-        for _ in 0..cap {
-            bitmap.push(0).unwrap();
-        }
+        let bitmap = unsafe { Bitmap::from_raw_parts(kernel_end as *mut u64, num_pages as usize) };
 
         Self {
             inner: Mutex::new(KernelPageAllocatorInner {
@@ -49,19 +45,31 @@ impl KernelPageAllocator {
         let mut inner = self.inner.lock();
 
         // Linear search for empty page
-        let mask = (1 << pages) - 1;
-        for (map_index, entry) in inner
-            .bitmap
-            .iter_mut()
-            .enumerate()
-            .filter(|(_, a)| **a != 0xffff_ffff_ffff_ffff)
-        {
-            for entry_index in 0..=64 - pages {
-                if (*entry >> entry_index) & mask == 0 {
-                    *entry |= mask << entry_index;
-                    return inner.start_addr + (map_index * 64 + entry_index) as u64 * 4096;
+        let bitmap = &mut inner.bitmap;
+        let mut outer_index = 0;
+        while outer_index + pages < bitmap.len() {
+            if bitmap.get_bit(outer_index) {
+                outer_index += 1;
+                continue;
+            }
+
+            // Now we have one page that is free
+            // Check the following "pages - 1" entries to see if they're also free
+            // If not, we fast forward
+            'inner: for inner_index in 1..pages {
+                if bitmap.get_bit(outer_index + inner_index) {
+                    outer_index += inner_index + 1;
+                    break 'inner;
                 }
             }
+
+            // Now we know that there are "pages" free entries, mark them as occupied
+            // and return address
+            for inner_index in 0..pages {
+                bitmap.set_bit(outer_index + inner_index);
+            }
+
+            return inner.start_addr + outer_index as u64 * 4096;
         }
 
         panic!("no pages left")

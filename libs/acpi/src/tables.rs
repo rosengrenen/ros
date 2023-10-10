@@ -20,16 +20,36 @@ impl Rsdp {
         unsafe { *(addr as *const Self) }
     }
 
-    pub fn table_ptrs(&self) -> &[*const DefinitionHeader] {
-        unsafe {
+    pub fn table_ptrs(&self) -> TablePtrIter {
+        let (ptr, len) = unsafe {
             let xsdt_ptr = self.xsdt_addr as *const DefinitionHeader;
             let xsdt = xsdt_ptr.read();
-            let end = xsdt_ptr.add(1).cast();
+            let table_ptr = xsdt_ptr.add(1).cast::<*const DefinitionHeader>();
             let len = (xsdt.length as usize - size_of::<DefinitionHeader>())
                 / size_of::<*const DefinitionHeader>();
-            // let len =
-            core::slice::from_raw_parts(end, len)
+            (table_ptr, len)
+        };
+        TablePtrIter { ptr, index: 0, len }
+    }
+}
+
+pub struct TablePtrIter {
+    ptr: *const *const DefinitionHeader,
+    index: usize,
+    len: usize,
+}
+
+impl Iterator for TablePtrIter {
+    type Item = *const DefinitionHeader;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.len {
+            return None;
         }
+
+        let ptr = unsafe { self.ptr.add(self.index).read_unaligned() };
+        self.index += 1;
+        Some(ptr)
     }
 }
 
