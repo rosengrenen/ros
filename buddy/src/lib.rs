@@ -4,18 +4,15 @@
 use alloc::raw_vec::RawVec;
 use core::alloc::Layout;
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct BuddyAllocator<const ORDER: usize, const FRAME_SIZE: usize> {
     regions_head: Option<&'static Region<ORDER, FRAME_SIZE>>,
-    fast_tracks: [Option<&'static Region<ORDER, FRAME_SIZE>>; ORDER],
 }
 
 impl<const ORDER: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDER, FRAME_SIZE> {
     pub fn new() -> Self {
-        Self {
-            regions_head: None,
-            fast_tracks: [None; ORDER],
-        }
+        Self { regions_head: None }
     }
 
     pub fn add_region(&mut self, base: usize, frames: usize) {
@@ -34,12 +31,12 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDER, FRAME_SI
     // pub fn deallocate()
 }
 
+#[derive(Debug)]
 #[repr(C)]
 struct Region<const ORDER: usize, const FRAME_SIZE: usize> {
     next_region: Option<&'static Region<ORDER, FRAME_SIZE>>,
     base: usize,
     bitmaps: [Option<Bitmap>; ORDER],
-    fast_tracks: [Option<usize>; ORDER],
 }
 
 impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
@@ -52,13 +49,13 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
         let mut layout = Layout::new::<Self>();
         let mut bitmap_offsets = [None; ORDER];
         for order in 0..ORDER {
-            let bits = (frames - 1) / (order + 1);
+            let bits = (frames - 1) / 2usize.pow(order as u32);
             if bits == 0 {
                 break;
             }
 
             let (bitmap_layout, offset) = layout.extend(Bitmap::layout(bits)).unwrap();
-            bitmap_offsets[order] = Some((offset, bits));
+            bitmap_offsets[order] = Some(offset);
             layout = bitmap_layout;
         }
 
@@ -69,10 +66,9 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
 
         const BITMAP_NONE: Option<Bitmap> = None;
         let mut bitmaps = [BITMAP_NONE; ORDER];
-        let fast_tracks = [None; ORDER];
         for (order, offset) in bitmap_offsets.into_iter().enumerate() {
-            if let Some((offset, bits)) = offset {
-                let bits = bits - meta_frames + 1;
+            if let Some(offset) = offset {
+                let bits = (frames - meta_frames) / 2usize.pow(order as u32);
                 if bits == 0 {
                     break;
                 }
@@ -90,7 +86,6 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
             if let Some(bitmap) = bitmap {
                 for i in bit_index..bitmap.len {
                     bitmap.set(i);
-                    bit_index += 1;
                 }
 
                 bit_index = bitmap.len * 2;
@@ -102,7 +97,6 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
             next_region,
             base: usable_frames_base,
             bitmaps,
-            fast_tracks,
         }
     }
 
@@ -111,6 +105,7 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
     // dealloc
 }
 
+#[derive(Debug)]
 #[repr(C)]
 struct Bitmap {
     vec: RawVec<u8>,
@@ -119,10 +114,12 @@ struct Bitmap {
 
 impl Bitmap {
     pub unsafe fn from_raw_parts(ptr: *mut u8, len: usize) -> Self {
-        Self {
-            vec: unsafe { RawVec::from_raw_parts(ptr, (len + 7) / 8) },
-            len,
+        let bytes = (len + 7) / 8;
+        let mut vec = unsafe { RawVec::from_raw_parts(ptr, bytes) };
+        for _ in 0..bytes {
+            vec.push(0).unwrap();
         }
+        Self { vec, len }
     }
 
     pub fn layout(bits: usize) -> Layout {
@@ -138,6 +135,7 @@ impl Bitmap {
     pub fn set(&mut self, bit_index: usize) {
         assert!(bit_index < self.len);
         let (byte_index, bit_index) = Self::indices(bit_index);
+        println!("{}", bit_index);
         self.vec[byte_index] |= 1 << bit_index;
     }
 
@@ -148,8 +146,8 @@ impl Bitmap {
     }
 
     fn indices(bit_index: usize) -> (usize, usize) {
-        let byte_index = bit_index * 8;
-        let bit_index = bit_index & 0xfff;
+        let byte_index = bit_index / 8;
+        let bit_index = bit_index & 0b111;
         (byte_index, bit_index)
     }
 }
@@ -161,13 +159,14 @@ mod tests {
     #[test]
     fn test_name() {
         let mut mem: Vec<u8> = Vec::new();
-        mem.resize(128 * 1024 * 1024, 0);
+        mem.resize(128 * 1024, 0);
         let mut allocator = BuddyAllocator::<5, 4096>::new();
         let mem_ptr = mem.as_ptr().cast::<u8>();
         let offset = mem_ptr.align_offset(4096);
         let mem_ptr = unsafe { mem_ptr.add(offset) };
         allocator.add_region(mem_ptr as usize, mem.len() / 4096 - 1);
         println!("{:x?}", &mem[offset..offset + 512]);
+        println!("{:#?}", allocator);
         assert!(false);
     }
 }
