@@ -1,0 +1,7 @@
+[package]
+name = "buddy"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+alloc = { path = "../libs/alloc" }
