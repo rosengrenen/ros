@@ -88,11 +88,14 @@ impl Bitmap {
         start_entry_index: usize,
         field_index: usize,
     ) -> Option<usize> {
-        for vec_index in start_entry_index..self.len {
+        for vec_index in start_entry_index..Self::entries_per_field(self.len) {
             let bit_index = self.get_entry(vec_index, field_index).trailing_zeros() as usize;
             if bit_index != Bitmap::ENTRY_BITS {
                 let entry_index = Bitmap::ENTRY_BITS * vec_index + bit_index;
-                return Some(entry_index);
+                // Last entry can contain trailing, but unused 1's, resulting in a false positive
+                if entry_index < self.len {
+                    return Some(entry_index);
+                }
             }
         }
 

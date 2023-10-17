@@ -1,4 +1,7 @@
-use crate::bitmap::{Bitmap, BitmapVecEntry};
+use crate::{
+    bitmap::{Bitmap, BitmapVecEntry},
+    util::ilog_ceil,
+};
 use alloc::raw_vec::RawVec;
 use core::alloc::Layout;
 
@@ -171,7 +174,7 @@ impl BuddyBitmap {
     }
 
     fn num_layers_from_len(len: usize) -> usize {
-        ((len as f64).log(Self::CACHE_ENTRY_BITS as f64).ceil() as usize).max(1)
+        ilog_ceil(Self::CACHE_ENTRY_BITS, len).max(1)
     }
 }
 

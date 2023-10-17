@@ -1,15 +1,17 @@
-// #![no_std]
-#![deny(unsafe_op_in_unsafe_fn)]
-#![feature(vec_into_raw_parts)]
-#![feature(test)]
+#![cfg_attr(not(test), no_std)]
+#![cfg_attr(test, feature(vec_into_raw_parts))]
+#![cfg_attr(test, feature(test))]
 #![feature(pointer_byte_offsets)]
+#![deny(unsafe_op_in_unsafe_fn)]
 
+#[cfg(test)]
 extern crate test;
 
 mod bitmap;
 mod layered_bitmap;
 mod layout;
 mod region;
+mod util;
 
 use self::region::Region;
 use core::ptr::NonNull;
@@ -76,7 +78,8 @@ mod tests {
         let p = move || {
             let region = unsafe { allocator.regions_head.unwrap().as_ref() };
             println!("--------------------------------------------------------------------");
-            println!("{}", region);
+            region.print_allocated();
+            region.print_free();
         };
         p();
         let mut stack = [0; 10];
