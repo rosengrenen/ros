@@ -2,6 +2,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(vec_into_raw_parts)]
 #![feature(test)]
+#![feature(pointer_byte_offsets)]
 
 extern crate test;
 
@@ -9,7 +10,7 @@ mod bitmap;
 mod layered_bitmap;
 mod layout;
 
-use self::{bitmap::BuddyBitmap, layout::RegionLayout};
+use self::{layered_bitmap::BuddyBitmap, layout::RegionLayout};
 use alloc::raw_vec::RawVec;
 use core::ptr::NonNull;
 
@@ -209,7 +210,7 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
         for order in 0..max_order {
             let offset = layout.bitmap_offsets[order].unwrap();
             let bits = layout.usable_frames / 2usize.pow(order as u32);
-            let bitmap = unsafe { BuddyBitmap::from_raw_parts((base + offset) as *mut u8, bits) };
+            let bitmap = unsafe { BuddyBitmap::from_raw_parts((base + offset) as *mut _, bits) };
             bitmaps.push(bitmap).unwrap();
         }
 

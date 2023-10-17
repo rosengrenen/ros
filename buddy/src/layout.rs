@@ -1,4 +1,4 @@
-use crate::bitmap::BuddyBitmap;
+use crate::layered_bitmap::BuddyBitmap;
 use core::alloc::{Layout, LayoutError};
 
 #[derive(Clone, Copy, Debug)]
