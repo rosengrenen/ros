@@ -6,6 +6,7 @@
 extern crate test;
 
 mod bitmap;
+mod layered_bitmap;
 mod layout;
 
 use self::{bitmap::BuddyBitmap, layout::RegionLayout};
@@ -208,7 +209,7 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
         for order in 0..max_order {
             let offset = layout.bitmap_offsets[order].unwrap();
             let bits = layout.usable_frames / 2usize.pow(order as u32);
-            let bitmap = unsafe { BuddyBitmap::from_raw_parts((base + offset) as *mut u64, bits) };
+            let bitmap = unsafe { BuddyBitmap::from_raw_parts((base + offset) as *mut u8, bits) };
             bitmaps.push(bitmap).unwrap();
         }
 

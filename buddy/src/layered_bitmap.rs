@@ -1,17 +1,13 @@
 use alloc::raw_vec::RawVec;
 use core::alloc::Layout;
+use crate::bitmap::BuddyBitmap;
 
 type BitmapVecEntry = u64;
 
 #[derive(Debug)]
-pub struct BuddyBitmap {
-    vec: RawVec<BitmapVecEntry>,
-    caches: RawVec<RawVec<BitmapVecEntry>>,
-    len: usize,
+pub struct LayeredBuddyBitmap {
+    bitmaps: RawVec<BuddyBitmap>,
 }
-
-// TODO: set last bits in bitmap to used, otherwise it will never cache
-// TODO: do the same for each cache, otherwise they will never recursively cache
 
 impl BuddyBitmap {
     const FIELDS: usize = 2;
@@ -21,7 +17,7 @@ impl BuddyBitmap {
     const ENTRY_BITS: usize = 8 * core::mem::size_of::<BitmapVecEntry>();
     const CACHE_ENTRY_BITS: usize = Self::ENTRY_BITS * Self::ENTRY_BITS;
 
-    pub unsafe fn from_raw_parts(base: *mut u8, len: usize) -> Self {
+    pub unsafe fn from_raw_parts(base: *mut BuddyBitmap, len: usize) -> Self {
         let vec_entries = Self::vec_entries_from_entries(len);
         let entries_vec_layout = Layout::array::<BitmapVecEntry>(vec_entries).unwrap();
         let mut vec = unsafe { RawVec::from_raw_parts(base.cast::<BitmapVecEntry>(), vec_entries) };
@@ -182,7 +178,12 @@ impl BuddyBitmap {
 
     fn cache_set(&mut self, index: usize) {
         let (entry_index, _) = Self::indices(Self::FIELDS * index, Self::FREE_FIELD);
-        if self.vec[entry_index] == !0 {}
+        if self.vec[entry_index] == !0 {
+            let (entry_index, bit_index)
+            for cache in self.caches.iter_mut() {
+                cache[]
+            }            
+        }
     }
 
     fn cache_clear() {}

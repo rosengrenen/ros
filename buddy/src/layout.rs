@@ -21,12 +21,12 @@ impl<const ORDER: usize> RegionLayout<ORDER> {
         let (mut layout, bitmaps_offset) = layout.extend(bitmaps_layout)?;
         let mut bitmap_offsets = [None; ORDER];
         for order in 0..ORDER {
-            let num_bits = max_usable_frames / 2usize.pow(order as u32);
-            if num_bits == 0 {
+            let num_entries = max_usable_frames / 2usize.pow(order as u32);
+            if num_entries == 0 {
                 break;
             }
 
-            let (bitmap_layout, offset) = layout.extend(BuddyBitmap::layout(num_bits))?;
+            let (bitmap_layout, offset) = layout.extend(BuddyBitmap::layout(num_entries))?;
             bitmap_offsets[order] = Some(offset);
             layout = bitmap_layout;
         }
