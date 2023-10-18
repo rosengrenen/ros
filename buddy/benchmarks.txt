@@ -20,16 +20,30 @@ test layered_bitmap::tests::bench_find_first_64mb ... bench:         131 ns/iter
 
 test result: ok. 0 passed; 0 failed; 2 ignored; 3 measured; 0 filtered out; finished in 2.63s
 
+contiguous with cache (with prints lol)
+running 9 tests
+test bitmap::tests::set ... ignored
+test layered_bitmap::tests::lol ... ignored
+test layered_bitmap::tests::set ... ignored
+test layered_bitmap::tests::bench_find_first_64kb   ... bench:           0 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64mb   ... bench:          99 ns/iter (+/- 1)
+test layered_bitmap::tests::bench_find_first_64gb   ... bench:      98,256 ns/iter (+/- 2,083)
+test layered_bitmap::tests::bench_find_first_64kb_h ... bench:          50 ns/iter (+/- 1)
+test layered_bitmap::tests::bench_find_first_64mb_h ... bench:         164 ns/iter (+/- 3)
+test layered_bitmap::tests::bench_find_first_64gb_h ... bench:         189 ns/iter (+/- 17)
+
+test result: ok. 0 passed; 0 failed; 3 ignored; 6 measured; 0 filtered out; finished in 11.75s
+
 contiguous with cache
 running 9 tests
 test bitmap::tests::set ... ignored
 test layered_bitmap::tests::lol ... ignored
 test layered_bitmap::tests::set ... ignored
-test layered_bitmap::tests::bench_find_first_64gb   ... bench:      98,256 ns/iter (+/- 2,083)
-test layered_bitmap::tests::bench_find_first_64gb_h ... bench:         189 ns/iter (+/- 17)
 test layered_bitmap::tests::bench_find_first_64kb   ... bench:           0 ns/iter (+/- 0)
-test layered_bitmap::tests::bench_find_first_64kb_h ... bench:          50 ns/iter (+/- 1)
-test layered_bitmap::tests::bench_find_first_64mb   ... bench:          99 ns/iter (+/- 1)
-test layered_bitmap::tests::bench_find_first_64mb_h ... bench:         164 ns/iter (+/- 3)
+test layered_bitmap::tests::bench_find_first_64mb   ... bench:          98 ns/iter (+/- 3)
+test layered_bitmap::tests::bench_find_first_64gb   ... bench:      98,641 ns/iter (+/- 2,684)
+test layered_bitmap::tests::bench_find_first_64kb_h ... bench:           1 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64mb_h ... bench:          35 ns/iter (+/- 3)
+test layered_bitmap::tests::bench_find_first_64gb_h ... bench:          58 ns/iter (+/- 0)
 
-test result: ok. 0 passed; 0 failed; 3 ignored; 6 measured; 0 filtered out; finished in 11.75s
+test result: ok. 0 passed; 0 failed; 3 ignored; 6 measured; 0 filtered out; finished in 11.77s

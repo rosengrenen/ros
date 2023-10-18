@@ -68,12 +68,8 @@ impl BuddyBitmap {
         self.layers[0].len()
     }
 
-    pub fn get_free_bit(&self, index: usize) -> bool {
+    pub fn get_free_bit(&self, index: usize) -> Option<bool> {
         self.get(index, Self::FREE_FIELD)
-    }
-
-    pub fn get_free_bit_checked(&self, index: usize) -> Option<bool> {
-        self.get_checked(index, Self::FREE_FIELD)
     }
 
     pub fn set_free_bit(&mut self, index: usize) {
@@ -87,12 +83,8 @@ impl BuddyBitmap {
         self.free_bit_cache_clear(index, 0);
     }
 
-    pub fn get_alloc_bit(&self, index: usize) -> bool {
+    pub fn get_alloc_bit(&self, index: usize) -> Option<bool> {
         self.get(index, Self::ALLOC_FIELD)
-    }
-
-    pub fn get_alloc_bit_checked(&self, index: usize) -> Option<bool> {
-        self.get_checked(index, Self::ALLOC_FIELD)
     }
 
     pub fn set_alloc_bit(&mut self, index: usize) {
@@ -121,11 +113,7 @@ impl BuddyBitmap {
         self.layers[0].find_first_free_index_from(index, Self::FREE_FIELD)
     }
 
-    fn get(&self, index: usize, field_index: usize) -> bool {
-        self.layers[0].get(index, field_index)
-    }
-
-    fn get_checked(&self, index: usize, field_index: usize) -> Option<bool> {
+    fn get(&self, index: usize, field_index: usize) -> Option<bool> {
         self.layers[0].get_checked(index, field_index)
     }
 

@@ -1,40 +1,44 @@
 use crate::{layered_bitmap::BuddyBitmap, layout::RegionLayout, util::ilog_ceil};
 use alloc::raw_vec::RawVec;
-use core::ptr::NonNull;
 
 #[derive(Debug)]
-pub struct Region<const ORDER: usize, const FRAME_SIZE: usize> {
-    pub next_region: Option<NonNull<Region<ORDER, FRAME_SIZE>>>,
+pub struct Region<const ORDERS: usize, const FRAME_SIZE: usize> {
     pub usable_frames_base: usize,
     pub usable_frames: usize,
+    pub counts: [usize; ORDERS],
     bitmaps: RawVec<BuddyBitmap>,
-    counts: [usize; ORDER],
 }
 
-impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
-    pub fn new(
-        next_region: Option<NonNull<Region<ORDER, FRAME_SIZE>>>,
-        base: usize,
-        frames: usize,
-    ) -> Self {
+pub struct RegionAllocation {
+    pub addr: usize,
+    pub allocated_order: usize,
+    pub split_order: usize,
+}
+
+pub struct RegionDeallocation {
+    pub deallocated_order: usize,
+    pub merge_order: usize,
+}
+
+impl<const ORDERS: usize, const FRAME_SIZE: usize> Region<ORDERS, FRAME_SIZE> {
+    pub fn new(base: usize, frames: usize) -> Self {
         assert_eq!(base % FRAME_SIZE, 0);
         // At least one frame is going to be used for metadata
         let max_usable_frames = frames - 1;
-        let mut max_order: usize = ilog_ceil(2, max_usable_frames).min(ORDER - 1);
+        let max_order: usize = ilog_ceil(2, max_usable_frames).min(ORDERS - 1);
         let layout =
-            RegionLayout::<ORDER>::new(FRAME_SIZE, frames, max_usable_frames, max_order).unwrap();
+            RegionLayout::<ORDERS>::new(FRAME_SIZE, frames, max_usable_frames, max_order).unwrap();
         let (bitmaps, counts) = Self::create_bitmaps(base, layout, max_order);
         let usable_frames_base = base + layout.usable_base_offset;
         Self {
-            next_region,
             usable_frames_base,
             usable_frames: layout.usable_frames,
-            bitmaps,
             counts,
+            bitmaps,
         }
     }
 
-    pub fn allocate(&mut self, order: usize) -> Option<usize> {
+    pub fn allocate(&mut self, order: usize) -> Option<RegionAllocation> {
         if order >= self.bitmaps.len() {
             return None;
         }
@@ -45,7 +49,11 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
             bitmap.clear_free_bit(index);
             bitmap.set_alloc_bit(index);
             self.counts[order] -= 1;
-            return Some(self.addr_from_order_and_index(order, index));
+            return Some(RegionAllocation {
+                addr: self.addr_from_order_and_index(order, index),
+                allocated_order: order,
+                split_order: order,
+            });
         }
 
         // 2. If no match was found, search upward and split
@@ -56,26 +64,33 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
                 bitmap.set_alloc_bit(index);
                 bitmap.clear_free_bit(index);
                 self.counts[order] -= 1;
-                return Some(self.addr_from_order_and_index(order, index));
+                return Some(RegionAllocation {
+                    addr: self.addr_from_order_and_index(order, index),
+                    allocated_order: order,
+                    split_order: cur_order,
+                });
             }
         }
 
         None
     }
 
-    pub fn deallocate(&mut self, addr: usize) {
+    pub fn deallocate(&mut self, addr: usize) -> Option<RegionDeallocation> {
         let (order, index) = match self.order_and_index_from_addr(addr) {
             Some(res) => res,
             None => {
                 // WARNING: deallocate invalid addr
-                return;
+                return None;
             }
         };
         let bitmap = self.bitmap_mut(order);
         bitmap.set_free_bit(index);
         bitmap.clear_alloc_bit(index);
         self.counts[order] += 1;
-        self.merge(order, index);
+        Some(RegionDeallocation {
+            deallocated_order: order,
+            merge_order: self.merge(order, index),
+        })
     }
 
     fn split(&mut self, order: usize, mut index: usize, target_order: usize) -> usize {
@@ -99,15 +114,14 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
         index
     }
 
-    fn merge(&mut self, order: usize, mut index: usize) {
+    fn merge(&mut self, order: usize, mut index: usize) -> usize {
         for order in order..(self.bitmaps.len() - 1) {
             index &= !1;
             let buddy_index = index ^ 1;
             let bitmap = self.bitmap_mut(order);
-            if let (Some(true), Some(true)) = (
-                bitmap.get_free_bit_checked(index),
-                bitmap.get_free_bit_checked(buddy_index),
-            ) {
+            if let (Some(true), Some(true)) =
+                (bitmap.get_free_bit(index), bitmap.get_free_bit(buddy_index))
+            {
                 bitmap.clear_free_bit(index);
                 bitmap.clear_free_bit(buddy_index);
                 self.bitmap_mut(order + 1).set_free_bit(index / 2);
@@ -115,9 +129,11 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
                 self.counts[order + 1] += 1;
                 index /= 2;
             } else {
-                break;
+                return order;
             }
         }
+
+        self.bitmaps.len() - 1
     }
 
     fn bitmap(&self, order: usize) -> &BuddyBitmap {
@@ -136,7 +152,7 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
         let mut index = (addr - self.usable_frames_base) / FRAME_SIZE;
         let mut order = 0;
         while order < self.bitmaps.len() {
-            if let Some(true) = self.bitmap(order).get_alloc_bit_checked(index) {
+            if let Some(true) = self.bitmap(order).get_alloc_bit(index) {
                 return Some((order, index));
             }
 
@@ -149,15 +165,10 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
 
     fn create_bitmaps(
         base: usize,
-        layout: RegionLayout<ORDER>,
+        layout: RegionLayout<ORDERS>,
         max_order: usize,
-    ) -> (RawVec<BuddyBitmap>, [usize; ORDER]) {
-        let mut bitmaps = unsafe {
-            RawVec::from_raw_parts(
-                (base + layout.bitmaps_offset) as *mut BuddyBitmap,
-                max_order,
-            )
-        };
+    ) -> (RawVec<BuddyBitmap>, [usize; ORDERS]) {
+        let mut bitmaps = unsafe { RawVec::from_raw_parts(base as *mut BuddyBitmap, max_order) };
         for order in 0..max_order {
             let offset = layout.bitmap_offsets[order].unwrap();
             let bits = layout.usable_frames / 2usize.pow(order as u32);
@@ -165,7 +176,7 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
             bitmaps.push(bitmap).unwrap();
         }
 
-        let mut counts = [0; ORDER];
+        let mut counts = [0; ORDERS];
         let mut index = 0;
         for order in (0..max_order).rev() {
             let bitmap = &mut bitmaps[order];
@@ -186,7 +197,14 @@ impl<const ORDER: usize, const FRAME_SIZE: usize> Region<ORDER, FRAME_SIZE> {
             let bitmap = self.bitmap(order);
             print!("bitmap {}:", order);
             for index in 0..bitmap.len() {
-                print!(" {}", if bitmap.get_free_bit(index) { '#' } else { '.' });
+                print!(
+                    " {}",
+                    if bitmap.get_free_bit(index).unwrap() {
+                        '#'
+                    } else {
+                        '.'
+                    }
+                );
                 if order > 0 {
                     for _ in 0..2usize.pow(order as u32) - 1 {
                         print!("  ");
