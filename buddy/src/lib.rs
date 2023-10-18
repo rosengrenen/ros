@@ -15,7 +15,11 @@ mod util;
 
 use self::{bitmap::Bitmap, region::Region};
 use alloc::raw_vec::RawVec;
-use core::{alloc::Layout, mem::MaybeUninit};
+use core::{alloc::Layout, cmp, mem::MaybeUninit};
+
+// TODO list
+// * extract layout and check that it actually fits, so that we can remove ALL panics
+// * improve naming and return types of certain functions, and look over all code to make sure it's as easy to understand as possible
 
 #[derive(Debug)]
 pub struct BuddyAllocator<const ORDERS: usize, const FRAME_SIZE: usize> {
@@ -56,14 +60,16 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDERS, FRAME_
     }
 
     pub fn add_region(&mut self, base: usize, frames: usize) {
-        let region = Region::new(base, frames);
-        for order in 0..ORDERS {
-            if region.counts[order] > 0 {
-                self.regions_cache[order].set(self.regions.len(), 0);
-            }
+        self.add_region_inner(base, frames);
+        self.sort_regions();
+    }
+
+    pub fn add_regions(&mut self, regions: impl Iterator<Item = (usize, usize)>) {
+        for (base, frames) in regions {
+            self.add_region_inner(base, frames);
         }
 
-        self.regions.push(region).unwrap();
+        self.sort_regions();
     }
 
     pub fn allocate(&mut self, order: usize) -> Result<usize, ()> {
@@ -82,19 +88,35 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDERS, FRAME_
     }
 
     pub fn deallocate(&mut self, addr: usize) {
-        for region_index in 0..self.regions.len() {
-            let region = &mut self.regions[region_index];
+        let region_index = self.regions.binary_search_by(|region| {
             let region_start = region.usable_frames_base;
             let region_end = region_start + region.usable_frames * FRAME_SIZE;
-            if (region_start..region_end).contains(&addr) {
-                let deallocation = region.deallocate(addr).unwrap();
-                for order in deallocation.deallocated_order..=deallocation.merge_order {
-                    self.update_region_cache(order, region_index);
-                }
-
-                break;
+            if addr < region_start {
+                cmp::Ordering::Less
+            } else if addr > region_end {
+                cmp::Ordering::Greater
+            } else {
+                cmp::Ordering::Equal
+            }
+        });
+        if let Ok(region_index) = region_index {
+            let region = &mut self.regions[region_index];
+            let deallocation = region.deallocate(addr).unwrap();
+            for order in deallocation.deallocated_order..=deallocation.merge_order {
+                self.update_region_cache(order, region_index);
             }
         }
+    }
+
+    fn add_region_inner(&mut self, base: usize, frames: usize) {
+        let region = Region::new(base, frames);
+        for order in 0..ORDERS {
+            if region.counts[order] > 0 {
+                self.regions_cache[order].set(self.regions.len(), 0);
+            }
+        }
+
+        self.regions.push(region).unwrap();
     }
 
     fn update_region_cache(&mut self, order: usize, region_index: usize) {
@@ -104,6 +126,11 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDERS, FRAME_
         } else {
             self.regions_cache[order].set(region_index, 0);
         }
+    }
+
+    fn sort_regions(&mut self) {
+        self.regions
+            .sort_unstable_by_key(|region| region.usable_frames_base);
     }
 }
 
