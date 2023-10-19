@@ -47,3 +47,23 @@ test layered_bitmap::tests::bench_find_first_64mb_h ... bench:          35 ns/it
 test layered_bitmap::tests::bench_find_first_64gb_h ... bench:          58 ns/iter (+/- 0)
 
 test result: ok. 0 passed; 0 failed; 3 ignored; 6 measured; 0 filtered out; finished in 11.77s
+
+more cases
+test layered_bitmap::tests::bench_find_first_64kb_best    ... bench:           1 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64kb_avg     ... bench:           1 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64kb_worst   ... bench:           1 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64mb_best    ... bench:           1 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64mb_avg     ... bench:          69 ns/iter (+/- 2)
+test layered_bitmap::tests::bench_find_first_64mb_worst   ... bench:         134 ns/iter (+/- 6)
+test layered_bitmap::tests::bench_find_first_64gb_best    ... bench:           1 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64gb_avg     ... bench:      63,556 ns/iter (+/- 826)
+test layered_bitmap::tests::bench_find_first_64gb_worst   ... bench:     127,660 ns/iter (+/- 848)
+test layered_bitmap::tests::bench_find_first_64kb_h_best  ... bench:           1 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64kb_h_avg   ... bench:           1 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64kb_h_worst ... bench:           2 ns/iter (+/- 1)
+test layered_bitmap::tests::bench_find_first_64mb_h_best  ... bench:           3 ns/iter (+/- 1)
+test layered_bitmap::tests::bench_find_first_64mb_h_avg   ... bench:           3 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64mb_h_worst ... bench:          37 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64gb_h_best  ... bench:           3 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64gb_h_avg   ... bench:          20 ns/iter (+/- 0)
+test layered_bitmap::tests::bench_find_first_64gb_h_worst ... bench:          65 ns/iter (+/- 1)

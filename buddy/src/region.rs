@@ -1,5 +1,9 @@
-use crate::{layered_bitmap::BuddyBitmap, layout::RegionLayout, util::ilog_ceil};
+use crate::{
+    layered_bitmap::{BuddyBitmap, BuddyBitmapLayout},
+    util::ilog_ceil,
+};
 use alloc::raw_vec::RawVec;
+use core::alloc::{Layout, LayoutError};
 
 #[derive(Debug)]
 pub struct Region<const ORDERS: usize, const FRAME_SIZE: usize> {
@@ -20,22 +24,25 @@ pub struct RegionDeallocation {
     pub merge_order: usize,
 }
 
+pub enum RegionError {
+    TooSmall,
+}
+
 impl<const ORDERS: usize, const FRAME_SIZE: usize> Region<ORDERS, FRAME_SIZE> {
-    pub fn new(base: usize, frames: usize) -> Self {
+    pub fn new(base: usize, frames: usize) -> Result<Self, RegionError> {
         assert_eq!(base % FRAME_SIZE, 0);
-        // At least one frame is going to be used for metadata
-        let max_usable_frames = frames - 1;
-        let max_order: usize = ilog_ceil(2, max_usable_frames).min(ORDERS - 1);
-        let layout =
-            RegionLayout::<ORDERS>::new(FRAME_SIZE, frames, max_usable_frames, max_order).unwrap();
-        let (bitmaps, counts) = Self::create_bitmaps(base, layout, max_order);
-        let usable_frames_base = base + layout.usable_base_offset;
-        Self {
-            usable_frames_base,
-            usable_frames: layout.usable_frames,
+        let layout = RegionLayout::<ORDERS>::new(FRAME_SIZE, frames).unwrap();
+        if layout.meta_frames >= frames {
+            return Err(RegionError::TooSmall);
+        }
+
+        let (bitmaps, counts) = Self::create_bitmaps(base, layout);
+        Ok(Self {
+            usable_frames_base: base + layout.meta_frames * FRAME_SIZE,
+            usable_frames: frames - layout.meta_frames,
             counts,
             bitmaps,
-        }
+        })
     }
 
     pub fn allocate(&mut self, order: usize) -> Option<RegionAllocation> {
@@ -43,7 +50,7 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> Region<ORDERS, FRAME_SIZE> {
             return None;
         }
 
-        // 1. Try to allocate from exact order
+        // Try to allocate from exact order
         let bitmap = self.bitmap_mut(order);
         if let Some(index) = bitmap.find_first_free_index_h() {
             bitmap.clear_free_bit(index);
@@ -56,7 +63,7 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> Region<ORDERS, FRAME_SIZE> {
             });
         }
 
-        // 2. If no match was found, search upward and split
+        // If no match was found, search upward and split
         for cur_order in order + 1..=self.bitmaps.len() {
             if let Some(index) = self.bitmap(cur_order).find_first_free_index_h() {
                 let index = self.split(cur_order, index, order);
@@ -166,19 +173,23 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> Region<ORDERS, FRAME_SIZE> {
     fn create_bitmaps(
         base: usize,
         layout: RegionLayout<ORDERS>,
-        max_order: usize,
     ) -> (RawVec<BuddyBitmap>, [usize; ORDERS]) {
-        let mut bitmaps = unsafe { RawVec::from_raw_parts(base as *mut BuddyBitmap, max_order) };
-        for order in 0..max_order {
-            let offset = layout.bitmap_offsets[order].unwrap();
-            let bits = layout.usable_frames / 2usize.pow(order as u32);
-            let bitmap = unsafe { BuddyBitmap::from_raw_parts((base + offset) as *mut _, bits) };
+        let mut bitmaps =
+            unsafe { RawVec::from_raw_parts(base as *mut BuddyBitmap, layout.max_order) };
+        for order in 0..layout.max_order {
+            let order_layout = layout.order_bitmaps[order].unwrap();
+            let bitmap = unsafe {
+                BuddyBitmap::from_raw_parts(
+                    (base + order_layout.offset) as *mut _,
+                    order_layout.layout,
+                )
+            };
             bitmaps.push(bitmap).unwrap();
         }
 
         let mut counts = [0; ORDERS];
         let mut index = 0;
-        for order in (0..max_order).rev() {
+        for order in (0..layout.max_order).rev() {
             let bitmap = &mut bitmaps[order];
             for index in index..bitmap.len() {
                 bitmap.set_free_bit(index);
@@ -231,5 +242,48 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> Region<ORDERS, FRAME_SIZE> {
         }
 
         println!();
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct OrderBitmapLayout {
+    layout: BuddyBitmapLayout,
+    offset: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct RegionLayout<const ORDERS: usize> {
+    order_bitmaps: [Option<OrderBitmapLayout>; ORDERS],
+    meta_frames: usize,
+    max_order: usize,
+}
+
+impl<const ORDERS: usize> RegionLayout<ORDERS> {
+    pub fn new(frame_size: usize, frames: usize) -> Result<Self, LayoutError> {
+        // At least one frame is going to be used for metadata
+        let max_order: usize = ilog_ceil(2, frames).min(ORDERS - 1);
+        let bitmaps_layout = Layout::array::<BuddyBitmap>(max_order)?;
+        let mut combined_layout = bitmaps_layout;
+        let mut order_bitmaps = [None; ORDERS];
+        for (order, order_bitmap) in order_bitmaps.iter_mut().enumerate() {
+            let entries = frames / 2usize.pow(order as u32);
+            if entries == 0 {
+                break;
+            }
+
+            let bitmap_layout = BuddyBitmapLayout::new(entries)?;
+            let (tmp_combined_layout, offset) = combined_layout.extend(bitmap_layout.layout)?;
+            *order_bitmap = Some(OrderBitmapLayout {
+                layout: bitmap_layout,
+                offset,
+            });
+            combined_layout = tmp_combined_layout;
+        }
+
+        Ok(Self {
+            order_bitmaps,
+            meta_frames: combined_layout.size().div_ceil(frame_size),
+            max_order,
+        })
     }
 }
