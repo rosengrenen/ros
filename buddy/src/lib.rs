@@ -29,6 +29,12 @@ pub struct BuddyAllocator<const ORDERS: usize, const FRAME_SIZE: usize> {
 
 impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDERS, FRAME_SIZE> {
     pub fn new(base: usize, frames: usize, regions_capacity: usize) -> Self {
+        let layout = Self::layout(regions_capacity);
+        let meta_frames = (layout.size() + FRAME_SIZE - 1) / FRAME_SIZE;
+        if meta_frames > frames {
+            panic!();
+        }
+
         let regions_layout =
             Layout::array::<RawVec<Region<ORDERS, FRAME_SIZE>>>(regions_capacity).unwrap();
         let regions = unsafe {
@@ -49,11 +55,6 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDERS, FRAME_
             regions,
             regions_cache,
         };
-
-        let meta_frames = (combined_layout.size() + FRAME_SIZE - 1) / FRAME_SIZE;
-        if meta_frames > frames {
-            panic!();
-        }
 
         me.add_region(base + meta_frames * FRAME_SIZE, frames - meta_frames);
         me
@@ -106,6 +107,19 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDERS, FRAME_
                 self.update_region_cache(order, region_index);
             }
         }
+    }
+
+    fn layout(regions_capacity: usize) -> Layout {
+        let regions_layout =
+            Layout::array::<RawVec<Region<ORDERS, FRAME_SIZE>>>(regions_capacity).unwrap();
+        let mut combined_layout = regions_layout;
+        let region_cache_layout = Bitmap::layout(regions_capacity, 1);
+        for _ in 0..ORDERS {
+            let (layout, _) = combined_layout.extend(region_cache_layout).unwrap();
+            combined_layout = layout;
+        }
+
+        combined_layout
     }
 
     fn add_region_inner(&mut self, base: usize, frames: usize) {
