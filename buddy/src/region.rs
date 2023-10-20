@@ -82,8 +82,8 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> Region<ORDERS, FRAME_SIZE> {
         None
     }
 
-    pub fn deallocate(&mut self, addr: usize) -> Option<RegionDeallocation> {
-        let (order, index) = match self.order_and_index_from_addr(addr) {
+    pub fn deallocate(&mut self, order: usize, addr: usize) -> Option<RegionDeallocation> {
+        let index = match self.index_from_addr(addr, order) {
             Some(res) => res,
             None => {
                 // WARNING: deallocate invalid addr
@@ -155,7 +155,7 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> Region<ORDERS, FRAME_SIZE> {
         self.usable_frames_base + index * 2usize.pow(order as u32) * FRAME_SIZE
     }
 
-    fn order_and_index_from_addr(&self, addr: usize) -> Option<(usize, usize)> {
+    fn index_from_addr(&self, addr: usize, order: usize) -> Option<(usize, usize)> {
         let mut index = (addr - self.usable_frames_base) / FRAME_SIZE;
         let mut order = 0;
         while order < self.bitmaps.len() {
@@ -232,7 +232,7 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> Region<ORDERS, FRAME_SIZE> {
         print!("allocate:");
         for i in 0..self.usable_frames {
             if self
-                .order_and_index_from_addr(self.usable_frames_base + i * FRAME_SIZE)
+                .index_from_addr(self.usable_frames_base + i * FRAME_SIZE)
                 .is_some()
             {
                 print!(" #");
