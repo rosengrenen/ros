@@ -26,6 +26,9 @@ use region::RegionError;
 pub struct BuddyAllocator<const ORDERS: usize, const FRAME_SIZE: usize> {
     regions: RawVec<Region<ORDERS, FRAME_SIZE>>,
     regions_cache: [Bitmap; ORDERS],
+    total_bytes: usize,
+    allocated_bytes: usize,
+    fragmented_bytes: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -76,6 +79,9 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDERS, FRAME_
         let mut me = Self {
             regions,
             regions_cache,
+            total_bytes: 0,
+            allocated_bytes: 0,
+            fragmented_bytes: 0,
         };
         me.add_region(base + meta_frames * FRAME_SIZE, frames - meta_frames)?;
         Ok(me)
@@ -99,9 +105,34 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDERS, FRAME_
         Ok(())
     }
 
-    pub fn allocate(&mut self, order: usize) -> Result<usize, AllocateError> {
+    pub fn allocate(&mut self, layout: Layout) -> Result<usize, AllocateError> {
+        let order = layout.size().ilog(FRAME_SIZE) as usize;
+        self.allocated_bytes += layout.size();
+        self.fragmented_bytes += 2usize.pow(order as _) * FRAME_SIZE - layout.size();
+        self.allocate_order_inner(order)
+    }
+
+    pub fn deallocate(&mut self, addr: usize, layout: Layout) {
+        let order = layout.size().ilog(FRAME_SIZE) as usize;
+        self.deallocate_order_inner(addr, order);
+        self.allocated_bytes -= layout.size();
+        self.fragmented_bytes -= 2usize.pow(order as _) * FRAME_SIZE - layout.size();
+    }
+
+    pub fn allocate_order(&mut self, order: usize) -> Result<usize, AllocateError> {
+        let addr = self.allocate_order_inner(order)?;
+        self.allocated_bytes += 2usize.pow(order as _) * FRAME_SIZE;
+        Ok(addr)
+    }
+
+    pub fn deallocate_order(&mut self, addr: usize, order: usize) {
+        self.deallocate_order_inner(addr, order);
+        self.allocated_bytes -= 2usize.pow(order as _) * FRAME_SIZE;
+    }
+
+    fn allocate_order_inner(&mut self, order: usize) -> Result<usize, AllocateError> {
         for o in order..ORDERS {
-            if let Some(region_index) = self.regions_cache[o].find_first_free_index_from(0, 0) {
+            if let Some(region_index) = self.regions_cache[o].find_first_free_index_from(0) {
                 let allocation = match self.regions[region_index].allocate(order) {
                     Some(allocation) => allocation,
                     None => {
@@ -119,7 +150,7 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDERS, FRAME_
         Err(AllocateError::NotEnoughSpace)
     }
 
-    pub fn deallocate(&mut self, addr: usize) {
+    fn deallocate_order_inner(&mut self, addr: usize, order: usize) {
         let region_index = self.regions.binary_search_by(|region| {
             let region_start = region.usable_frames_base;
             let region_end = region_start + region.usable_frames * FRAME_SIZE;
@@ -133,7 +164,7 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDERS, FRAME_
         });
         if let Ok(region_index) = region_index {
             let region = &mut self.regions[region_index];
-            let deallocation = region.deallocate(addr).unwrap();
+            let deallocation = region.deallocate(order, addr).unwrap();
             for order in deallocation.deallocated_order..=deallocation.merge_order {
                 self.update_region_cache(order, region_index);
             }
@@ -146,22 +177,24 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDERS, FRAME_
         })?;
         for order in 0..ORDERS {
             if region.counts[order] > 0 {
-                self.regions_cache[order].set(self.regions.len(), 0);
+                self.regions_cache[order].set(self.regions.len());
             }
         }
 
+        let region_bytes = region.usable_frames * FRAME_SIZE;
         self.regions
             .push(region)
             .map_err(|_| BuddyAllocatorError::MaxCapacity)?;
+        self.total_bytes += region_bytes;
         Ok(())
     }
 
     fn update_region_cache(&mut self, order: usize, region_index: usize) {
         let region = &mut self.regions[region_index];
         if region.counts[order] == 0 {
-            self.regions_cache[order].clear(region_index, 0);
+            self.regions_cache[order].clear(region_index);
         } else {
-            self.regions_cache[order].set(region_index, 0);
+            self.regions_cache[order].set(region_index);
         }
     }
 
@@ -187,7 +220,7 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocatorLayout<ORDERS, 
     fn new(regions_capacity: usize) -> Result<Self, LayoutError> {
         let regions_layout = Layout::array::<RawVec<Region<ORDERS, FRAME_SIZE>>>(regions_capacity)?;
         let mut combined_layout = regions_layout;
-        let region_cache_layout = BitmapLayout::new(regions_capacity, 1)?;
+        let region_cache_layout = BitmapLayout::new(regions_capacity)?;
         #[allow(clippy::uninit_assumed_init)]
         let mut region_caches: [CacheBitmapLayout; ORDERS] =
             unsafe { MaybeUninit::uninit().assume_init() };
@@ -218,14 +251,14 @@ mod tests {
     fn print_allocator(allocator: &BuddyAllocator<5, 4096>) {
         let region = &allocator.regions[0];
         println!("--------------------------------------------------------------------");
-        region.print_allocated();
+        println!(
+            "t: {}, a: {}, f: {}",
+            allocator.total_bytes, allocator.allocated_bytes, allocator.fragmented_bytes
+        );
         for order in 0..5 {
-            println!(
-                "has {}: {}",
-                order,
-                allocator.regions_cache[order].get(0, 0)
-            );
+            println!("has {}: {}", order, allocator.regions_cache[order].get(0));
         }
+
         region.print_free();
     }
 
@@ -241,24 +274,31 @@ mod tests {
         print_allocator(&allocator);
         let mut stack = [0; 10];
         for i in 0..10 {
-            stack[i] = allocator.allocate(0).unwrap();
+            stack[i] = allocator.allocate_order(0).unwrap();
         }
+
         print_allocator(&allocator);
-        let a = allocator.allocate(2).unwrap();
+        let a = allocator.allocate_order(2).unwrap();
         print_allocator(&allocator);
-        let b = allocator.allocate(3).unwrap();
+        let b = allocator.allocate_order(3).unwrap();
         print_allocator(&allocator);
-        let c = allocator.allocate(1).unwrap();
+        let c = allocator.allocate_order(1).unwrap();
         print_allocator(&allocator);
-        allocator.deallocate(a);
+        allocator.deallocate_order(a, 2);
         print_allocator(&allocator);
-        allocator.deallocate(b);
+        allocator.deallocate_order(b, 3);
         print_allocator(&allocator);
-        allocator.deallocate(c);
+        allocator.deallocate_order(c, 1);
         print_allocator(&allocator);
         for i in 0..10 {
-            allocator.deallocate(stack[i]);
+            allocator.deallocate_order(stack[i], 0);
         }
+
+        print_allocator(&allocator);
+        let layout = Layout::array::<u64>(28).unwrap();
+        let d = allocator.allocate(layout).unwrap();
+        print_allocator(&allocator);
+        allocator.deallocate(d, layout);
         print_allocator(&allocator);
 
         assert!(false);
