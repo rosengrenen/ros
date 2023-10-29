@@ -29,7 +29,7 @@ impl<S> PageTableEntryRaw<S> {
     const PAGE_LEVEL_CACHE_BIT: u64 = 4;
     const ACCESSED_BIT: u64 = 5;
     const DIRTY_BIT: u64 = 6;
-    const IS_PAGE_BIT: u64 = 6;
+    const IS_PAGE_BIT: u64 = 7;
 
     pub fn empty() -> Self {
         Self {

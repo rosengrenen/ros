@@ -77,29 +77,52 @@ pub extern "efiapi" fn efi_main(
 
     let mut page_table = PageTable::new(pml4_frame as _);
 
-    // TODO: map first 4gb always, using LARGE pages
-    for region in kernel_memory_map.iter() {
-        match region.ty {
-            MemoryRegionType::ReservedMemoryType => continue,
-            MemoryRegionType::UnusableMemory => continue,
-            MemoryRegionType::MemoryMappedIO => continue,
-            MemoryRegionType::MemoryMappedIOPortSpace => continue,
-            MemoryRegionType::UnacceptedMemoryType => continue,
-            _ => (),
-        };
-        for addr in (region.start..region.end).step_by(4096) {
-            page_table.map_ident(PhysAddr::new(addr), &bump_allocator);
+    let max_addr = kernel_memory_map
+        .iter()
+        .filter(|region| match region.ty {
+            // TODO: whitelist instead of blacklist
+            MemoryRegionType::ReservedMemoryType => false,
+            MemoryRegionType::UnusableMemory => false,
+            MemoryRegionType::MemoryMappedIO => false,
+            MemoryRegionType::MemoryMappedIOPortSpace => false,
+            MemoryRegionType::UnacceptedMemoryType => false,
+            _ => true,
+        })
+        .map(|region| region.end)
+        .max()
+        .unwrap();
+    const GB: u64 = 1024 * 1024 * 1024;
+    const UPPER_HALF: u64 = 0xffff_8000_0000_0000;
+    for i in 0..max_addr.div_ceil(GB) {
+        // Temporary identity map
+        if !page_table.map_1gb(
+            VirtAddr::new(i * GB),
+            PhysAddr::new(i * GB),
+            &bump_allocator,
+        ) {
+            panic!();
+        }
+
+        // Higher half direct map
+        if !page_table.map_1gb(
+            VirtAddr::new(UPPER_HALF + i * GB),
+            PhysAddr::new(i * GB),
+            &bump_allocator,
+        ) {
+            panic!();
         }
     }
 
     // Map kernel to virtual addresses
     // TODO: make text segment read/execute only
     for page in 0..kernel.frames {
-        page_table.map(
+        if !page_table.map(
             VirtAddr::new(kernel.image_start + page * 4096),
             PhysAddr::new(kernel.frame_addr + page * 4096),
             &bump_allocator,
-        );
+        ) {
+            panic!();
+        }
     }
 
     // Allocate stack for the kernel and map it to virtual addresses
@@ -108,11 +131,13 @@ pub extern "efiapi" fn efi_main(
     let stack_end = stack_start & !0xfff - (kernel_stack_frames - 1) * 4096;
     for frame in 0..kernel_stack_frames {
         let stack_frame = bump_allocator.allocate_frame().unwrap();
-        page_table.map(
+        if !page_table.map(
             VirtAddr::new(stack_end + frame * 4096),
             PhysAddr::new(stack_frame as u64),
             &bump_allocator,
-        );
+        ) {
+            panic!();
+        }
     }
 
     let boot_info_frame = bump_allocator.allocate_frame().unwrap();

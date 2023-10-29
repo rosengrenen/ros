@@ -12,7 +12,10 @@ mod layered_bitmap;
 mod region;
 mod util;
 
-use self::{bitmap::Bitmap, region::Region};
+use self::{
+    bitmap::Bitmap,
+    region::{Region, RegionError},
+};
 use alloc::raw_vec::RawVec;
 use bitmap::BitmapLayout;
 use core::{
@@ -20,7 +23,6 @@ use core::{
     cmp,
     mem::MaybeUninit,
 };
-use region::RegionError;
 
 #[derive(Debug)]
 pub struct BuddyAllocator<const ORDERS: usize, const FRAME_SIZE: usize> {
@@ -55,14 +57,14 @@ impl<const ORDERS: usize, const FRAME_SIZE: usize> BuddyAllocator<ORDERS, FRAME_
         frames: usize,
         regions_capacity: usize,
     ) -> Result<Self, BuddyAllocatorError> {
-        let layout = BuddyAllocatorLayout::<ORDERS, FRAME_SIZE>::new(regions_capacity)?;
+        let layout = BuddyAllocatorLayout::<ORDERS, FRAME_SIZE>::new(&regions_capacity)?;
         let meta_frames = layout.meta_frames();
         if meta_frames > frames {
             return Err(BuddyAllocatorError::RegionTooSmall);
         }
 
         let regions = unsafe {
-            RawVec::from_raw_parts(base as *mut Region<ORDERS, FRAME_SIZE>, regions_capacity)
+            RawVec::from_raw_parts(base as *mut Region<ORDERS, FRAME_SIZE>, &regions_capacity)
         };
         #[allow(clippy::uninit_assumed_init)]
         let mut regions_cache: [Bitmap; ORDERS] = unsafe { MaybeUninit::uninit().assume_init() };

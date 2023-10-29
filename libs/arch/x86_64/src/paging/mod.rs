@@ -157,10 +157,7 @@ impl PageTable<Pml4> {
                 PageTableEntry::Page(page) => unreachable!(),
                 PageTableEntry::Table(table) => table.table(),
             },
-            GetOrCreate::Created(entry) => {
-
-                entry.table()
-            }
+            GetOrCreate::Created(entry) => entry.table(),
         };
 
         let pml3_index = virt_addr.pml3_index();
@@ -169,10 +166,7 @@ impl PageTable<Pml4> {
                 PageTableEntry::Page(page) => return false,
                 PageTableEntry::Table(table) => table.table(),
             },
-            GetOrCreate::Created(entry) => {
-
-                entry.table()
-            }
+            GetOrCreate::Created(entry) => entry.table(),
         };
 
         let pml2_index = virt_addr.pml2_index();
@@ -181,10 +175,7 @@ impl PageTable<Pml4> {
                 PageTableEntry::Page(page) => return false,
                 PageTableEntry::Table(table) => table.table(),
             },
-            GetOrCreate::Created(entry) => {
-
-                entry.table()
-            }
+            GetOrCreate::Created(entry) => entry.table(),
         };
 
         let pml1_index = virt_addr.pml1_index();
@@ -195,6 +186,36 @@ impl PageTable<Pml4> {
             page_entry.set_writable(true);
             page_entry.set_frame(Frame4KiB::new(phys_addr));
             pml1.entries_mut()[pml1_index as usize] = page_entry.raw();
+            true
+        }
+    }
+
+    pub fn map_1gb(
+        &mut self,
+        virt_addr: VirtAddr,
+        phys_addr: PhysAddr,
+        frame_allocator: &impl FrameAllocator,
+    ) -> bool {
+        assert!(virt_addr.inner() & 0x3fff_ffff == 0);
+        assert!(phys_addr.inner() & 0x3fff_ffff == 0);
+
+        let pml4_index = virt_addr.pml4_index();
+        let mut pml3 = match self.get_or_create(pml4_index, frame_allocator) {
+            GetOrCreate::Found(entry) => match entry {
+                PageTableEntry::Page(page) => unreachable!(),
+                PageTableEntry::Table(table) => table.table(),
+            },
+            GetOrCreate::Created(entry) => entry.table(),
+        };
+
+        let pml3_index = virt_addr.pml3_index();
+        if let Some(entry) = pml3.get(pml3_index) {
+            false
+        } else {
+            let mut page_entry = PageEntry::<Pml3>::new();
+            page_entry.set_writable(true);
+            page_entry.set_frame(Frame1GiB::new(phys_addr));
+            pml3.entries_mut()[pml3_index as usize] = page_entry.raw();
             true
         }
     }
@@ -247,6 +268,35 @@ impl PageTable<Pml4> {
                 PageTableEntry::Table(_) => unreachable!(),
             };
             pml1.entries_mut()[pml1_index as usize] = PageTableEntryRaw::empty();
+            // TODO: check if page tables are empty and need to be removed
+            Ok(frame.addr())
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn unmap_1gb(
+        &mut self,
+        virt_addr: VirtAddr,
+        frame_allocator: &impl FrameAllocator,
+    ) -> Result<PhysAddr, ()> {
+        assert!(virt_addr.inner() & 0x3fff_ffff == 0);
+        let pml4_index = virt_addr.pml4_index();
+        let mut pml3 = match self.get(pml4_index) {
+            Some(entry) => match entry {
+                PageTableEntry::Page(page) => unreachable!(),
+                PageTableEntry::Table(table) => table.table(),
+            },
+            None => return Err(()),
+        };
+
+        let pml3_index = virt_addr.pml3_index();
+        if let Some(entry) = pml3.get(pml3_index) {
+            let frame = match entry {
+                PageTableEntry::Page(page) => page.frame(),
+                PageTableEntry::Table(_) => unreachable!(),
+            };
+            pml3.entries_mut()[pml3_index as usize] = PageTableEntryRaw::empty();
             // TODO: check if page tables are empty and need to be removed
             Ok(frame.addr())
         } else {
