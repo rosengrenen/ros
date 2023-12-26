@@ -21,13 +21,20 @@ pub trait FrameAllocator {
     fn deallocate_frame(&self, frame: u64) -> Result<(), FrameAllocError>;
 }
 
+pub trait Mapper {
+    //
+}
+
 // Page map levels
 #[derive(Clone, Copy, Debug)]
 pub struct Pml4;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Pml3;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Pml2;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Pml1;
 
@@ -43,6 +50,7 @@ pub struct PageTable<S> {
 
 impl<S> PageTable<S> {
     pub fn new(base: *mut PageTableEntryRaw<S>) -> Self {
+        assert!(base as u64 % 4096 == 0);
         Self { entries: base }
     }
 
@@ -85,6 +93,7 @@ impl<S> PageTable<S> {
             } {
                 *a = 0;
             }
+
             // TODO: clear the thing, needs to be mapped tho :(
             let mut table_entry = TableEntry::new();
             table_entry.set_writable(true);

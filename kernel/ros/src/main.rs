@@ -7,25 +7,16 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 mod bitmap;
-mod frame_allocator;
-mod heap;
-mod init_frame_allocator;
 mod interrupt;
-mod kernel_page_allocator;
 mod msr;
 mod spinlock;
 
-use crate::{
-    frame_allocator::KernelFrameAllocator,
-    heap::{Heap, HeapInner},
-    init_frame_allocator::InitFrameAllocator,
-    kernel_page_allocator::KernelPageAllocator,
-};
 use acpi::{
     aml::{Context, LocatedInput, SimpleError, SimpleErrorKind, TermObj},
-    tables::{DefinitionHeader, Fadt, Rsdp},
+    tables::DefinitionHeader,
 };
 use bootloader_api::BootInfo;
+use buddy::BuddyAllocator;
 use core::{alloc::Allocator, panic::PanicInfo};
 use parser::{multi::many::many, parser::Parser};
 use serial::{SerialPort, COM1_BASE};
@@ -33,7 +24,7 @@ use x86_64::{
     control::Cr3,
     gdt::GdtDesc,
     idt::IdtEntry,
-    paging::{FrameAllocator, PageTable, PhysAddr, Pml4, VirtAddr},
+    paging::{FrameAllocError, FrameAllocator, PageTable, PhysAddr, Pml4, VirtAddr},
 };
 
 #[macro_export]
@@ -44,6 +35,29 @@ macro_rules! sprintln {
         let mut serial = SerialPort::new(COM1_BASE);
         writeln!(serial, $($arg)*).unwrap();
     }}
+}
+
+const UPPER_HALF: u64 = 0xffff_8000_0000_0000;
+fn translate_hhdm(phys: PhysAddr) -> VirtAddr {
+    VirtAddr::new(UPPER_HALF | phys.inner())
+}
+
+struct Buddy(spinlock::Mutex<BuddyAllocator<5, 4096>>);
+
+impl FrameAllocator for Buddy {
+    fn allocate_frame(&self) -> Result<u64, x86_64::paging::FrameAllocError> {
+        let a = self
+            .0
+            .lock()
+            .allocate_order(1)
+            .map_err(|_| FrameAllocError)?;
+        Ok(a as _)
+    }
+
+    fn deallocate_frame(&self, frame: u64) -> Result<(), x86_64::paging::FrameAllocError> {
+        self.0.lock().deallocate_order(frame as _, 1);
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -64,11 +78,35 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     let mut serial = SerialPort::new(COM1_BASE);
     serial.configure(1);
 
+    sprintln!("Setting up buddy allocator...");
+    let mut memory_regions = info
+        .memory_regions
+        .iter()
+        .filter(|region| {
+            info.allocated_frame_ranges.iter().any(|range| {
+                range.base < region.end && range.base + range.frames as u64 * 4096 > region.start
+            })
+        })
+        .map(|region| {
+            (
+                region.start as usize,
+                (region.end - region.start) as usize / 4096,
+            )
+        });
+    let first_memory_region = memory_regions.next().unwrap();
+    let mut buddy_allocator = buddy::BuddyAllocator::<5, 4096>::new(
+        first_memory_region.0,
+        first_memory_region.1,
+        info.memory_regions.len(),
+    )
+    .unwrap();
+    buddy_allocator.add_regions(memory_regions).unwrap();
+    let buddy_allocator = Buddy(spinlock::Mutex::new(buddy_allocator));
     // TODO: all usable memory is now identity mapped!!!
     // UPDATE: first 4gb should be mapped
-    sprintln!("Creating init frame allocator...");
-    let init_frame_allocator =
-        InitFrameAllocator::new(&info.memory_regions[..], &info.allocated_frame_ranges[..]);
+    // sprintln!("Creating init frame allocator...");
+    // let init_frame_allocator =
+    //     InitFrameAllocator::new(&info.memory_regions[..], &info.allocated_frame_ranges[..]);
     let mut page_table = PageTable::<Pml4>::new(Cr3::read().pba_pml4 as _);
 
     {
@@ -76,49 +114,50 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         let target_pages = 16;
         let current_pages = (info.kernel.stack_start - info.kernel.stack_end + 4095) / 4096;
         for i in 0..target_pages - current_pages {
-            let frame = init_frame_allocator.allocate_frame().unwrap();
+            let frame = buddy_allocator.allocate_frame().unwrap();
             page_table.map(
                 VirtAddr::new(info.kernel.stack_end - (i + 1) * 4096),
                 PhysAddr::new(frame),
-                &init_frame_allocator,
+                &buddy_allocator,
             );
         }
     };
 
-    sprintln!("Creating page allocator...");
-    let page_allocator = KernelPageAllocator::new(
-        info.kernel.base + info.kernel.frames as u64 * 4096,
-        32 * 1024 * 1024,
-        &init_frame_allocator,
-        page_table,
-    );
-    sprintln!("Creating frame allocator...");
-    let frame_allocator = KernelFrameAllocator::new(
-        &info.memory_regions[..],
-        init_frame_allocator,
-        &page_allocator,
-        page_table,
-    );
+    // sprintln!("Creating page allocator...");
+    // let page_allocator = KernelPageAllocator::new(
+    //     info.kernel.base + info.kernel.frames as u64 * 4096,
+    //     32 * 1024 * 1024,
+    //     &init_frame_allocator,
+    //     page_table,
+    // );
+    // sprintln!("Creating frame allocator...");
+    // let frame_allocator = KernelFrameAllocator::new(
+    //     &info.memory_regions[..],
+    //     init_frame_allocator,
+    //     &page_allocator,
+    //     page_table,
+    // );
 
-    let allocated_frames = frame_allocator.allocated_frames();
+    let allocated_frames = buddy_allocator.0.lock().allocated_bytes.div_ceil(4096);
     sprintln!("Allocated frames: {:?}(KiB)", allocated_frames);
 
     let gdt = {
-        let frame = frame_allocator.allocate_frame().unwrap();
-        let page = page_allocator.allocate_pages(1);
-        page_table.map(VirtAddr::new(page), PhysAddr::new(frame), &frame_allocator);
+        let frame = buddy_allocator.allocate_frame().unwrap();
+        let page = translate_hhdm(PhysAddr::new(frame));
         unsafe {
-            core::slice::from_raw_parts_mut(page as *mut u64, 4096 / core::mem::size_of::<u64>())
+            core::slice::from_raw_parts_mut(
+                page.inner() as *mut u64,
+                4096 / core::mem::size_of::<u64>(),
+            )
         }
     };
 
     let idt = {
-        let frame = frame_allocator.allocate_frame().unwrap();
-        let page = page_allocator.allocate_pages(1);
-        page_table.map(VirtAddr::new(page), PhysAddr::new(frame), &frame_allocator);
+        let frame = buddy_allocator.allocate_frame().unwrap();
+        let page = translate_hhdm(PhysAddr::new(frame));
         unsafe {
             core::slice::from_raw_parts_mut(
-                page as *mut IdtEntry,
+                page.inner() as *mut IdtEntry,
                 4096 / core::mem::size_of::<IdtEntry>(),
             )
         }
@@ -135,77 +174,78 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         core::arch::asm!("int3");
     }
 
-    sprintln!("Creating heap allocator...");
-    let heap = Heap::new(
-        24 * 1024 * 1024,
-        &frame_allocator,
-        &page_allocator,
-        page_table,
-    );
+    // sprintln!("Creating heap allocator...");
+    // let heap = Heap::new(
+    //     24 * 1024 * 1024,
+    //     &frame_allocator,
+    //     &page_allocator,
+    //     page_table,
+    // );
 
-    let enabled_timer = false;
-    if enabled_timer {
-        sprintln!("Setting up Local APIC for timer interrupts...");
-        unsafe {
-            LAPIC = {
-                let lapic = msr::LApic::current();
-                let page = page_allocator.allocate_pages(1);
-                page_table.map(
-                    VirtAddr::new(page),
-                    PhysAddr::new(lapic.base),
-                    &frame_allocator,
-                );
-                msr::LApic { base: page }
-            }
-        };
-        unsafe {
-            LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
-            LAPIC.write_divide_configuration(0b1010);
-            LAPIC.write_timer_lvt((1 << 17) | 0x20);
-        }
-    }
+    // let enabled_timer = false;
+    // if enabled_timer {
+    //     sprintln!("Setting up Local APIC for timer interrupts...");
+    //     unsafe {
+    //         LAPIC = {
+    //             let lapic = msr::LApic::current();
+    //             let page = page_allocator.allocate_pages(1);
+    //             page_table.map(
+    //                 VirtAddr::new(page),
+    //                 PhysAddr::new(lapic.base),
+    //                 &frame_allocator,
+    //             );
+    //             msr::LApic { base: page }
+    //         }
+    //     };
+    //     unsafe {
+    //         LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
+    //         LAPIC.write_divide_configuration(0b1010);
+    //         LAPIC.write_timer_lvt((1 << 17) | 0x20);
+    //     }
+    // }
 
-    {
-        let heap = heap.inner.lock();
-        sprintln!(
-            "Heap max: {}K, heap current: {}K",
-            heap.max_allocated_bytes / 1024,
-            heap.allocated_bytes / 1024
-        );
-    }
+    // {
+    //     let heap = heap.inner.lock();
+    //     sprintln!(
+    //         "Heap max: {}K, heap current: {}K",
+    //         heap.max_allocated_bytes / 1024,
+    //         heap.allocated_bytes / 1024
+    //     );
+    // }
 
-    sprintln!("Reading rsdp at {:x?}...", info.rsdp);
-    let rsdp = unsafe { Rsdp::from_addr(info.rsdp as u64) };
-    for table_ptr in rsdp.table_ptrs() {
-        let header = unsafe { table_ptr.read() };
-        if &header.signature == b"FACP" {
-            let ptr = table_ptr as *const Fadt;
-            let fadt = unsafe { ptr.read_unaligned() };
-            let dsdt_addr = fadt.dsdt;
-            sprintln!("Reading dsdt...");
-            print_dsdt(dsdt_addr as u64, &heap);
-        }
-    }
+    // sprintln!("Reading rsdp at {:x?}...", info.rsdp);
+    // let rsdp = unsafe { Rsdp::from_addr(info.rsdp as u64) };
+    // for table_ptr in rsdp.table_ptrs() {
+    //     let header = unsafe { table_ptr.read() };
+    //     if &header.signature == b"FACP" {
+    //         let ptr = table_ptr as *const Fadt;
+    //         let fadt = unsafe { ptr.read_unaligned() };
+    //         let dsdt_addr = fadt.dsdt;
+    //         sprintln!("Reading dsdt...");
+    //         print_dsdt(dsdt_addr as u64, &heap);
+    //     }
+    // }
 
-    {
-        let mut heap = heap.inner.lock();
-        let heap: &mut HeapInner = &mut heap;
-        heap.defragment();
-        let free_bytes = heap
-            .free_spaces
-            .iter()
-            .map(|(start, end)| end - start)
-            .sum::<u64>();
-        sprintln!("free bytes: {:x?}", free_bytes);
-        sprintln!("free bytes: {:x?}", 24 * 1024 * 1024 - free_bytes);
-        sprintln!("{:x?}", heap);
-        sprintln!(
-            "Heap max: {}K, heap current: {}K",
-            heap.max_allocated_bytes / 1024,
-            heap.allocated_bytes / 1024
-        );
-    }
+    // {
+    //     let mut heap = heap.inner.lock();
+    //     let heap: &mut HeapInner = &mut heap;
+    //     heap.defragment();
+    //     let free_bytes = heap
+    //         .free_spaces
+    //         .iter()
+    //         .map(|(start, end)| end - start)
+    //         .sum::<u64>();
+    //     sprintln!("free bytes: {:x?}", free_bytes);
+    //     sprintln!("free bytes: {:x?}", 24 * 1024 * 1024 - free_bytes);
+    //     // sprintln!("{:x?}", heap);
+    //     sprintln!(
+    //         "Heap max: {}K, heap current: {}K",
+    //         heap.max_allocated_bytes / 1024,
+    //         heap.allocated_bytes / 1024
+    //     );
+    // }
 
+    sprintln!("Entering halt loop...");
     loop {
         unsafe { core::arch::asm!("hlt") };
         sprintln!("Waking up from halt");

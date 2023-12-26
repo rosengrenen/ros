@@ -19,6 +19,13 @@ name = "bootloader_api"
 version = "0.0.0"
 
 [[package]]
+name = "buddy"
+version = "0.0.0"
+dependencies = [
+ "alloc",
+]
+
+[[package]]
 name = "parser"
 version = "0.0.0"
 dependencies = [
@@ -32,6 +39,7 @@ dependencies = [
  "acpi",
  "alloc",
  "bootloader_api",
+ "buddy",
  "parser",
  "serial",
  "uefi",

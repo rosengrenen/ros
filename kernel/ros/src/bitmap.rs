@@ -14,7 +14,7 @@ impl fmt::Debug for Bitmap {
 
 impl Bitmap {
     pub unsafe fn from_raw_parts(ptr: *mut u64, len: usize) -> Self {
-        let vec_len = (len + 63) / 64;
+        let vec_len = len.div_ceil(64);
         let mut vec = unsafe { RawVec::from_raw_parts(ptr, vec_len) };
         for _ in 0..vec_len {
             vec.push(0).unwrap();

@@ -28,9 +28,9 @@ use core::{
 pub struct BuddyAllocator<const ORDERS: usize, const FRAME_SIZE: usize> {
     regions: RawVec<Region<ORDERS, FRAME_SIZE>>,
     regions_cache: [Bitmap; ORDERS],
-    total_bytes: usize,
-    allocated_bytes: usize,
-    fragmented_bytes: usize,
+    pub total_bytes: usize,
+    pub allocated_bytes: usize,
+    pub fragmented_bytes: usize,
 }
 
 #[derive(Clone, Debug)]
