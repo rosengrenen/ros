@@ -50,7 +50,13 @@ unsafe impl<F: FrameAllocator> Allocator for SlabCache<F> {
             inner.active = Some(slab_ptr);
             slab_ptr
         };
-        Ok(unsafe { active.as_mut() }.allocate(layout))
+        let active = unsafe { active.as_mut() };
+        let ptr = active.allocate(layout);
+        if active.freelist.is_none() {
+            inner.active = None;
+        }
+
+        Ok(ptr)
     }
 
     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {

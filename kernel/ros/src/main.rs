@@ -125,7 +125,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
 
     {
         sprintln!("Expanding stack...");
-        let target_pages = 128;
+        let target_pages = 16;
         let current_pages = (info.kernel.stack_start - info.kernel.stack_end + 4095) / 4096;
         for i in 0..target_pages - current_pages {
             let frame = buddy_allocator.allocate_frame().unwrap();
