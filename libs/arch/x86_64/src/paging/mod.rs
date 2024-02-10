@@ -21,6 +21,19 @@ pub trait FrameAllocator {
     fn deallocate_frame(&self, frame: u64) -> Result<(), FrameAllocError>;
 }
 
+impl<F> FrameAllocator for &F
+where
+    F: FrameAllocator,
+{
+    fn allocate_frame(&self) -> Result<u64, FrameAllocError> {
+        (**self).allocate_frame()
+    }
+
+    fn deallocate_frame(&self, frame: u64) -> Result<(), FrameAllocError> {
+        (**self).deallocate_frame(frame)
+    }
+}
+
 pub trait Mapper {
     //
 }

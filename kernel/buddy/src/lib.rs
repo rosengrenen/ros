@@ -1,7 +1,6 @@
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(test, feature(vec_into_raw_parts))]
 #![cfg_attr(test, feature(test))]
-#![feature(pointer_byte_offsets)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 #[cfg(test)]

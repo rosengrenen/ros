@@ -3,21 +3,28 @@
 #![feature(allocator_api)]
 #![feature(abi_x86_interrupt)]
 #![feature(format_args_nl)]
+#![feature(non_null_convenience)]
 // TODO: think about if this is necessary
 #![deny(unsafe_op_in_unsafe_fn)]
 
-mod bitmap;
+// mod bitmap;
 mod interrupt;
+mod kalloc;
 mod msr;
+mod slub;
 mod spinlock;
 
 use acpi::{
     aml::{Context, LocatedInput, SimpleError, SimpleErrorKind, TermObj},
-    tables::DefinitionHeader,
+    tables::{DefinitionHeader, Fadt, Rsdp},
 };
+use alloc::boxed::Box;
 use bootloader_api::BootInfo;
 use buddy::BuddyAllocator;
-use core::{alloc::Allocator, panic::PanicInfo};
+use core::{
+    alloc::{Allocator, Layout},
+    panic::PanicInfo,
+};
 use parser::{multi::many::many, parser::Parser};
 use serial::{SerialPort, COM1_BASE};
 use x86_64::{
@@ -26,6 +33,8 @@ use x86_64::{
     idt::IdtEntry,
     paging::{FrameAllocError, FrameAllocator, PageTable, PhysAddr, Pml4, VirtAddr},
 };
+
+use crate::{kalloc::KernelAllocator, slub::SlabCacheInner};
 
 #[macro_export]
 macro_rules! sprintln {
@@ -42,6 +51,7 @@ fn translate_hhdm(phys: PhysAddr) -> VirtAddr {
     VirtAddr::new(UPPER_HALF | phys.inner())
 }
 
+#[derive(Debug)]
 struct Buddy(spinlock::Mutex<BuddyAllocator<5, 4096>>);
 
 impl FrameAllocator for Buddy {
@@ -50,6 +60,7 @@ impl FrameAllocator for Buddy {
             .0
             .lock()
             .allocate_order(1)
+            .map(|addr| translate_hhdm(PhysAddr::new(addr as u64)).inner())
             .map_err(|_| FrameAllocError)?;
         Ok(a as _)
     }
@@ -102,6 +113,9 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     .unwrap();
     buddy_allocator.add_regions(memory_regions).unwrap();
     let buddy_allocator = Buddy(spinlock::Mutex::new(buddy_allocator));
+
+    let kalloc = KernelAllocator::new(&buddy_allocator);
+
     // TODO: all usable memory is now identity mapped!!!
     // UPDATE: first 4gb should be mapped
     // sprintln!("Creating init frame allocator...");
@@ -111,7 +125,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
 
     {
         sprintln!("Expanding stack...");
-        let target_pages = 16;
+        let target_pages = 128;
         let current_pages = (info.kernel.stack_start - info.kernel.stack_end + 4095) / 4096;
         for i in 0..target_pages - current_pages {
             let frame = buddy_allocator.allocate_frame().unwrap();
@@ -122,21 +136,6 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
             );
         }
     };
-
-    // sprintln!("Creating page allocator...");
-    // let page_allocator = KernelPageAllocator::new(
-    //     info.kernel.base + info.kernel.frames as u64 * 4096,
-    //     32 * 1024 * 1024,
-    //     &init_frame_allocator,
-    //     page_table,
-    // );
-    // sprintln!("Creating frame allocator...");
-    // let frame_allocator = KernelFrameAllocator::new(
-    //     &info.memory_regions[..],
-    //     init_frame_allocator,
-    //     &page_allocator,
-    //     page_table,
-    // );
 
     let allocated_frames = buddy_allocator.0.lock().allocated_bytes.div_ceil(4096);
     sprintln!("Allocated frames: {:?}(KiB)", allocated_frames);
@@ -174,14 +173,6 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         core::arch::asm!("int3");
     }
 
-    // sprintln!("Creating heap allocator...");
-    // let heap = Heap::new(
-    //     24 * 1024 * 1024,
-    //     &frame_allocator,
-    //     &page_allocator,
-    //     page_table,
-    // );
-
     // let enabled_timer = false;
     // if enabled_timer {
     //     sprintln!("Setting up Local APIC for timer interrupts...");
@@ -213,18 +204,18 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     //     );
     // }
 
-    // sprintln!("Reading rsdp at {:x?}...", info.rsdp);
-    // let rsdp = unsafe { Rsdp::from_addr(info.rsdp as u64) };
-    // for table_ptr in rsdp.table_ptrs() {
-    //     let header = unsafe { table_ptr.read() };
-    //     if &header.signature == b"FACP" {
-    //         let ptr = table_ptr as *const Fadt;
-    //         let fadt = unsafe { ptr.read_unaligned() };
-    //         let dsdt_addr = fadt.dsdt;
-    //         sprintln!("Reading dsdt...");
-    //         print_dsdt(dsdt_addr as u64, &heap);
-    //     }
-    // }
+    sprintln!("Reading rsdp at {:x?}...", info.rsdp);
+    let rsdp = unsafe { Rsdp::from_addr(info.rsdp as u64) };
+    for table_ptr in rsdp.table_ptrs() {
+        let header = unsafe { table_ptr.read() };
+        if &header.signature == b"FACP" {
+            let ptr = table_ptr as *const Fadt;
+            let fadt = unsafe { ptr.read_unaligned() };
+            let dsdt_addr = fadt.dsdt;
+            sprintln!("Reading dsdt...");
+            print_dsdt(dsdt_addr as u64, &kalloc);
+        }
+    }
 
     // {
     //     let mut heap = heap.inner.lock();
