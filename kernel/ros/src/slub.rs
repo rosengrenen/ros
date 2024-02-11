@@ -1,9 +1,10 @@
-use crate::{spinlock::Mutex, sprintln, translate_hhdm};
+use crate::{spinlock::Mutex, sprintln, FRAME_OFFSET_MAPPER};
 use common::frame::FrameAllocator;
 use core::{
     alloc::{Allocator, Layout},
     ptr::NonNull,
 };
+use x86_64::paging::PageTableFrameMapper;
 
 // This is a simple slab allocator, and only works on a single cpu for now.
 // Basically just a number of freestanding frames that have fixed size slots of a particular size.
@@ -34,18 +35,20 @@ unsafe impl<F: FrameAllocator> Allocator for SlabCache<F> {
             active
         } else {
             sprintln!("created new slab");
+            // TODO: use page allocator not a frame allocator
             let frame = self.frame_allocator.allocate_frame().unwrap();
             let slab_layout = Layout::new::<Slab>();
             let (_, offset) = slab_layout.extend(layout).unwrap();
-            let slab_ptr = translate_hhdm(frame).as_ptr_mut::<Slab>();
-            let slab_ptr = unsafe {
-                slab_ptr.write(Slab::new(
-                    frame + offset as u64,
+            // TODO: make generic over page allocator instead of frame allocator
+            let mut page = FRAME_OFFSET_MAPPER.frame_to_page(frame);
+            let mut slab_ptr = NonNull::new(page.as_ptr_mut::<Slab>()).unwrap();
+            unsafe {
+                *slab_ptr.as_mut() = Slab::new(
+                    page.as_u64() + offset as u64,
                     4096 - offset as u64,
                     self.object_layout,
-                ));
-                NonNull::new(slab_ptr).unwrap()
-            };
+                );
+            }
             inner.active = Some(slab_ptr);
             slab_ptr
         };

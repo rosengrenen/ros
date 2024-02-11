@@ -28,7 +28,12 @@ use common::{
 use core::{alloc::Allocator, panic::PanicInfo};
 use parser::{multi::many::many, parser::Parser};
 use serial::{SerialPort, COM1_BASE};
-use x86_64::{control::Cr3, gdt::GdtDesc, idt::IdtEntry, paging::PageTable};
+use x86_64::{
+    control::Cr3,
+    gdt::GdtDesc,
+    idt::IdtEntry,
+    paging::{MappedPageTable, PageTable, PageTableFrameMapper, PageTableFrameOffsetMapper},
+};
 
 #[macro_export]
 macro_rules! sprintln {
@@ -41,8 +46,16 @@ macro_rules! sprintln {
 }
 
 const UPPER_HALF: u64 = 0xffff_8000_0000_0000;
-pub fn translate_hhdm(phys: PhysAddr) -> VirtAddr {
-    VirtAddr::new(UPPER_HALF | phys.as_u64())
+pub const FRAME_OFFSET_MAPPER: PageTableFrameOffsetMapper =
+    PageTableFrameOffsetMapper::new(UPPER_HALF);
+
+fn ilog_ceil(base: usize, value: usize) -> usize {
+    let log = value.ilog(base) as usize;
+    if value > base.pow(log as _) {
+        log + 1
+    } else {
+        log
+    }
 }
 
 #[derive(Debug)]
@@ -54,15 +67,15 @@ impl FrameAllocator for Buddy {
             .0
             .lock()
             // TODO: f64log2 not in core, only std
-            .allocate_order((num_frames as f64).log2().ceil() as u64 + 1)
+            .allocate_order(ilog_ceil(2, num_frames) + 1)
             .map_err(|_| FrameAllocError)?;
-        Ok(a as _)
+        Ok(PhysAddr::new(a as u64))
     }
 
     fn deallocate_frames(&self, frame: PhysAddr, num_frames: usize) -> Result<(), FrameAllocError> {
         self.0
             .lock()
-            .deallocate_order(frame, (num_frames as f64).log2().ceil() as u64 + 1);
+            .deallocate_order(frame.as_u64() as usize, ilog_ceil(2, num_frames) + 1);
         Ok(())
     }
 }
@@ -117,7 +130,11 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     // sprintln!("Creating init frame allocator...");
     // let init_frame_allocator =
     //     InitFrameAllocator::new(&info.memory_regions[..], &info.allocated_frame_ranges[..]);
-    let page_table = translate_hhdm(PhysAddr::new(Cr3::read())).as_ref_mut::<PageTable>();
+
+    let page_table = FRAME_OFFSET_MAPPER
+        .frame_to_page(PhysAddr::new(Cr3::read().pba_pml4))
+        .as_ref_mut::<PageTable>();
+    let mut mapped_page_table = MappedPageTable::new(page_table, FRAME_OFFSET_MAPPER);
 
     {
         sprintln!("Expanding stack...");
@@ -125,11 +142,13 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         let current_pages = (info.kernel.stack_start - info.kernel.stack_end + 4095) / 4096;
         for i in 0..target_pages - current_pages {
             let frame = buddy_allocator.allocate_frame().unwrap();
-            page_table.map(
-                VirtAddr::new(info.kernel.stack_end - (i + 1) * 4096),
-                PhysAddr::new(frame),
-                &buddy_allocator,
-            );
+            mapped_page_table
+                .map(
+                    VirtAddr::new(info.kernel.stack_end - (i + 1) * 4096),
+                    frame,
+                    &buddy_allocator,
+                )
+                .unwrap();
         }
     };
 
@@ -138,24 +157,14 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
 
     let gdt = {
         let frame = buddy_allocator.allocate_frame().unwrap();
-        let page = translate_hhdm(PhysAddr::new(frame));
-        unsafe {
-            core::slice::from_raw_parts_mut(
-                page.inner() as *mut u64,
-                4096 / core::mem::size_of::<u64>(),
-            )
-        }
+        let mut page = FRAME_OFFSET_MAPPER.frame_to_page(frame);
+        page.as_slice_mut::<u64>(4096 / core::mem::size_of::<u64>())
     };
 
     let idt = {
         let frame = buddy_allocator.allocate_frame().unwrap();
-        let page = translate_hhdm(PhysAddr::new(frame));
-        unsafe {
-            core::slice::from_raw_parts_mut(
-                page.inner() as *mut IdtEntry,
-                4096 / core::mem::size_of::<IdtEntry>(),
-            )
-        }
+        let mut page = FRAME_OFFSET_MAPPER.frame_to_page(frame);
+        page.as_slice_mut::<IdtEntry>(4096 / core::mem::size_of::<IdtEntry>())
     };
 
     sprintln!("Setting up GDT...");
@@ -200,18 +209,27 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     //     );
     // }
 
-    sprintln!("Reading rsdp at {:x?}...", info.rsdp);
-    let rsdp = unsafe { Rsdp::from_addr(info.rsdp as u64) };
-    for table_ptr in rsdp.table_ptrs() {
-        let header = unsafe { table_ptr.read() };
-        if &header.signature == b"FACP" {
-            let ptr = table_ptr as *const Fadt;
-            let fadt = unsafe { ptr.read_unaligned() };
-            let dsdt_addr = fadt.dsdt;
-            sprintln!("Reading dsdt...");
-            print_dsdt(dsdt_addr as u64, &kalloc);
-        }
-    }
+    let rsdp_addr = FRAME_OFFSET_MAPPER
+        .frame_to_page(PhysAddr::new(info.rsdp as u64))
+        .as_u64();
+    sprintln!("Reading rsdp at {:x?}...", rsdp_addr);
+    let rsdp = unsafe { Rsdp::from_addr(rsdp_addr) };
+
+    // for table_ptr in rsdp.table_ptrs() {
+    //     let table_ptr = FRAME_OFFSET_MAPPER
+    //         .frame_to_page(PhysAddr::new(table_ptr as u64))
+    //         .as_ptr::<DefinitionHeader>();
+    //     let header = unsafe { table_ptr.read() };
+    //     if &header.signature == b"FACP" {
+    //         let ptr = table_ptr as *const Fadt;
+    //         let fadt = unsafe { ptr.read_unaligned() };
+    //         let dsdt_addr = FRAME_OFFSET_MAPPER
+    //             .frame_to_page(PhysAddr::new(fadt.dsdt as u64))
+    //             .as_u64();
+    //         sprintln!("Reading dsdt...");
+    //         print_dsdt(dsdt_addr, &kalloc);
+    //     }
+    // }
 
     // {
     //     let mut heap = heap.inner.lock();
