@@ -1,7 +1,6 @@
-use core::alloc::{Allocator, Layout};
-
 use crate::{slub::SlabCache, spinlock::Mutex, sprintln};
-use x86_64::paging::FrameAllocator;
+use common::frame::FrameAllocator;
+use core::alloc::{Allocator, Layout};
 
 pub struct KernelAllocator<'f, F: FrameAllocator> {
     slab_32: Mutex<SlabCache<&'f F>>,

@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 alloc = { path = "../libs/alloc" }
 bootloader_api = { path = "../bootloader_api" }
+common = { path = "../libs/common" }
 serial = { path = "../libs/serial" }
 stack_vec = { path = "../libs/stack_vec" }
 uefi = { path = "../libs/uefi" }

@@ -1,10 +1,9 @@
+use crate::{spinlock::Mutex, sprintln, translate_hhdm};
+use common::frame::FrameAllocator;
 use core::{
     alloc::{Allocator, Layout},
     ptr::NonNull,
 };
-
-use crate::{spinlock::Mutex, sprintln};
-use x86_64::paging::FrameAllocator;
 
 // This is a simple slab allocator, and only works on a single cpu for now.
 // Basically just a number of freestanding frames that have fixed size slots of a particular size.
@@ -38,7 +37,7 @@ unsafe impl<F: FrameAllocator> Allocator for SlabCache<F> {
             let frame = self.frame_allocator.allocate_frame().unwrap();
             let slab_layout = Layout::new::<Slab>();
             let (_, offset) = slab_layout.extend(layout).unwrap();
-            let slab_ptr = frame as *mut Slab;
+            let slab_ptr = translate_hhdm(frame).as_ptr_mut::<Slab>();
             let slab_ptr = unsafe {
                 slab_ptr.write(Slab::new(
                     frame + offset as u64,

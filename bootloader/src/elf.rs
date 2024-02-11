@@ -5,7 +5,7 @@ pub struct KernelExecutable {
     pub image_start: u64,
     pub image_end: u64,
     pub frame_addr: u64,
-    pub frames: u64,
+    pub num_frames: usize,
     pub entry_point: u64,
 }
 
@@ -57,11 +57,17 @@ pub fn mount_kernel(
     kernel_virt_base &= !0xfff;
     kernel_virt_limit += 4095;
     kernel_virt_limit &= !0xfff;
-    let kernel_frames = (kernel_virt_limit - kernel_virt_base) / 4096;
+    let kernel_frames = (kernel_virt_limit - kernel_virt_base) as usize / 4096;
     // TODO: allocate zeroed
-    let kernel_phys_base = bump_alloc.allocate_frames(kernel_frames).unwrap();
+    let mut kernel_phys_base = bump_alloc
+        .allocate_frames(kernel_frames)
+        .unwrap()
+        .as_virt_ident();
     let kernel = unsafe {
-        core::slice::from_raw_parts_mut(kernel_phys_base as *mut u8, kernel_frames as usize * 4096)
+        core::slice::from_raw_parts_mut(
+            kernel_phys_base.as_ptr_mut::<u8>(),
+            kernel_frames as usize * 4096,
+        )
     };
     for entry in load_entries {
         let entry_files_offset = entry.segment_file_offset as usize;
@@ -79,8 +85,8 @@ pub fn mount_kernel(
     Ok(KernelExecutable {
         image_start: kernel_virt_base,
         image_end: kernel_virt_limit,
-        frame_addr: kernel_phys_base as u64,
-        frames: kernel_frames,
+        frame_addr: kernel_phys_base.as_u64(),
+        num_frames: kernel_frames,
         entry_point: header.entry,
     })
 }

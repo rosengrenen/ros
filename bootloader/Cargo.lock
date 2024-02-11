@@ -12,6 +12,7 @@ version = "0.0.0"
 dependencies = [
  "alloc",
  "bootloader_api",
+ "common",
  "serial",
  "stack_vec",
  "uefi",
@@ -20,6 +21,10 @@ dependencies = [
 
 [[package]]
 name = "bootloader_api"
+version = "0.0.0"
+
+[[package]]
+name = "common"
 version = "0.0.0"
 
 [[package]]
@@ -40,3 +45,6 @@ dependencies = [
 [[package]]
 name = "x86_64"
 version = "0.0.0"
+dependencies = [
+ "common",
+]

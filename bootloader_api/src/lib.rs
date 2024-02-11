@@ -30,7 +30,7 @@ pub struct Kernel {
     /// Physical address of kernel base
     pub base: u64,
     /// Number of frames the kernel occupies
-    pub frames: usize,
+    pub num_frames: usize,
     /// Physical address
     pub stack_start: u64,
     pub stack_end: u64,
@@ -94,6 +94,7 @@ impl core::ops::Deref for AllocatedFrameRanges {
 #[repr(C)]
 
 pub struct AllocatedFrameRange {
+    // TOOD: PhysAddr
     pub base: u64,
     pub frames: usize,
 }
