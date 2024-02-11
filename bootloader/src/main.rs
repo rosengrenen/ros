@@ -28,7 +28,10 @@ use uefi::{
     },
     string::String16,
 };
-use x86_64::{control::Cr3, paging::PageTable};
+use x86_64::{
+    control::Cr3,
+    paging::{MappedPageTable, PageTable, PageTableFrameMapper, PageTableFrameOffsetMapper},
+};
 
 #[macro_export]
 macro_rules! sprintln {
@@ -75,8 +78,10 @@ pub extern "efiapi" fn efi_main(
         .unwrap();
 
     let pml4_frame = bump_allocator.allocate_frame().unwrap();
-
     let page_table = pml4_frame.as_virt_ident().as_ref_mut::<PageTable>();
+
+    let mut mapped_page_table =
+        MappedPageTable::new(page_table, PageTableFrameOffsetMapper::default());
 
     let max_addr = kernel_memory_map
         .iter()
@@ -96,7 +101,7 @@ pub extern "efiapi" fn efi_main(
     const UPPER_HALF: u64 = 0xffff_8000_0000_0000;
     for i in 0..max_addr.div_ceil(GB) {
         // Temporary identity map
-        page_table
+        mapped_page_table
             .map_1gb(
                 VirtAddr::new(i * GB),
                 PhysAddr::new(i * GB),
@@ -105,7 +110,7 @@ pub extern "efiapi" fn efi_main(
             .unwrap();
 
         // Higher half direct map
-        page_table
+        mapped_page_table
             .map_1gb(
                 VirtAddr::new(UPPER_HALF + i * GB),
                 PhysAddr::new(i * GB),
@@ -117,7 +122,7 @@ pub extern "efiapi" fn efi_main(
     // Map kernel to virtual addresses
     // TODO: make text segment read/execute only
     for page in 0..kernel.num_frames {
-        page_table
+        mapped_page_table
             .map(
                 VirtAddr::new(kernel.image_start + page as u64 * 4096),
                 PhysAddr::new(kernel.frame_addr + page as u64 * 4096),
@@ -127,12 +132,12 @@ pub extern "efiapi" fn efi_main(
     }
 
     // Allocate stack for the kernel and map it to virtual addresses
-    let kernel_stack_frames = 4;
+    let kernel_stack_frames = 8;
     let stack_start: u64 = 0xffff_ffff_ffff_fff8;
     let stack_end = stack_start & !0xfff - (kernel_stack_frames - 1) * 4096;
     for frame in 0..kernel_stack_frames {
         let stack_frame = bump_allocator.allocate_frame().unwrap();
-        page_table
+        mapped_page_table
             .map(
                 VirtAddr::new(stack_end + frame * 4096),
                 stack_frame,

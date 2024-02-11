@@ -27,10 +27,3 @@ impl VirtAddrExt for VirtAddr {
         self.as_u64() as usize >> 12 & 0x1ff
     }
 }
-
-// TODO: this should probably be more generic
-
-const UPPER_HALF: u64 = 0xffff_8000_0000_0000;
-pub fn translate_hhdm(phys: PhysAddr) -> VirtAddr {
-    VirtAddr::new(UPPER_HALF | phys.as_u64())
-}
