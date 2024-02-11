@@ -14,6 +14,7 @@ acpi = { path = "../../libs/acpi" }
 alloc = { path = "../../libs/alloc" }
 bootloader_api = { path = "../../bootloader_api" }
 buddy = { path = "../buddy" }
+common = { path = "../../libs/common" }
 parser = { path = "../../libs/parser" }
 serial = { path = "../../libs/serial" }
 uefi = { path = "../../libs/uefi" }

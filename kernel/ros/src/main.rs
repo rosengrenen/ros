@@ -14,27 +14,21 @@ mod msr;
 mod slub;
 mod spinlock;
 
+use crate::kalloc::KernelAllocator;
 use acpi::{
     aml::{Context, LocatedInput, SimpleError, SimpleErrorKind, TermObj},
     tables::{DefinitionHeader, Fadt, Rsdp},
 };
-use alloc::boxed::Box;
 use bootloader_api::BootInfo;
 use buddy::BuddyAllocator;
-use core::{
-    alloc::{Allocator, Layout},
-    panic::PanicInfo,
+use common::{
+    addr::{PhysAddr, VirtAddr},
+    frame::{FrameAllocError, FrameAllocator},
 };
+use core::{alloc::Allocator, panic::PanicInfo};
 use parser::{multi::many::many, parser::Parser};
 use serial::{SerialPort, COM1_BASE};
-use x86_64::{
-    control::Cr3,
-    gdt::GdtDesc,
-    idt::IdtEntry,
-    paging::{FrameAllocError, FrameAllocator, PageTable, PhysAddr, Pml4, VirtAddr},
-};
-
-use crate::{kalloc::KernelAllocator, slub::SlabCacheInner};
+use x86_64::{control::Cr3, gdt::GdtDesc, idt::IdtEntry, paging::PageTable};
 
 #[macro_export]
 macro_rules! sprintln {
@@ -47,26 +41,28 @@ macro_rules! sprintln {
 }
 
 const UPPER_HALF: u64 = 0xffff_8000_0000_0000;
-fn translate_hhdm(phys: PhysAddr) -> VirtAddr {
-    VirtAddr::new(UPPER_HALF | phys.inner())
+pub fn translate_hhdm(phys: PhysAddr) -> VirtAddr {
+    VirtAddr::new(UPPER_HALF | phys.as_u64())
 }
 
 #[derive(Debug)]
 struct Buddy(spinlock::Mutex<BuddyAllocator<5, 4096>>);
 
 impl FrameAllocator for Buddy {
-    fn allocate_frame(&self) -> Result<u64, x86_64::paging::FrameAllocError> {
+    fn allocate_frames(&self, num_frames: usize) -> Result<PhysAddr, FrameAllocError> {
         let a = self
             .0
             .lock()
-            .allocate_order(1)
-            .map(|addr| translate_hhdm(PhysAddr::new(addr as u64)).inner())
+            // TODO: f64log2 not in core, only std
+            .allocate_order((num_frames as f64).log2().ceil() as u64 + 1)
             .map_err(|_| FrameAllocError)?;
         Ok(a as _)
     }
 
-    fn deallocate_frame(&self, frame: u64) -> Result<(), x86_64::paging::FrameAllocError> {
-        self.0.lock().deallocate_order(frame as _, 1);
+    fn deallocate_frames(&self, frame: PhysAddr, num_frames: usize) -> Result<(), FrameAllocError> {
+        self.0
+            .lock()
+            .deallocate_order(frame, (num_frames as f64).log2().ceil() as u64 + 1);
         Ok(())
     }
 }
@@ -121,7 +117,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     // sprintln!("Creating init frame allocator...");
     // let init_frame_allocator =
     //     InitFrameAllocator::new(&info.memory_regions[..], &info.allocated_frame_ranges[..]);
-    let mut page_table = PageTable::<Pml4>::new(Cr3::read().pba_pml4 as _);
+    let page_table = translate_hhdm(PhysAddr::new(Cr3::read())).as_ref_mut::<PageTable>();
 
     {
         sprintln!("Expanding stack...");

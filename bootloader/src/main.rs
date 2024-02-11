@@ -11,6 +11,10 @@ mod elf;
 use crate::{allocator::BumpAllocator, elf::mount_kernel};
 use alloc::{raw_vec::RawVec, vec::Vec};
 use bootloader_api::{AllocatedFrameRange, BootInfo, MemoryRegion, MemoryRegionType};
+use common::{
+    addr::{PhysAddr, VirtAddr},
+    frame::FrameAllocator,
+};
 use core::{
     alloc::Layout,
     fmt::{Arguments, Write},
@@ -24,10 +28,7 @@ use uefi::{
     },
     string::String16,
 };
-use x86_64::{
-    control::Cr3,
-    paging::{FrameAllocator, PageTable, PhysAddr, VirtAddr},
-};
+use x86_64::{control::Cr3, paging::PageTable};
 
 #[macro_export]
 macro_rules! sprintln {
@@ -75,7 +76,7 @@ pub extern "efiapi" fn efi_main(
 
     let pml4_frame = bump_allocator.allocate_frame().unwrap();
 
-    let mut page_table = PageTable::new(pml4_frame as _);
+    let page_table = pml4_frame.as_virt_ident().as_ref_mut::<PageTable>();
 
     let max_addr = kernel_memory_map
         .iter()
@@ -95,34 +96,34 @@ pub extern "efiapi" fn efi_main(
     const UPPER_HALF: u64 = 0xffff_8000_0000_0000;
     for i in 0..max_addr.div_ceil(GB) {
         // Temporary identity map
-        if !page_table.map_1gb(
-            VirtAddr::new(i * GB),
-            PhysAddr::new(i * GB),
-            &bump_allocator,
-        ) {
-            panic!();
-        }
+        page_table
+            .map_1gb(
+                VirtAddr::new(i * GB),
+                PhysAddr::new(i * GB),
+                &bump_allocator,
+            )
+            .unwrap();
 
         // Higher half direct map
-        if !page_table.map_1gb(
-            VirtAddr::new(UPPER_HALF + i * GB),
-            PhysAddr::new(i * GB),
-            &bump_allocator,
-        ) {
-            panic!();
-        }
+        page_table
+            .map_1gb(
+                VirtAddr::new(UPPER_HALF + i * GB),
+                PhysAddr::new(i * GB),
+                &bump_allocator,
+            )
+            .unwrap();
     }
 
     // Map kernel to virtual addresses
     // TODO: make text segment read/execute only
-    for page in 0..kernel.frames {
-        if !page_table.map(
-            VirtAddr::new(kernel.image_start + page * 4096),
-            PhysAddr::new(kernel.frame_addr + page * 4096),
-            &bump_allocator,
-        ) {
-            panic!();
-        }
+    for page in 0..kernel.num_frames {
+        page_table
+            .map(
+                VirtAddr::new(kernel.image_start + page as u64 * 4096),
+                PhysAddr::new(kernel.frame_addr + page as u64 * 4096),
+                &bump_allocator,
+            )
+            .unwrap();
     }
 
     // Allocate stack for the kernel and map it to virtual addresses
@@ -131,13 +132,13 @@ pub extern "efiapi" fn efi_main(
     let stack_end = stack_start & !0xfff - (kernel_stack_frames - 1) * 4096;
     for frame in 0..kernel_stack_frames {
         let stack_frame = bump_allocator.allocate_frame().unwrap();
-        if !page_table.map(
-            VirtAddr::new(stack_end + frame * 4096),
-            PhysAddr::new(stack_frame as u64),
-            &bump_allocator,
-        ) {
-            panic!();
-        }
+        page_table
+            .map(
+                VirtAddr::new(stack_end + frame * 4096),
+                stack_frame,
+                &bump_allocator,
+            )
+            .unwrap();
     }
 
     let boot_info_frame = bump_allocator.allocate_frame().unwrap();
@@ -152,15 +153,13 @@ pub extern "efiapi" fn efi_main(
     let (_, allocated_frame_ranges_offset) = boot_info_layout
         .extend(allocated_frame_ranges_layout)
         .unwrap();
-    let boot_info = boot_info_frame as *mut BootInfo;
+    let boot_info = boot_info_frame.as_virt_ident().as_ref_mut::<BootInfo>();
 
     // Copy memory regions
-    let boot_info_memory_regions = unsafe {
-        core::slice::from_raw_parts_mut(
-            (boot_info_frame as usize + memory_regions_offset) as *mut MemoryRegion,
-            kernel_memory_map.len(),
-        )
-    };
+    let boot_info_memory_regions = boot_info_frame
+        .add(memory_regions_offset as u64)
+        .as_virt_ident()
+        .as_slice_mut::<MemoryRegion>(kernel_memory_map.len());
     for (to_entry, from_entry) in boot_info_memory_regions
         .iter_mut()
         .zip(kernel_memory_map.iter())
@@ -169,12 +168,10 @@ pub extern "efiapi" fn efi_main(
     }
 
     // Copy memory regions
-    let boot_info_allocated_frame_ranges = unsafe {
-        core::slice::from_raw_parts_mut(
-            (boot_info_frame as usize + allocated_frame_ranges_offset) as *mut AllocatedFrameRange,
-            allocated_frame_ranges.len(),
-        )
-    };
+    let boot_info_allocated_frame_ranges = boot_info_frame
+        .add(allocated_frame_ranges_offset as u64)
+        .as_virt_ident()
+        .as_slice_mut::<AllocatedFrameRange>(allocated_frame_ranges.len());
     for (to_entry, from_entry) in boot_info_allocated_frame_ranges
         .iter_mut()
         .zip(allocated_frame_ranges.iter())
@@ -182,28 +179,27 @@ pub extern "efiapi" fn efi_main(
         *to_entry = *from_entry;
     }
 
-    unsafe {
-        boot_info.write(BootInfo {
-            kernel: bootloader_api::Kernel {
-                base: kernel.image_start,
-                frames: kernel.frames as _,
-                stack_start,
-                stack_end,
-            },
-            memory_regions: bootloader_api::MemoryRegions {
-                ptr: boot_info_memory_regions.as_ptr(),
-                len: boot_info_memory_regions.len(),
-            },
-            allocated_frame_ranges: bootloader_api::AllocatedFrameRanges {
-                ptr: boot_info_allocated_frame_ranges.as_ptr(),
-                len: boot_info_allocated_frame_ranges.len(),
-            },
-            rsdp,
-        })
-    }
+    *boot_info = BootInfo {
+        kernel: bootloader_api::Kernel {
+            base: kernel.image_start,
+            num_frames: kernel.num_frames,
+            stack_start,
+            stack_end,
+        },
+        memory_regions: bootloader_api::MemoryRegions {
+            ptr: boot_info_memory_regions.as_ptr(),
+            len: boot_info_memory_regions.len(),
+        },
+        allocated_frame_ranges: bootloader_api::AllocatedFrameRanges {
+            ptr: boot_info_allocated_frame_ranges.as_ptr(),
+            len: boot_info_allocated_frame_ranges.len(),
+        },
+        rsdp,
+    };
 
     // Set new page table
-    Cr3::write(pml4_frame as u64);
+    // TODO: make it take a phys addr instead of u64
+    Cr3::write(pml4_frame.as_u64());
 
     sprintln!("Bootloader is launching kernel");
 
@@ -212,7 +208,7 @@ pub extern "efiapi" fn efi_main(
         core::arch::asm!("mov rsp, {}; jmp {}",
           in(reg) stack_start,
           in(reg) kernel.entry_point,
-          in("rdi") boot_info_frame,
+          in("rdi") boot_info_frame.as_u64(),
         );
     }
 
@@ -261,7 +257,7 @@ fn optimize_memory_map<'uefi>(
     let ptr = bump_allocator.allocate_frame().unwrap();
     let mut mem_regions = unsafe {
         RawVec::from_raw_parts(
-            ptr as *mut MemoryRegion,
+            ptr.as_virt_ident().as_ptr_mut::<MemoryRegion>(),
             4096 / core::mem::size_of::<MemoryRegion>(),
         )
     };

@@ -1,349 +1,173 @@
 mod addr;
 pub mod entry;
 
-pub use self::addr::{PhysAddr, VirtAddr};
-
-use self::entry::{PageTableEntry, PageTableEntryRaw};
-use crate::{
-    control::{Cr0, Cr3},
-    frame::{Frame1GiB, Frame4KiB},
-    paging::entry::{PageEntry, TableEntry},
+use self::{
+    addr::{translate_hhdm, VirtAddrExt},
+    entry::PageTableEntry,
+};
+use crate::control::{Cr0, Cr3};
+use common::{
+    addr::{PhysAddr, VirtAddr},
+    frame::FrameAllocator,
 };
 use core::{fmt::Write, marker::PhantomData};
 
-#[derive(Debug)]
-pub struct FrameAllocError;
-
-// TODO: is this going here?
-pub trait FrameAllocator {
-    fn allocate_frame(&self) -> Result<u64, FrameAllocError>;
-
-    fn deallocate_frame(&self, frame: u64) -> Result<(), FrameAllocError>;
-}
-
-impl<F> FrameAllocator for &F
-where
-    F: FrameAllocator,
-{
-    fn allocate_frame(&self) -> Result<u64, FrameAllocError> {
-        (**self).allocate_frame()
-    }
-
-    fn deallocate_frame(&self, frame: u64) -> Result<(), FrameAllocError> {
-        (**self).deallocate_frame(frame)
-    }
-}
-
-pub trait Mapper {
-    //
-}
-
-// Page map levels
-#[derive(Clone, Copy, Debug)]
-pub struct Pml4;
-
-#[derive(Clone, Copy, Debug)]
-pub struct Pml3;
-
-#[derive(Clone, Copy, Debug)]
-pub struct Pml2;
-
-#[derive(Clone, Copy, Debug)]
-pub struct Pml1;
+const NUM_ENTRIES: usize = 512;
 
 // TODO: synchronisation
-
 #[derive(Clone, Copy, Debug)]
-// TODO: the alignment shouldn't make any difference for now, but can't be created on the stack if alignment is that high
-// #[repr(C, align(4096))]
-#[repr(C)]
-pub struct PageTable<S> {
-    pub entries: *mut PageTableEntryRaw<S>,
+#[repr(C, align(4096))]
+pub struct PageTable {
+    entries: [PageTableEntry; NUM_ENTRIES],
 }
 
-impl<S> PageTable<S> {
-    pub fn new(base: *mut PageTableEntryRaw<S>) -> Self {
-        assert!(base as u64 % 4096 == 0);
-        Self { entries: base }
-    }
-
-    pub fn entries(&self) -> &[PageTableEntryRaw<S>] {
-        unsafe { core::slice::from_raw_parts(self.entries, 512) }
-    }
-
-    pub fn entries_mut(&mut self) -> &mut [PageTableEntryRaw<S>] {
-        unsafe { core::slice::from_raw_parts_mut(self.entries, 512) }
-    }
-
-    pub fn get(&self, index: u64) -> Option<PageTableEntry<S>> {
-        assert!(index < 512);
-        let entry = &self.entries()[index as usize];
-        let entry = *entry;
-        if !entry.present() {
-            return None;
+impl PageTable {
+    fn get_next_table<'a>(entry: &'a PageTableEntry) -> Result<&'a PageTable, ()> {
+        if !entry.is_present() {
+            return Err(());
         }
 
-        Some(match entry.is_page() {
-            true => PageTableEntry::Page(PageEntry::from_raw(entry)),
-            false => PageTableEntry::Table(TableEntry::from_raw(entry)),
-        })
+        Ok(unsafe { &*translate_hhdm(entry.addr()).as_ptr() })
     }
 
-    pub fn get_or_create(
-        &mut self,
-        index: u64,
-        frame_allocator: &impl FrameAllocator,
-    ) -> GetOrCreate<S> {
-        if let Some(entry) = self.get(index) {
-            GetOrCreate::Found(entry)
-        } else {
+    fn get_next_table_mut<'a>(entry: &'a mut PageTableEntry) -> Result<&'a mut PageTable, ()> {
+        if !entry.is_present() {
+            return Err(());
+        }
+
+        Ok(unsafe { &mut *translate_hhdm(entry.addr()).as_ptr_mut() })
+    }
+
+    fn create_next_table<'a, F: FrameAllocator>(
+        entry: &'a mut PageTableEntry,
+        frame_allocator: F,
+    ) -> Result<&'a mut PageTable, ()> {
+        let addr = if !entry.is_present() {
+            // TODO: make sure the frame is zerod
             let frame = frame_allocator.allocate_frame().unwrap();
-            for a in unsafe {
-                core::slice::from_raw_parts_mut(
-                    frame as *mut u64,
-                    4096 / core::mem::size_of::<u64>(),
-                )
-            } {
-                *a = 0;
-            }
-
-            // TODO: clear the thing, needs to be mapped tho :(
-            let mut table_entry = TableEntry::new();
-            table_entry.set_writable(true);
-            table_entry.set_table_addr(PhysAddr::new(frame));
-            self.entries_mut()[index as usize] = table_entry.raw();
-            GetOrCreate::Created(table_entry)
-        }
-    }
-
-    pub fn iter(&self) -> Iter<'_, S> {
-        Iter {
-            table: self,
-            index: 0,
-        }
-    }
-}
-
-pub enum GetOrCreate<S> {
-    Found(PageTableEntry<S>),
-    Created(TableEntry<S>),
-}
-
-impl PageTable<Pml4> {
-    pub fn translate(&self, virt_addr: VirtAddr) -> Option<PhysAddr> {
-        let pml4_index = virt_addr.pml4_index();
-        let pml4_entry = self.get(pml4_index)?;
-        let pml3 = match pml4_entry {
-            PageTableEntry::Page(page) => unreachable!(),
-            PageTableEntry::Table(table) => table.table(),
-        };
-
-        let pml3_index = virt_addr.pml3_index();
-        let pml3_entry = pml3.get(pml3_index)?;
-        let pml2 = match pml3_entry {
-            PageTableEntry::Page(page) => {
-                return Some(unsafe { page.frame().with_offset(virt_addr) })
-            }
-            PageTableEntry::Table(table) => table.table(),
-        };
-
-        let pml2_index = virt_addr.pml2_index();
-        let pml2_entry = pml2.get(pml2_index)?;
-        let pml1 = match pml2_entry {
-            PageTableEntry::Page(page) => {
-                return Some(unsafe { page.frame().with_offset(virt_addr) })
-            }
-            PageTableEntry::Table(table) => table.table(),
-        };
-
-        let pml1_index = virt_addr.pml1_index();
-        let pml1_entry = pml1.get(pml1_index)?;
-        match pml1_entry {
-            PageTableEntry::Page(page) => Some(unsafe { page.frame().with_offset(virt_addr) }),
-            PageTableEntry::Table(table) => unreachable!("{:?}", table),
-        }
-    }
-
-    pub fn map(
-        &mut self,
-        virt_addr: VirtAddr,
-        phys_addr: PhysAddr,
-        frame_allocator: &impl FrameAllocator,
-    ) -> bool {
-        assert!(virt_addr.inner() & 0xfff == 0);
-        assert!(phys_addr.inner() & 0xfff == 0);
-
-        let pml4_index = virt_addr.pml4_index();
-        let mut pml3 = match self.get_or_create(pml4_index, frame_allocator) {
-            GetOrCreate::Found(entry) => match entry {
-                PageTableEntry::Page(page) => unreachable!(),
-                PageTableEntry::Table(table) => table.table(),
-            },
-            GetOrCreate::Created(entry) => entry.table(),
-        };
-
-        let pml3_index = virt_addr.pml3_index();
-        let mut pml2 = match pml3.get_or_create(pml3_index, frame_allocator) {
-            GetOrCreate::Found(entry) => match entry {
-                PageTableEntry::Page(page) => return false,
-                PageTableEntry::Table(table) => table.table(),
-            },
-            GetOrCreate::Created(entry) => entry.table(),
-        };
-
-        let pml2_index = virt_addr.pml2_index();
-        let mut pml1 = match pml2.get_or_create(pml2_index, frame_allocator) {
-            GetOrCreate::Found(entry) => match entry {
-                PageTableEntry::Page(page) => return false,
-                PageTableEntry::Table(table) => table.table(),
-            },
-            GetOrCreate::Created(entry) => entry.table(),
-        };
-
-        let pml1_index = virt_addr.pml1_index();
-        if let Some(entry) = pml1.get(pml1_index) {
-            false
+            *entry = PageTableEntry::empty();
+            entry.set_present(true);
+            entry.set_is_page(false);
+            entry.set_addr(frame);
+            entry.addr()
         } else {
-            let mut page_entry = PageEntry::<Pml1>::new();
-            page_entry.set_writable(true);
-            page_entry.set_frame(Frame4KiB::new(phys_addr));
-            pml1.entries_mut()[pml1_index as usize] = page_entry.raw();
-            true
-        }
-    }
-
-    pub fn map_1gb(
-        &mut self,
-        virt_addr: VirtAddr,
-        phys_addr: PhysAddr,
-        frame_allocator: &impl FrameAllocator,
-    ) -> bool {
-        assert!(virt_addr.inner() & 0x3fff_ffff == 0);
-        assert!(phys_addr.inner() & 0x3fff_ffff == 0);
-
-        let pml4_index = virt_addr.pml4_index();
-        let mut pml3 = match self.get_or_create(pml4_index, frame_allocator) {
-            GetOrCreate::Found(entry) => match entry {
-                PageTableEntry::Page(page) => unreachable!(),
-                PageTableEntry::Table(table) => table.table(),
-            },
-            GetOrCreate::Created(entry) => entry.table(),
+            entry.addr()
         };
 
-        let pml3_index = virt_addr.pml3_index();
-        if let Some(entry) = pml3.get(pml3_index) {
-            false
-        } else {
-            let mut page_entry = PageEntry::<Pml3>::new();
-            page_entry.set_writable(true);
-            page_entry.set_frame(Frame1GiB::new(phys_addr));
-            pml3.entries_mut()[pml3_index as usize] = page_entry.raw();
-            true
-        }
+        // TODO: there is no validation that the addr is virt before creating page table ref
+        Ok(unsafe { &mut *translate_hhdm(addr).as_ptr_mut() })
     }
 
-    pub fn map_ident(
+    pub fn translate(&self, page: VirtAddr) -> Result<PhysAddr, ()> {
+        let p4 = self;
+        let p3 = Self::get_next_table(&p4.entries[page.p4_index()])?;
+        let p2 = Self::get_next_table(&p3.entries[page.p3_index()])?;
+        let p1 = Self::get_next_table(&p2.entries[page.p2_index()])?;
+
+        let p1_entry = &p1.entries[page.p1_index()];
+
+        p1_entry.frame()
+    }
+
+    pub fn map<F: FrameAllocator>(
         &mut self,
-        phys_addr: PhysAddr,
-        frame_allocator: &impl FrameAllocator,
-    ) -> bool {
-        self.map(VirtAddr::new(phys_addr.inner()), phys_addr, frame_allocator)
+        page: VirtAddr,
+        frame: PhysAddr,
+        frame_allocator: &F,
+    ) -> Result<(), ()> {
+        // TODO: check addr alignment, maybe wrap virt and phys addr in
+        // page and frame type which are generic over sizes, which provide
+        // alignment utils
+        let p4 = self;
+        let p3 = Self::create_next_table(&mut p4.entries[page.p4_index()], frame_allocator)?;
+        let p2 = Self::create_next_table(&mut p3.entries[page.p3_index()], frame_allocator)?;
+        let p1 = Self::create_next_table(&mut p2.entries[page.p2_index()], frame_allocator)?;
+
+        let p1_entry = &mut p1.entries[page.p1_index()];
+
+        // TODO: present vs unused, maybe pages are tmp unloaded by data is retained in entry
+        if p1_entry.is_present() {
+            return Err(());
+        }
+
+        p1_entry.set_present(true);
+        p1_entry.set_is_page(true);
+        p1_entry.set_frame(frame);
+        Ok(())
+    }
+
+    pub fn map_1gb<F: FrameAllocator>(
+        &mut self,
+        page: VirtAddr,
+        frame: PhysAddr,
+        frame_allocator: &F,
+    ) -> Result<(), ()> {
+        // TODO: check addr alignment
+        let p4 = self;
+        let p3 = Self::create_next_table(&mut p4.entries[page.p4_index()], frame_allocator)?;
+
+        let p3_entry = &mut p3.entries[page.p3_index()];
+
+        if p3_entry.is_present() {
+            return Err(());
+        }
+
+        p3_entry.set_present(true);
+        p3_entry.set_is_page(true);
+        p3_entry.set_frame(frame);
+        Ok(())
+    }
+
+    pub fn map_ident<F: FrameAllocator>(
+        &mut self,
+        page: VirtAddr,
+        frame_allocator: &F,
+    ) -> Result<(), ()> {
+        // TODO: prevent this kind of virt -> phys transformation, might be dangerous
+        self.map(page, PhysAddr::new(page.as_u64()), frame_allocator)
     }
 
     pub fn unmap(
         &mut self,
-        virt_addr: VirtAddr,
+        page: VirtAddr,
         frame_allocator: &impl FrameAllocator,
     ) -> Result<PhysAddr, ()> {
-        assert!(virt_addr.inner() & 0xfff == 0);
-        let pml4_index = virt_addr.pml4_index();
-        let mut pml3 = match self.get(pml4_index) {
-            Some(entry) => match entry {
-                PageTableEntry::Page(page) => unreachable!(),
-                PageTableEntry::Table(table) => table.table(),
-            },
-            None => return Err(()),
-        };
+        // TODO: check addr alignment
+        let p4 = self;
+        let p3 = Self::get_next_table_mut(&mut p4.entries[page.p4_index()])?;
+        let p2 = Self::get_next_table_mut(&mut p3.entries[page.p3_index()])?;
+        let p1 = Self::get_next_table_mut(&mut p2.entries[page.p2_index()])?;
 
-        let pml3_index = virt_addr.pml3_index();
-        let mut pml2 = match pml3.get(pml3_index) {
-            Some(entry) => match entry {
-                PageTableEntry::Page(page) => return Err(()),
-                PageTableEntry::Table(table) => table.table(),
-            },
-            None => return Err(()),
-        };
+        let p1_entry = &mut p1.entries[page.p1_index()];
 
-        let pml2_index = virt_addr.pml2_index();
-        let mut pml1 = match pml2.get(pml2_index) {
-            Some(entry) => match entry {
-                PageTableEntry::Page(page) => return Err(()),
-                PageTableEntry::Table(table) => table.table(),
-            },
-            None => return Err(()),
-        };
-
-        let pml1_index = virt_addr.pml1_index();
-        if let Some(entry) = pml1.get(pml1_index) {
-            let frame = match entry {
-                PageTableEntry::Page(page) => page.frame(),
-                PageTableEntry::Table(_) => unreachable!(),
-            };
-            pml1.entries_mut()[pml1_index as usize] = PageTableEntryRaw::empty();
-            // TODO: check if page tables are empty and need to be removed
-            Ok(frame.addr())
-        } else {
-            Err(())
+        // TODO: present vs unused, maybe pages are tmp unloaded by data is retained in entry
+        if !p1_entry.is_present() {
+            return Err(());
         }
+
+        let frame = p1_entry.frame()?;
+        *p1_entry = PageTableEntry::empty();
+        Ok(frame)
     }
 
     pub fn unmap_1gb(
         &mut self,
-        virt_addr: VirtAddr,
+        page: VirtAddr,
         frame_allocator: &impl FrameAllocator,
     ) -> Result<PhysAddr, ()> {
-        assert!(virt_addr.inner() & 0x3fff_ffff == 0);
-        let pml4_index = virt_addr.pml4_index();
-        let mut pml3 = match self.get(pml4_index) {
-            Some(entry) => match entry {
-                PageTableEntry::Page(page) => unreachable!(),
-                PageTableEntry::Table(table) => table.table(),
-            },
-            None => return Err(()),
-        };
+        // TODO: check addr alignment
+        let p4 = self;
+        let p3 = Self::get_next_table_mut(&mut p4.entries[page.p4_index()])?;
 
-        let pml3_index = virt_addr.pml3_index();
-        if let Some(entry) = pml3.get(pml3_index) {
-            let frame = match entry {
-                PageTableEntry::Page(page) => page.frame(),
-                PageTableEntry::Table(_) => unreachable!(),
-            };
-            pml3.entries_mut()[pml3_index as usize] = PageTableEntryRaw::empty();
-            // TODO: check if page tables are empty and need to be removed
-            Ok(frame.addr())
-        } else {
-            Err(())
-        }
-    }
-}
+        let p3_entry = &mut p3.entries[page.p1_index()];
 
-pub struct Iter<'iter, S> {
-    table: &'iter PageTable<S>,
-    index: u64,
-}
-
-impl<'iter, S> Iterator for Iter<'iter, S> {
-    type Item = (usize, PageTableEntry<S>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while self.index < 512 {
-            let cur_index = self.index;
-            self.index += 1;
-            if let Some(entry) = self.table.get(cur_index) {
-                return Some((cur_index as usize, entry));
-            }
+        // TODO: present vs unused, maybe pages are tmp unloaded by data is retained in entry
+        if !p3_entry.is_present() {
+            return Err(());
         }
 
-        None
+        let frame = p3_entry.frame()?;
+        *p3_entry = PageTableEntry::empty();
+        Ok(frame)
     }
 }
