@@ -1,0 +1,7 @@
+[package]
+name = "acpi2"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+alloc = { version = "0.0.0", path = "../alloc" }
