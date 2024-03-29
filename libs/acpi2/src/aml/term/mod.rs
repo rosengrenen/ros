@@ -5,7 +5,7 @@ use super::{
     data::DataObj,
     misc::{ArgObj, LocalObj},
     name::NameString,
-    parser::{fail, Input, ParseResult},
+    parser::{fail, Input, ParseResult, ParserError},
 };
 use alloc::{boxed::Box, vec::Vec};
 use core::alloc::Allocator;
@@ -58,7 +58,7 @@ impl<A: Allocator + Clone> SymbolAccess<A> {
 
 // impl<A: Allocator> core::fmt::Debug for SymbolAccess<A> {
 //     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         match self {
+//         match  self {
 //             SymbolAccess::Variable(name) => f.debug_tuple("Variable").field(name).finish(),
 //             SymbolAccess::Method { name, args } => f
 //                 .debug_struct("Method")
@@ -80,8 +80,10 @@ impl<A: Allocator + Clone> Obj<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = NameSpaceModObj::parse(input, context, alloc.clone()) {
-            return Ok((Self::NameSpaceModObj(value), input));
+        match NameSpaceModObj::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::NameSpaceModObj(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = NamedObj::parse(input, context, alloc)?;
@@ -104,19 +106,27 @@ impl<A: Allocator + Clone> TermArg<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = ArgObj::parse(input) {
-            return Ok((Self::ArgObj(value), input));
+        match ArgObj::parse(input) {
+            Ok((value, input)) => return Ok((Self::ArgObj(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = LocalObj::parse(input) {
-            return Ok((Self::LocalObj(value), input));
+        match LocalObj::parse(input) {
+            Ok((value, input)) => return Ok((Self::LocalObj(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = DataObj::parse(input, context, alloc.clone()) {
-            return Ok((
-                Self::DataObj(Box::new(value, alloc.clone()).unwrap()),
-                input,
-            ));
+        match DataObj::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => {
+                return Ok((
+                    Self::DataObj(Box::new(value, alloc.clone()).unwrap()),
+                    input,
+                ))
+            }
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = Expr::parse(input, context, alloc.clone())?;
@@ -126,7 +136,7 @@ impl<A: Allocator + Clone> TermArg<A> {
 
 // impl<A: Allocator> core::fmt::Debug for TermArg<A> {
 //     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         match self {
+//         match  self {
 //             Self::ArgObj(inner) => f.debug_tuple("ArgObj").field(inner).finish(),
 //             Self::LocalObj(inner) => f.debug_tuple("LocalObj").field(inner).finish(),
 //             Self::DataObj(inner) => f.debug_tuple("DataObj").field(inner).finish(),
@@ -147,12 +157,16 @@ impl<A: Allocator + Clone> TermObj<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = Obj::parse(input, context, alloc.clone()) {
-            return Ok((Self::Obj(value), input));
+        match Obj::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Obj(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Statement::parse(input, context, alloc.clone()) {
-            return Ok((Self::Statement(value), input));
+        match Statement::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Statement(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = Expr::parse(input, context, alloc)?;

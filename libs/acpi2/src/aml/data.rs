@@ -6,7 +6,7 @@ use super::{
         BytePrefix, DWordPrefix, OneOp, OnesOp, QWordPrefix, RevisionOp, StringPrefix, WordPrefix,
         ZeroOp,
     },
-    parser::{fail, item, satisfy, take_one, Input, ParseResult},
+    parser::{fail, item, satisfy, take_one, Input, ParseResult, ParserError},
     term::expr::{buffer::Buffer, pkg::Pkg, var_pkg::VarPkg},
 };
 use alloc::vec::Vec;
@@ -25,20 +25,28 @@ impl<A: Allocator + Clone> ComputationalData<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = ConstInteger::parse(input) {
-            return Ok((Self::ConstInteger(value), input));
+        match ConstInteger::parse(input) {
+            Ok((value, input)) => return Ok((Self::ConstInteger(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = String::parse(input, alloc.clone()) {
-            return Ok((Self::String(value), input));
+        match String::parse(input, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::String(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = ConstObj::parse(input) {
-            return Ok((Self::ConstObj(value), input));
+        match ConstObj::parse(input) {
+            Ok((value, input)) => return Ok((Self::ConstObj(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = RevisionOp::parse(input) {
-            return Ok((Self::RevisionOp(value), input));
+        match RevisionOp::parse(input) {
+            Ok((value, input)) => return Ok((Self::RevisionOp(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = Buffer::parse(input, context, alloc)?;
@@ -58,14 +66,18 @@ impl<A: Allocator + Clone> DataObj<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((computational_data, input)) =
-            ComputationalData::parse(input, context, alloc.clone())
-        {
-            return Ok((Self::ComputationalData(computational_data), input));
+        match ComputationalData::parse(input, context, alloc.clone()) {
+            Ok((computational_data, input)) => {
+                return Ok((Self::ComputationalData(computational_data), input))
+            }
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((pkg, input)) = Pkg::parse(input, context, alloc.clone()) {
-            return Ok((Self::Pkg(pkg), input));
+        match Pkg::parse(input, context, alloc.clone()) {
+            Ok((pkg, input)) => return Ok((Self::Pkg(pkg), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (var_pkg, input) = VarPkg::parse(input, context, alloc)?;
@@ -98,16 +110,22 @@ pub enum ConstInteger {
 
 impl ConstInteger {
     pub fn parse<'a>(input: Input<'a>) -> ParseResult<'a, Self> {
-        if let Ok((byte_const, input)) = ByteConst::parse(input) {
-            return Ok((Self::ByteConst(byte_const), input));
+        match ByteConst::parse(input) {
+            Ok((byte_const, input)) => return Ok((Self::ByteConst(byte_const), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((word_const, input)) = WordConst::parse(input) {
-            return Ok((Self::WordConst(word_const), input));
+        match WordConst::parse(input) {
+            Ok((word_const, input)) => return Ok((Self::WordConst(word_const), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((dword_const, input)) = DWordConst::parse(input) {
-            return Ok((Self::DWordConst(dword_const), input));
+        match DWordConst::parse(input) {
+            Ok((dword_const, input)) => return Ok((Self::DWordConst(dword_const), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (qword_const, input) = QWordConst::parse(input)?;
@@ -200,12 +218,16 @@ pub enum ConstObj {
 
 impl ConstObj {
     pub fn parse<'a>(input: Input<'a>) -> ParseResult<'a, Self> {
-        if let Ok((op, input)) = ZeroOp::parse(input) {
-            return Ok((Self::ZeroOp(op), input));
+        match ZeroOp::parse(input) {
+            Ok((op, input)) => return Ok((Self::ZeroOp(op), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((op, input)) = OneOp::parse(input) {
-            return Ok((Self::OneOp(op), input));
+        match OneOp::parse(input) {
+            Ok((op, input)) => return Ok((Self::OneOp(op), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (op, input) = OnesOp::parse(input)?;

@@ -33,7 +33,7 @@ use self::{
 };
 use crate::aml::{
     context::Context,
-    parser::{Input, ParseResult},
+    parser::{Input, ParseResult, ParserError},
     term::named::processor::Processor,
 };
 
@@ -65,60 +65,88 @@ impl<A: Allocator + Clone> NamedObj<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = BankField::parse(input, context, alloc.clone()) {
-            return Ok((Self::BankField(value), input));
+        match BankField::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::BankField(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = CreateConstField::parse(input, context, alloc.clone()) {
-            return Ok((Self::CreateConstField(value), input));
+        match CreateConstField::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::CreateConstField(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = CreateField::parse(input, context, alloc.clone()) {
-            return Ok((Self::CreateField(value), input));
+        match CreateField::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::CreateField(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = DataRegion::parse(input, context, alloc.clone()) {
-            return Ok((Self::DataRegion(value), input));
+        match DataRegion::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::DataRegion(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = External::parse(input, alloc.clone()) {
-            return Ok((Self::External(value), input));
+        match External::parse(input, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::External(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = OpRegion::parse(input, context, alloc.clone()) {
-            return Ok((Self::OpRegion(value), input));
+        match OpRegion::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::OpRegion(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = PowerRes::parse(input, context, alloc.clone()) {
-            return Ok((Self::PowerRes(value), input));
+        match PowerRes::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::PowerRes(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = ThermalZone::parse(input, context, alloc.clone()) {
-            return Ok((Self::ThermalZone(value), input));
+        match ThermalZone::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::ThermalZone(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Field::parse(input, alloc.clone()) {
-            return Ok((Self::Field(value), input));
+        match Field::parse(input, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Field(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Method::parse(input, context, alloc.clone()) {
-            return Ok((Self::Method(value), input));
+        match Method::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Method(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Device::parse(input, context, alloc.clone()) {
-            return Ok((Self::Device(value), input));
+        match Device::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Device(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Event::parse(input, alloc.clone()) {
-            return Ok((Self::Event(value), input));
+        match Event::parse(input, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Event(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = IndexField::parse(input, alloc.clone()) {
-            return Ok((Self::IndexField(value), input));
+        match IndexField::parse(input, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::IndexField(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Mutex::parse(input, alloc.clone()) {
-            return Ok((Self::Mutex(value), input));
+        match Mutex::parse(input, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Mutex(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = Processor::parse(input, context, alloc)?;

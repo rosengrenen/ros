@@ -4,7 +4,7 @@ use crate::aml::{
     context::Context,
     name::Target,
     ops::{AndOp, NAndOp, NOrOp, NotOp, OrOp, ShiftLeftOp, ShiftRightOp, XOrOp},
-    parser::{fail, Input, ParseResult},
+    parser::{fail, Input, ParseResult, ParserError},
     term::TermArg,
 };
 
@@ -25,32 +25,46 @@ impl<A: Allocator + Clone> Bitwise<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = And::parse(input, context, alloc.clone()) {
-            return Ok((Self::And(value), input));
+        match And::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::And(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = NAnd::parse(input, context, alloc.clone()) {
-            return Ok((Self::NAnd(value), input));
+        match NAnd::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::NAnd(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = NOr::parse(input, context, alloc.clone()) {
-            return Ok((Self::NOr(value), input));
+        match NOr::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::NOr(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Or::parse(input, context, alloc.clone()) {
-            return Ok((Self::Or(value), input));
+        match Or::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Or(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = XOr::parse(input, context, alloc.clone()) {
-            return Ok((Self::XOr(value), input));
+        match XOr::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::XOr(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Not::parse(input, context, alloc.clone()) {
-            return Ok((Self::Not(value), input));
+        match Not::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Not(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = ShiftLeft::parse(input, context, alloc.clone()) {
-            return Ok((Self::ShiftLeft(value), input));
+        match ShiftLeft::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::ShiftLeft(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = ShiftRight::parse(input, context, alloc)?;

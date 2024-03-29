@@ -3,7 +3,7 @@ use super::{
         Arg0Op, Arg1Op, Arg2Op, Arg3Op, Arg4Op, Arg5Op, Arg6Op, DebugOp, Local0Op, Local1Op,
         Local2Op, Local3Op, Local4Op, Local5Op, Local6Op, Local7Op,
     },
-    parser::{Input, ParseResult},
+    parser::{Input, ParseResult, ParserError},
 };
 
 pub enum ArgObj {
@@ -18,28 +18,40 @@ pub enum ArgObj {
 
 impl ArgObj {
     pub fn parse<'a>(input: Input<'a>) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = Arg0Op::parse(input) {
-            return Ok((Self::Arg0(value), input));
+        match Arg0Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Arg0(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Arg1Op::parse(input) {
-            return Ok((Self::Arg1(value), input));
+        match Arg1Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Arg1(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Arg2Op::parse(input) {
-            return Ok((Self::Arg2(value), input));
+        match Arg2Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Arg2(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Arg3Op::parse(input) {
-            return Ok((Self::Arg3(value), input));
+        match Arg3Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Arg3(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Arg4Op::parse(input) {
-            return Ok((Self::Arg4(value), input));
+        match Arg4Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Arg4(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Arg5Op::parse(input) {
-            return Ok((Self::Arg5(value), input));
+        match Arg5Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Arg5(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = Arg6Op::parse(input)?;
@@ -60,32 +72,46 @@ pub enum LocalObj {
 
 impl LocalObj {
     pub fn parse<'a>(input: Input<'a>) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = Local0Op::parse(input) {
-            return Ok((Self::Local0(value), input));
+        match Local0Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Local0(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Local1Op::parse(input) {
-            return Ok((Self::Local1(value), input));
+        match Local1Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Local1(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Local2Op::parse(input) {
-            return Ok((Self::Local2(value), input));
+        match Local2Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Local2(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Local3Op::parse(input) {
-            return Ok((Self::Local3(value), input));
+        match Local3Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Local3(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Local4Op::parse(input) {
-            return Ok((Self::Local4(value), input));
+        match Local4Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Local4(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Local5Op::parse(input) {
-            return Ok((Self::Local5(value), input));
+        match Local5Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Local5(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Local6Op::parse(input) {
-            return Ok((Self::Local6(value), input));
+        match Local6Op::parse(input) {
+            Ok((value, input)) => return Ok((Self::Local6(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = Local7Op::parse(input)?;

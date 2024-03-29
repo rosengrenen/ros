@@ -101,7 +101,7 @@ pub fn fail_if_not_empty<'a>(input: Input<'a>) -> ParseResult<'a, ()> {
 
 // macro_rules! parse_enum_variant {
 //     ($parser:ty, $variant:ident, $input:ident, $alloc:ident) => {
-//         if let Ok((output, input)) = <$parser>::parse($input, $alloc) {
+//         match ((output, input)) = <$parser>::parse($input, $alloc) {
 //             return Ok((Self::$variant(output), input));
 //         }
 //     };

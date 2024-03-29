@@ -77,7 +77,7 @@ impl<A: Allocator + Clone> NameString<A> {
 
 // impl<A: Allocator> core::fmt::Debug for NameString<A> {
 //     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         match self {
+//         match  self {
 //             Self::Absolute(name) => f.debug_tuple("Absolute").field(&name).finish(),
 //             Self::Relative(count, name) => {
 //                 f.debug_tuple("Relative").field(count).field(&name).finish()
@@ -115,16 +115,22 @@ pub enum NamePath<A: Allocator> {
 
 impl<A: Allocator> NamePath<A> {
     pub fn parse<'a>(input: Input<'a>, alloc: A) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = NameSeg::parse(input) {
-            return Ok((Self::NameSeg(value), input));
+        match NameSeg::parse(input) {
+            Ok((value, input)) => return Ok((Self::NameSeg(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = DualNamePath::parse(input) {
-            return Ok((Self::DualNamePath(value), input));
+        match DualNamePath::parse(input) {
+            Ok((value, input)) => return Ok((Self::DualNamePath(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = MultiNamePath::parse(input, alloc) {
-            return Ok((Self::MultiNamePath(value), input));
+        match MultiNamePath::parse(input, alloc) {
+            Ok((value, input)) => return Ok((Self::MultiNamePath(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = NullName::parse(input)?;
@@ -185,12 +191,16 @@ pub enum SimpleName<A: Allocator> {
 
 impl<A: Allocator + Clone> SimpleName<A> {
     pub fn parse<'a>(input: Input<'a>, alloc: A) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = ArgObj::parse(input) {
-            return Ok((Self::ArgObj(value), input));
+        match ArgObj::parse(input) {
+            Ok((value, input)) => return Ok((Self::ArgObj(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = LocalObj::parse(input) {
-            return Ok((Self::LocalObj(value), input));
+        match LocalObj::parse(input) {
+            Ok((value, input)) => return Ok((Self::LocalObj(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = NameString::parse(input, alloc)?;
@@ -210,12 +220,16 @@ impl<A: Allocator + Clone> SuperName<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = SimpleName::parse(input, alloc.clone()) {
-            return Ok((Self::SimpleName(value), input));
+        match SimpleName::parse(input, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::SimpleName(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = DebugObj::parse(input) {
-            return Ok((Self::DebugObj(value), input));
+        match DebugObj::parse(input) {
+            Ok((value, input)) => return Ok((Self::DebugObj(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = RefTypeOpcode::parse(input, context, alloc.clone())?;
@@ -225,7 +239,7 @@ impl<A: Allocator + Clone> SuperName<A> {
 
 // impl<A: Allocator> core::fmt::Debug for SuperName<A> {
 //     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         match self {
+//         match  self {
 //             Self::SimpleName(inner) => f.debug_tuple("SimpleName").field(&inner).finish(),
 //             Self::DebugObj(inner) => f.debug_tuple("DebugObj").field(&inner).finish(),
 //             Self::RefTypeOpcode(inner) => f.debug_tuple("RefTypeOpcode").field(&inner).finish(),
@@ -253,8 +267,10 @@ impl<A: Allocator + Clone> Target<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = SuperName::parse(input, context, alloc) {
-            return Ok((Self::SuperName(value), input));
+        match SuperName::parse(input, context, alloc) {
+            Ok((value, input)) => return Ok((Self::SuperName(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = NullName::parse(input)?;

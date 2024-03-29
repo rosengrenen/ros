@@ -9,7 +9,7 @@ use crate::aml::{
         BreakOp, BreakPointOp, ContinueOp, ElseOp, FatalOp, IfOp, NoopOp, NotifyOp, ReleaseOp,
         ResetOp, ReturnOp, SignalOp, SleepOp, StallOp, WhileOp,
     },
-    parser::{fail, fail_if_not_empty, Input, ParseResult},
+    parser::{fail, fail_if_not_empty, Input, ParseResult, ParserError},
     pkg_len::pkg,
 };
 use alloc::{boxed::Box, vec::Vec};
@@ -38,60 +38,88 @@ impl<A: Allocator + Clone> Statement<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = Break::parse(input) {
-            return Ok((Self::Break(value), input));
+        match Break::parse(input) {
+            Ok((value, input)) => return Ok((Self::Break(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = BreakPoint::parse(input) {
-            return Ok((Self::BreakPoint(value), input));
+        match BreakPoint::parse(input) {
+            Ok((value, input)) => return Ok((Self::BreakPoint(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Continue::parse(input) {
-            return Ok((Self::Continue(value), input));
+        match Continue::parse(input) {
+            Ok((value, input)) => return Ok((Self::Continue(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Else::parse(input, context, alloc.clone()) {
-            return Ok((Self::Else(value), input));
+        match Else::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Else(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Fatal::parse(input, context, alloc.clone()) {
-            return Ok((Self::Fatal(value), input));
+        match Fatal::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Fatal(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = IfElse::parse(input, context, alloc.clone()) {
-            return Ok((Self::IfElse(value), input));
+        match IfElse::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::IfElse(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Noop::parse(input) {
-            return Ok((Self::Noop(value), input));
+        match Noop::parse(input) {
+            Ok((value, input)) => return Ok((Self::Noop(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Notify::parse(input, context, alloc.clone()) {
-            return Ok((Self::Notify(value), input));
+        match Notify::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Notify(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Release::parse(input, context, alloc.clone()) {
-            return Ok((Self::Release(value), input));
+        match Release::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Release(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Reset::parse(input, context, alloc.clone()) {
-            return Ok((Self::Reset(value), input));
+        match Reset::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Reset(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Return::parse(input, context, alloc.clone()) {
-            return Ok((Self::Return(value), input));
+        match Return::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Return(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Signal::parse(input, context, alloc.clone()) {
-            return Ok((Self::Signal(value), input));
+        match Signal::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Signal(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Sleep::parse(input, context, alloc.clone()) {
-            return Ok((Self::Sleep(value), input));
+        match Sleep::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Sleep(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Stall::parse(input, context, alloc.clone()) {
-            return Ok((Self::Stall(value), input));
+        match Stall::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Stall(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = While::parse(input, context, alloc)?;

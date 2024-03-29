@@ -7,7 +7,7 @@ use crate::aml::{
     data::DataRefObj,
     name::NameString,
     ops::{AliasOp, NameOp, ScopeOp},
-    parser::{fail, fail_if_not_empty, Input, ParseResult},
+    parser::{fail, fail_if_not_empty, Input, ParseResult, ParserError},
     pkg_len::pkg,
 };
 
@@ -25,12 +25,16 @@ impl<A: Allocator + Clone> NameSpaceModObj<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = Alias::parse(input, alloc.clone()) {
-            return Ok((Self::Alias(value), input));
+        match Alias::parse(input, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Alias(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Name::parse(input, context, alloc.clone()) {
-            return Ok((Self::Name(value), input));
+        match Name::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Name(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = Scope::parse(input, context, alloc)?;

@@ -1,7 +1,7 @@
 use crate::aml::{
     data::byte_data,
     name::{NameSeg, NameString},
-    parser::{fail, item, Input, ParseResult},
+    parser::{fail, item, Input, ParseResult, ParserError},
     pkg_len::pkg_length,
 };
 use core::alloc::Allocator;
@@ -65,7 +65,7 @@ impl<A: Allocator + Clone> Connect<A> {
 
 // impl<A: Allocator> core::fmt::Debug for Connect<A> {
 //     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         match self {
+//         match  self {
 //             Self::NameString(inner) => f.debug_tuple("NameString").field(inner).finish(),
 //         }
 //     }
@@ -101,20 +101,28 @@ pub enum FieldElement<A: Allocator> {
 
 impl<A: Allocator + Clone> FieldElement<A> {
     pub fn parse<'a>(input: Input<'a>, alloc: A) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = Named::parse(input) {
-            return Ok((Self::Named(value), input));
+        match Named::parse(input) {
+            Ok((value, input)) => return Ok((Self::Named(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Reserved::parse(input) {
-            return Ok((Self::Reserved(value), input));
+        match Reserved::parse(input) {
+            Ok((value, input)) => return Ok((Self::Reserved(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Access::parse(input) {
-            return Ok((Self::Access(value), input));
+        match Access::parse(input) {
+            Ok((value, input)) => return Ok((Self::Access(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = ExtendedAccess::parse(input) {
-            return Ok((Self::ExtendedAccess(value), input));
+        match ExtendedAccess::parse(input) {
+            Ok((value, input)) => return Ok((Self::ExtendedAccess(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = Connect::parse(input, alloc)?;
