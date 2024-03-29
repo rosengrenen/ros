@@ -41,7 +41,7 @@ use crate::aml::{
     data::DataRefObj,
     name::{NameString, Target},
     ops::LoadOp,
-    parser::{fail, Input, ParseResult},
+    parser::{fail, Input, ParseResult, ParserError},
 };
 
 pub enum Expr<A: Allocator> {
@@ -81,112 +81,166 @@ impl<A: Allocator + Clone> Expr<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = Acquire::parse(input, context, alloc.clone()) {
-            return Ok((Self::Acquire(value), input));
+        match Acquire::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Acquire(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Bitwise::parse(input, context, alloc.clone()) {
-            return Ok((Self::Bitwise(value), input));
+        match Bitwise::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Bitwise(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Buffer::parse(input, context, alloc.clone()) {
-            return Ok((Self::Buffer(value), input));
+        match Buffer::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Buffer(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Concat::parse(input, context, alloc.clone()) {
-            return Ok((Self::Concat(value), input));
+        match Concat::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Concat(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = ConcatRes::parse(input, context, alloc.clone()) {
-            return Ok((Self::ConcatRes(value), input));
+        match ConcatRes::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::ConcatRes(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = CondRefOf::parse(input, context, alloc.clone()) {
-            return Ok((Self::CondRefOf(value), input));
+        match CondRefOf::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::CondRefOf(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = ConvertFn::parse(input, context, alloc.clone()) {
-            return Ok((Self::ConvertFn(value), input));
+        match ConvertFn::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::ConvertFn(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = CopyObj::parse(input, context, alloc.clone()) {
-            return Ok((Self::CopyObj(value), input));
+        match CopyObj::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::CopyObj(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = DerefOf::parse(input, context, alloc.clone()) {
-            return Ok((Self::DerefOf(value), input));
+        match DerefOf::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::DerefOf(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = FindSetLeftBit::parse(input, context, alloc.clone()) {
-            return Ok((Self::FindSetLeftBit(value), input));
+        match FindSetLeftBit::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::FindSetLeftBit(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = FindSetRightBit::parse(input, context, alloc.clone()) {
-            return Ok((Self::FindSetRightBit(value), input));
+        match FindSetRightBit::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::FindSetRightBit(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Index::parse(input, context, alloc.clone()) {
-            return Ok((Self::Index(value), input));
+        match Index::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Index(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Integer::parse(input, context, alloc.clone()) {
-            return Ok((Self::Integer(value), input));
+        match Integer::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Integer(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Load::parse(input, context, alloc.clone()) {
-            return Ok((Self::Load(value), input));
+        match Load::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Load(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = LoadTable::parse(input, context, alloc.clone()) {
-            return Ok((Self::LoadTable(value), input));
+        match LoadTable::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::LoadTable(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Logical::parse(input, context, alloc.clone()) {
-            return Ok((Self::Logical(value), input));
+        match Logical::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Logical(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Match::parse(input, context, alloc.clone()) {
-            return Ok((Self::Match(value), input));
+        match Match::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Match(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Mid::parse(input, context, alloc.clone()) {
-            return Ok((Self::Mid(value), input));
+        match Mid::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Mid(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Mod::parse(input, context, alloc.clone()) {
-            return Ok((Self::Mod(value), input));
+        match Mod::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Mod(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = ObjType::parse(input, context, alloc.clone()) {
-            return Ok((Self::ObjType(value), input));
+        match ObjType::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::ObjType(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Pkg::parse(input, context, alloc.clone()) {
-            return Ok((Self::Pkg(value), input));
+        match Pkg::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Pkg(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = RefOf::parse(input, context, alloc.clone()) {
-            return Ok((Self::RefOf(value), input));
+        match RefOf::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::RefOf(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = SizeOf::parse(input, context, alloc.clone()) {
-            return Ok((Self::SizeOf(value), input));
+        match SizeOf::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::SizeOf(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Store::parse(input, context, alloc.clone()) {
-            return Ok((Self::Store(value), input));
+        match Store::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Store(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Timer::parse(input) {
-            return Ok((Self::Timer(value), input));
+        match Timer::parse(input) {
+            Ok((value, input)) => return Ok((Self::Timer(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = VarPkg::parse(input, context, alloc.clone()) {
-            return Ok((Self::VarPkg(value), input));
+        match VarPkg::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::VarPkg(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Wait::parse(input, context, alloc.clone()) {
-            return Ok((Self::Wait(value), input));
+        match Wait::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Wait(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = SymbolAccess::parse(input, context, alloc)?;
@@ -207,16 +261,22 @@ impl<A: Allocator + Clone> RefTypeOpcode<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = RefOf::parse(input, context, alloc.clone()) {
-            return Ok((Self::RefOf(value), input));
+        match RefOf::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::RefOf(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = DerefOf::parse(input, context, alloc.clone()) {
-            return Ok((Self::DerefOf(value), input));
+        match DerefOf::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::DerefOf(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Index::parse(input, context, alloc.clone()) {
-            return Ok((Self::Index(value), input));
+        match Index::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Index(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = SymbolAccess::parse(input, context, alloc)?;
@@ -261,8 +321,10 @@ impl<A: Allocator + Clone> PkgElement<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = DataRefObj::parse(input, context, alloc.clone()) {
-            return Ok((Self::DataRefObj(value), input));
+        match DataRefObj::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::DataRefObj(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = NameString::parse(input, alloc)?;

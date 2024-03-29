@@ -4,7 +4,7 @@ use crate::aml::{
     misc::DebugObj,
     name::SimpleName,
     ops::ObjTypeOp,
-    parser::{fail, Input, ParseResult},
+    parser::{fail, Input, ParseResult, ParserError},
 };
 use core::alloc::Allocator;
 
@@ -31,20 +31,28 @@ impl<A: Allocator + Clone> ObjType<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = SimpleName::parse(input, alloc.clone()) {
-            return Ok((Self::SimpleName(value), input));
+        match SimpleName::parse(input, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::SimpleName(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = DebugObj::parse(input) {
-            return Ok((Self::DebugObj(value), input));
+        match DebugObj::parse(input) {
+            Ok((value, input)) => return Ok((Self::DebugObj(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = RefOf::parse(input, context, alloc.clone()) {
-            return Ok((Self::RefOf(value), input));
+        match RefOf::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::RefOf(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = DerefOf::parse(input, context, alloc.clone()) {
-            return Ok((Self::DerefOf(value), input));
+        match DerefOf::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::DerefOf(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = Index::parse(input, context, alloc)?;
@@ -54,7 +62,7 @@ impl<A: Allocator + Clone> ObjType<A> {
 
 // impl<A: Allocator> core::fmt::Debug for ObjType<A> {
 //     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         match self {
+//         match  self {
 //             Self::SimpleName(inner) => f.debug_tuple("SimpleName").field(inner).finish(),
 //             Self::DebugObj(inner) => f.debug_tuple("DebugObj").field(inner).finish(),
 //             Self::RefOf(inner) => f.debug_tuple("RefOf").field(inner).finish(),

@@ -4,7 +4,7 @@ use crate::aml::{
     context::Context,
     name::{SuperName, Target},
     ops::{AddOp, DecrementOp, DivideOp, IncrementOp, MultiplyOp, SubtractOp},
-    parser::{fail, Input, ParseResult},
+    parser::{fail, Input, ParseResult, ParserError},
     term::TermArg,
 };
 
@@ -23,24 +23,34 @@ impl<A: Allocator + Clone> Integer<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = Add::parse(input, context, alloc.clone()) {
-            return Ok((Self::Add(value), input));
+        match Add::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Add(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Multiply::parse(input, context, alloc.clone()) {
-            return Ok((Self::Multiply(value), input));
+        match Multiply::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Multiply(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Subtract::parse(input, context, alloc.clone()) {
-            return Ok((Self::Subtract(value), input));
+        match Subtract::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Subtract(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Divide::parse(input, context, alloc.clone()) {
-            return Ok((Self::Divide(value), input));
+        match Divide::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Divide(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Decrement::parse(input, context, alloc.clone()) {
-            return Ok((Self::Decrement(value), input));
+        match Decrement::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Decrement(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = Increment::parse(input, context, alloc)?;

@@ -6,7 +6,7 @@ use crate::aml::{
     ops::{
         FromBcdOp, ToBcdOp, ToBufferOp, ToDecimalStringOp, ToHexStringOp, ToIntegerOp, ToStringOp,
     },
-    parser::{fail, Input, ParseResult},
+    parser::{fail, Input, ParseResult, ParserError},
     term::TermArg,
 };
 
@@ -26,28 +26,40 @@ impl<A: Allocator + Clone> ConvertFn<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = FromBcd::parse(input, context, alloc.clone()) {
-            return Ok((Self::FromBcd(value), input));
+        match FromBcd::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::FromBcd(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = ToBcd::parse(input, context, alloc.clone()) {
-            return Ok((Self::ToBcd(value), input));
+        match ToBcd::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::ToBcd(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = ToBuffer::parse(input, context, alloc.clone()) {
-            return Ok((Self::ToBuffer(value), input));
+        match ToBuffer::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::ToBuffer(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = ToDecimalString::parse(input, context, alloc.clone()) {
-            return Ok((Self::ToDecimalString(value), input));
+        match ToDecimalString::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::ToDecimalString(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = ToHexString::parse(input, context, alloc.clone()) {
-            return Ok((Self::ToHexString(value), input));
+        match ToHexString::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::ToHexString(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = ToInteger::parse(input, context, alloc.clone()) {
-            return Ok((Self::ToInteger(value), input));
+        match ToInteger::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::ToInteger(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = ToString::parse(input, context, alloc)?;

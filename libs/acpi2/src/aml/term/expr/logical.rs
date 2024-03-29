@@ -6,7 +6,7 @@ use crate::aml::{
         LAndOp, LEqualOp, LGreaterEqualOp, LGreaterOp, LLessEqualOp, LLessOp, LNotEqualOp, LNotOp,
         LOrOp,
     },
-    parser::{fail, Input, ParseResult},
+    parser::{fail, Input, ParseResult, ParserError},
     term::TermArg,
 };
 
@@ -28,36 +28,52 @@ impl<A: Allocator + Clone> Logical<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = And::parse(input, context, alloc.clone()) {
-            return Ok((Self::And(value), input));
+        match And::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::And(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Equal::parse(input, context, alloc.clone()) {
-            return Ok((Self::Equal(value), input));
+        match Equal::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Equal(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = GreaterEqual::parse(input, context, alloc.clone()) {
-            return Ok((Self::GreaterEqual(value), input));
+        match GreaterEqual::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::GreaterEqual(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Greater::parse(input, context, alloc.clone()) {
-            return Ok((Self::Greater(value), input));
+        match Greater::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Greater(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = LessEqual::parse(input, context, alloc.clone()) {
-            return Ok((Self::LessEqual(value), input));
+        match LessEqual::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::LessEqual(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Less::parse(input, context, alloc.clone()) {
-            return Ok((Self::Less(value), input));
+        match Less::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Less(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = NotEqual::parse(input, context, alloc.clone()) {
-            return Ok((Self::NotEqual(value), input));
+        match NotEqual::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::NotEqual(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Or::parse(input, context, alloc.clone()) {
-            return Ok((Self::Or(value), input));
+        match Or::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Or(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = Not::parse(input, context, alloc)?;

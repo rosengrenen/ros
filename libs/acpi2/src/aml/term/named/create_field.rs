@@ -7,7 +7,7 @@ use crate::aml::{
         CreateBitFieldOp, CreateByteFieldOp, CreateDWordFieldOp, CreateFieldOp, CreateQWordFieldOp,
         CreateWordFieldOp,
     },
-    parser::{fail, Input, ParseResult},
+    parser::{fail, Input, ParseResult, ParserError},
     term::TermArg,
 };
 
@@ -25,20 +25,28 @@ impl<A: Allocator + Clone> CreateConstField<A> {
         context: &mut Context<A>,
         alloc: A,
     ) -> ParseResult<'a, Self> {
-        if let Ok((value, input)) = Bit::parse(input, context, alloc.clone()) {
-            return Ok((Self::Bit(value), input));
+        match Bit::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Bit(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Byte::parse(input, context, alloc.clone()) {
-            return Ok((Self::Byte(value), input));
+        match Byte::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Byte(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = Word::parse(input, context, alloc.clone()) {
-            return Ok((Self::Word(value), input));
+        match Word::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::Word(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
-        if let Ok((value, input)) = DWord::parse(input, context, alloc.clone()) {
-            return Ok((Self::DWord(value), input));
+        match DWord::parse(input, context, alloc.clone()) {
+            Ok((value, input)) => return Ok((Self::DWord(value), input)),
+            Err(ParserError::Failure) => return Err(ParserError::Failure),
+            Err(_) => (),
         }
 
         let (value, input) = QWord::parse(input, context, alloc)?;
