@@ -1,5 +1,5 @@
 #[macro_use]
-pub(crate) mod parser;
+pub mod parser;
 
 pub mod context;
 

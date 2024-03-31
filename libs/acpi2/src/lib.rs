@@ -1,7 +1,7 @@
-// #![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(test), no_std)]
 #![feature(allocator_api)]
 
-use std::alloc::Allocator;
+use core::alloc::Allocator;
 
 use alloc::vec::Vec;
 use aml::{
