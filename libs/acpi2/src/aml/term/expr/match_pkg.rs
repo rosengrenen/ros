@@ -9,12 +9,12 @@ use crate::aml::{
 };
 
 pub struct Match<A: Allocator> {
-    search_pkg: TermArg<A>,
-    left_match_opcode: u8,
-    left: TermArg<A>,
-    right_match_opcode: u8,
-    right: TermArg<A>,
-    start_index: TermArg<A>,
+    pub search_pkg: TermArg<A>,
+    pub left_match_opcode: u8,
+    pub left: TermArg<A>,
+    pub right_match_opcode: u8,
+    pub right: TermArg<A>,
+    pub start_index: TermArg<A>,
 }
 
 impl<A: Allocator + Clone> Match<A> {
@@ -47,5 +47,18 @@ impl<A: Allocator + Clone> Match<A> {
             start_index,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Match<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Match")
+            .field("search_pkg", &self.search_pkg)
+            .field("left_match_opcode", &self.left_match_opcode)
+            .field("left", &self.left)
+            .field("right_match_opcode", &self.right_match_opcode)
+            .field("right", &self.right)
+            .field("start_index", &self.start_index)
+            .finish()
     }
 }

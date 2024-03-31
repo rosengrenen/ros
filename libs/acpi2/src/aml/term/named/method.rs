@@ -12,9 +12,9 @@ use crate::aml::{
 use alloc::vec::Vec;
 
 pub struct Method<A: Allocator> {
-    name: NameString<A>,
-    flags: u8,
-    terms: Vec<TermObj<A>, A>,
+    pub name: NameString<A>,
+    pub flags: u8,
+    pub terms: Vec<TermObj<A>, A>,
 }
 
 impl<A: Allocator + Clone> Method<A> {
@@ -47,5 +47,15 @@ impl<A: Allocator + Clone> Method<A> {
 
         context.pop_scope();
         Ok((Self { name, flags, terms }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Method<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Method")
+            .field("name", &self.name)
+            .field("flags", &self.flags)
+            .field("terms", &self.terms)
+            .finish()
     }
 }

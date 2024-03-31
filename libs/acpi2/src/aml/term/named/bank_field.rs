@@ -14,11 +14,11 @@ use alloc::vec::Vec;
 use super::field_element::FieldElement;
 
 pub struct BankField<A: Allocator> {
-    name1: NameString<A>,
-    name2: NameString<A>,
-    bank_value: TermArg<A>,
-    field_flags: u8,
-    field_list: Vec<FieldElement<A>, A>,
+    pub name1: NameString<A>,
+    pub name2: NameString<A>,
+    pub bank_value: TermArg<A>,
+    pub field_flags: u8,
+    pub field_list: Vec<FieldElement<A>, A>,
 }
 
 impl<A: Allocator + Clone> BankField<A> {
@@ -57,5 +57,17 @@ impl<A: Allocator + Clone> BankField<A> {
             field_list,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for BankField<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("BankField")
+            .field("name1", &self.name1)
+            .field("name2", &self.name2)
+            .field("bank_value", &self.bank_value)
+            .field("field_flags", &self.field_flags)
+            .field("field_list", &self.field_list)
+            .finish()
     }
 }

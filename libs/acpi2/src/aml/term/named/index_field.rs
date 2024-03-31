@@ -11,10 +11,10 @@ use crate::aml::{
 use alloc::vec::Vec;
 
 pub struct IndexField<A: Allocator> {
-    name1: NameString<A>,
-    name2: NameString<A>,
-    flags: u8,
-    fields: Vec<FieldElement<A>, A>,
+    pub name1: NameString<A>,
+    pub name2: NameString<A>,
+    pub flags: u8,
+    pub fields: Vec<FieldElement<A>, A>,
 }
 
 impl<A: Allocator + Clone> IndexField<A> {
@@ -43,5 +43,16 @@ impl<A: Allocator + Clone> IndexField<A> {
             fields,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for IndexField<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("IndexField")
+            .field("name1", &self.name1)
+            .field("name2", &self.name2)
+            .field("flags", &self.flags)
+            .field("fields", &self.fields)
+            .finish()
     }
 }

@@ -248,6 +248,41 @@ impl<A: Allocator + Clone> Expr<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Expr<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Acquire(arg0) => f.debug_tuple("Acquire").field(arg0).finish(),
+            Self::Bitwise(arg0) => f.debug_tuple("Bitwise").field(arg0).finish(),
+            Self::Buffer(arg0) => f.debug_tuple("Buffer").field(arg0).finish(),
+            Self::Concat(arg0) => f.debug_tuple("Concat").field(arg0).finish(),
+            Self::ConcatRes(arg0) => f.debug_tuple("ConcatRes").field(arg0).finish(),
+            Self::CondRefOf(arg0) => f.debug_tuple("CondRefOf").field(arg0).finish(),
+            Self::ConvertFn(arg0) => f.debug_tuple("ConvertFn").field(arg0).finish(),
+            Self::CopyObj(arg0) => f.debug_tuple("CopyObj").field(arg0).finish(),
+            Self::DerefOf(arg0) => f.debug_tuple("DerefOf").field(arg0).finish(),
+            Self::FindSetLeftBit(arg0) => f.debug_tuple("FindSetLeftBit").field(arg0).finish(),
+            Self::FindSetRightBit(arg0) => f.debug_tuple("FindSetRightBit").field(arg0).finish(),
+            Self::Index(arg0) => f.debug_tuple("Index").field(arg0).finish(),
+            Self::Integer(arg0) => f.debug_tuple("Integer").field(arg0).finish(),
+            Self::Load(arg0) => f.debug_tuple("Load").field(arg0).finish(),
+            Self::LoadTable(arg0) => f.debug_tuple("LoadTable").field(arg0).finish(),
+            Self::Logical(arg0) => f.debug_tuple("Logical").field(arg0).finish(),
+            Self::Match(arg0) => f.debug_tuple("Match").field(arg0).finish(),
+            Self::Mid(arg0) => f.debug_tuple("Mid").field(arg0).finish(),
+            Self::Mod(arg0) => f.debug_tuple("Mod").field(arg0).finish(),
+            Self::ObjType(arg0) => f.debug_tuple("ObjType").field(arg0).finish(),
+            Self::Pkg(arg0) => f.debug_tuple("Pkg").field(arg0).finish(),
+            Self::RefOf(arg0) => f.debug_tuple("RefOf").field(arg0).finish(),
+            Self::SizeOf(arg0) => f.debug_tuple("SizeOf").field(arg0).finish(),
+            Self::Store(arg0) => f.debug_tuple("Store").field(arg0).finish(),
+            Self::Timer(arg0) => f.debug_tuple("Timer").field(arg0).finish(),
+            Self::VarPkg(arg0) => f.debug_tuple("VarPkg").field(arg0).finish(),
+            Self::Wait(arg0) => f.debug_tuple("Wait").field(arg0).finish(),
+            Self::SymbolAccess(arg0) => f.debug_tuple("SymbolAccess").field(arg0).finish(),
+        }
+    }
+}
+
 pub enum RefTypeOpcode<A: Allocator> {
     RefOf(RefOf<A>),
     DerefOf(DerefOf<A>),
@@ -284,9 +319,20 @@ impl<A: Allocator + Clone> RefTypeOpcode<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for RefTypeOpcode<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::RefOf(arg0) => f.debug_tuple("RefOf").field(arg0).finish(),
+            Self::DerefOf(arg0) => f.debug_tuple("DerefOf").field(arg0).finish(),
+            Self::Index(arg0) => f.debug_tuple("Index").field(arg0).finish(),
+            Self::SymbolAccess(arg0) => f.debug_tuple("SymbolAccess").field(arg0).finish(),
+        }
+    }
+}
+
 pub struct Load<A: Allocator> {
-    name: NameString<A>,
-    target: Target<A>,
+    pub name: NameString<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> Load<A> {
@@ -310,6 +356,15 @@ impl<A: Allocator + Clone> Load<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Load<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Load")
+            .field("name", &self.name)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub enum PkgElement<A: Allocator> {
     DataRefObj(DataRefObj<A>),
     NameString(NameString<A>),
@@ -329,5 +384,14 @@ impl<A: Allocator + Clone> PkgElement<A> {
 
         let (value, input) = NameString::parse(input, alloc)?;
         Ok((Self::NameString(value), input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for PkgElement<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::DataRefObj(arg0) => f.debug_tuple("DataRefObj").field(arg0).finish(),
+            Self::NameString(arg0) => f.debug_tuple("NameString").field(arg0).finish(),
+        }
     }
 }

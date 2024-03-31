@@ -6,9 +6,10 @@ use crate::aml::{
 };
 use core::alloc::Allocator;
 
+#[derive(Debug)]
 pub struct Named {
-    name: NameSeg,
-    len: usize,
+    pub name: NameSeg,
+    pub len: usize,
 }
 
 impl Named {
@@ -19,18 +20,21 @@ impl Named {
     }
 }
 
+#[derive(Debug)]
 pub struct Reserved;
 
 impl Reserved {
     pub fn parse<'a>(input: Input<'a>) -> ParseResult<'a, Self> {
         let (_, input) = item(input, 0x00)?;
+        let (_, input) = pkg_length(input)?;
         Ok((Self, input))
     }
 }
 
+#[derive(Debug)]
 pub struct Access {
-    ty: u8,
-    attrib: u8,
+    pub ty: u8,
+    pub attrib: u8,
 }
 
 impl Access {
@@ -63,18 +67,19 @@ impl<A: Allocator + Clone> Connect<A> {
     }
 }
 
-// impl<A: Allocator> core::fmt::Debug for Connect<A> {
-//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         match  self {
-//             Self::NameString(inner) => f.debug_tuple("NameString").field(inner).finish(),
-//         }
-//     }
-// }
+impl<A: Allocator> core::fmt::Debug for Connect<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::NameString(inner) => f.debug_tuple("NameString").field(inner).finish(),
+        }
+    }
+}
 
+#[derive(Debug)]
 pub struct ExtendedAccess {
-    ty: u8,
-    attrib: u8,
-    len: u8,
+    pub ty: u8,
+    pub attrib: u8,
+    pub len: u8,
 }
 
 impl ExtendedAccess {
@@ -127,5 +132,17 @@ impl<A: Allocator + Clone> FieldElement<A> {
 
         let (value, input) = Connect::parse(input, alloc)?;
         Ok((Self::Connect(value), input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for FieldElement<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Named(arg0) => f.debug_tuple("Named").field(arg0).finish(),
+            Self::Reserved(arg0) => f.debug_tuple("Reserved").field(arg0).finish(),
+            Self::Access(arg0) => f.debug_tuple("Access").field(arg0).finish(),
+            Self::ExtendedAccess(arg0) => f.debug_tuple("ExtendedAccess").field(arg0).finish(),
+            Self::Connect(arg0) => f.debug_tuple("Connect").field(arg0).finish(),
+        }
     }
 }

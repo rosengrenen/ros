@@ -9,8 +9,8 @@ use crate::aml::{
 };
 
 pub struct Acquire<A: Allocator> {
-    mutex: MutexObj<A>,
-    timeout: u16,
+    pub mutex: MutexObj<A>,
+    pub timeout: u16,
 }
 
 impl<A: Allocator + Clone> Acquire<A> {
@@ -31,5 +31,14 @@ impl<A: Allocator + Clone> Acquire<A> {
         let (mutex, input) = MutexObj::parse(input, context, alloc)?;
         let (timeout, input) = word_data(input)?;
         Ok((Self { mutex, timeout }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Acquire<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Acquire")
+            .field("mutex", &self.mutex)
+            .field("timeout", &self.timeout)
+            .finish()
     }
 }

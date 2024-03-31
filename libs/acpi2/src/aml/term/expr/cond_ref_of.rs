@@ -8,8 +8,8 @@ use crate::aml::{
 };
 
 pub struct CondRefOf<A: Allocator> {
-    name: SuperName<A>,
-    target: Target<A>,
+    pub name: SuperName<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> CondRefOf<A> {
@@ -30,5 +30,14 @@ impl<A: Allocator + Clone> CondRefOf<A> {
         let (name, input) = SuperName::parse(input, context, alloc.clone())?;
         let (target, input) = Target::parse(input, context, alloc)?;
         Ok((Self { name, target }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for CondRefOf<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("CondRefOf")
+            .field("name", &self.name)
+            .field("target", &self.target)
+            .finish()
     }
 }

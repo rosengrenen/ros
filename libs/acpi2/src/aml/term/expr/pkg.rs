@@ -11,8 +11,8 @@ use crate::aml::{
 use alloc::vec::Vec;
 
 pub struct Pkg<A: Allocator> {
-    len: usize,
-    elements: Vec<PkgElement<A>, A>,
+    pub len: usize,
+    pub elements: Vec<PkgElement<A>, A>,
 }
 
 impl<A: Allocator + Clone> Pkg<A> {
@@ -45,5 +45,14 @@ impl<A: Allocator + Clone> Pkg<A> {
             elements,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Pkg<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Pkg")
+            .field("len", &self.len)
+            .field("elements", &self.elements)
+            .finish()
     }
 }

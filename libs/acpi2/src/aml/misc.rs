@@ -6,6 +6,7 @@ use super::{
     parser::{Input, ParseResult, ParserError},
 };
 
+#[derive(Debug)]
 pub enum ArgObj {
     Arg0(Arg0Op),
     Arg1(Arg1Op),
@@ -59,6 +60,7 @@ impl ArgObj {
     }
 }
 
+#[derive(Debug)]
 pub enum LocalObj {
     Local0(Local0Op),
     Local1(Local1Op),
@@ -119,6 +121,7 @@ impl LocalObj {
     }
 }
 
+#[derive(Debug)]
 pub struct DebugObj;
 
 impl DebugObj {

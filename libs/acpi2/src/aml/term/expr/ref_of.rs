@@ -8,7 +8,7 @@ use crate::aml::{
 };
 
 pub struct RefOf<A: Allocator> {
-    name: SuperName<A>,
+    pub name: SuperName<A>,
 }
 
 impl<A: Allocator + Clone> RefOf<A> {
@@ -28,5 +28,11 @@ impl<A: Allocator + Clone> RefOf<A> {
     ) -> ParseResult<'a, Self> {
         let (name, input) = SuperName::parse(input, context, alloc)?;
         Ok((Self { name }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for RefOf<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("RefOf").field("name", &self.name).finish()
     }
 }

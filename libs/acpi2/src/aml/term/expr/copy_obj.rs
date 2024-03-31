@@ -9,8 +9,8 @@ use crate::aml::{
 };
 
 pub struct CopyObj<A: Allocator> {
-    arg: TermArg<A>,
-    name: SimpleName<A>,
+    pub arg: TermArg<A>,
+    pub name: SimpleName<A>,
 }
 
 impl<A: Allocator + Clone> CopyObj<A> {
@@ -31,5 +31,14 @@ impl<A: Allocator + Clone> CopyObj<A> {
         let (arg, input) = TermArg::parse(input, context, alloc.clone())?;
         let (name, input) = SimpleName::parse(input, alloc)?;
         Ok((Self { arg, name }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for CopyObj<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("CopyObj")
+            .field("arg", &self.arg)
+            .field("name", &self.name)
+            .finish()
     }
 }

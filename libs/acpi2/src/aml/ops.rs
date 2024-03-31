@@ -2,6 +2,7 @@ use super::parser::{item, Input, ParseResult};
 
 macro_rules! op {
     ($opcode:literal, $name:ident) => {
+        #[derive(Debug)]
         pub struct $name;
         impl $name {
             pub fn parse<'a>(input: Input<'a>) -> ParseResult<'a, Self> {
@@ -11,6 +12,7 @@ macro_rules! op {
         }
     };
     (($opcode1:literal, $opcode2:literal), $name:ident) => {
+        #[derive(Debug)]
         pub struct $name;
         impl $name {
             pub fn parse<'a>(input: Input<'a>) -> ParseResult<'a, Self> {

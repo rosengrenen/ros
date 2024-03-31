@@ -11,9 +11,9 @@ use crate::aml::{
 use alloc::vec::Vec;
 
 pub struct Field<A: Allocator> {
-    name: NameString<A>,
-    flags: u8,
-    fields: Vec<FieldElement<A>, A>,
+    pub name: NameString<A>,
+    pub flags: u8,
+    pub fields: Vec<FieldElement<A>, A>,
 }
 
 impl<A: Allocator + Clone> Field<A> {
@@ -40,5 +40,15 @@ impl<A: Allocator + Clone> Field<A> {
             fields,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Field<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Field")
+            .field("name", &self.name)
+            .field("flags", &self.flags)
+            .field("fields", &self.fields)
+            .finish()
     }
 }

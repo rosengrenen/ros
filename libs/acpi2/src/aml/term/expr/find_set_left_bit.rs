@@ -9,8 +9,8 @@ use crate::aml::{
 };
 
 pub struct FindSetLeftBit<A: Allocator> {
-    operand: TermArg<A>,
-    target: Target<A>,
+    pub operand: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> FindSetLeftBit<A> {
@@ -31,5 +31,14 @@ impl<A: Allocator + Clone> FindSetLeftBit<A> {
         let (operand, input) = TermArg::parse(input, context, alloc.clone())?;
         let (target, input) = Target::parse(input, context, alloc)?;
         Ok((Self { operand, target }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for FindSetLeftBit<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("FindSetLeftBit")
+            .field("operand", &self.operand)
+            .field("target", &self.target)
+            .finish()
     }
 }

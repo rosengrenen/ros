@@ -7,7 +7,7 @@ use crate::aml::{
 };
 
 pub struct Event<A: Allocator> {
-    name: NameString<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> Event<A> {
@@ -19,5 +19,11 @@ impl<A: Allocator + Clone> Event<A> {
     fn parse_inner<'a>(input: Input<'a>, alloc: A) -> ParseResult<'a, Self> {
         let (name, input) = NameString::parse(input, alloc)?;
         Ok((Self { name }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Event<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Event").field("name", &self.name).finish()
     }
 }

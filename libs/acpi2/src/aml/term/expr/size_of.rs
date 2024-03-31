@@ -8,7 +8,7 @@ use crate::aml::{
 };
 
 pub struct SizeOf<A: Allocator> {
-    name: SuperName<A>,
+    pub name: SuperName<A>,
 }
 
 impl<A: Allocator + Clone> SizeOf<A> {
@@ -28,5 +28,11 @@ impl<A: Allocator + Clone> SizeOf<A> {
     ) -> ParseResult<'a, Self> {
         let (name, input) = SuperName::parse(input, context, alloc)?;
         Ok((Self { name }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for SizeOf<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("SizeOf").field("name", &self.name).finish()
     }
 }

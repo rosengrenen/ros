@@ -127,6 +127,29 @@ impl<A: Allocator + Clone> Statement<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Statement<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Break(arg0) => f.debug_tuple("Break").field(arg0).finish(),
+            Self::BreakPoint(arg0) => f.debug_tuple("BreakPoint").field(arg0).finish(),
+            Self::Continue(arg0) => f.debug_tuple("Continue").field(arg0).finish(),
+            Self::Else(arg0) => f.debug_tuple("Else").field(arg0).finish(),
+            Self::Fatal(arg0) => f.debug_tuple("Fatal").field(arg0).finish(),
+            Self::IfElse(arg0) => f.debug_tuple("IfElse").field(arg0).finish(),
+            Self::Noop(arg0) => f.debug_tuple("Noop").field(arg0).finish(),
+            Self::Notify(arg0) => f.debug_tuple("Notify").field(arg0).finish(),
+            Self::Release(arg0) => f.debug_tuple("Release").field(arg0).finish(),
+            Self::Reset(arg0) => f.debug_tuple("Reset").field(arg0).finish(),
+            Self::Return(arg0) => f.debug_tuple("Return").field(arg0).finish(),
+            Self::Signal(arg0) => f.debug_tuple("Signal").field(arg0).finish(),
+            Self::Sleep(arg0) => f.debug_tuple("Sleep").field(arg0).finish(),
+            Self::Stall(arg0) => f.debug_tuple("Stall").field(arg0).finish(),
+            Self::While(arg0) => f.debug_tuple("While").field(arg0).finish(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct BreakPoint;
 
 impl BreakPoint {
@@ -136,6 +159,7 @@ impl BreakPoint {
     }
 }
 
+#[derive(Debug)]
 pub struct Break;
 
 impl Break {
@@ -145,6 +169,7 @@ impl Break {
     }
 }
 
+#[derive(Debug)]
 pub struct Continue;
 
 impl Continue {
@@ -155,9 +180,9 @@ impl Continue {
 }
 
 pub struct Fatal<A: Allocator> {
-    ty: u8,
-    code: u32,
-    arg: TermArg<A>,
+    pub ty: u8,
+    pub code: u32,
+    pub arg: TermArg<A>,
 }
 
 impl<A: Allocator + Clone> Fatal<A> {
@@ -182,10 +207,20 @@ impl<A: Allocator + Clone> Fatal<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Fatal<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Fatal")
+            .field("ty", &self.ty)
+            .field("code", &self.code)
+            .field("arg", &self.arg)
+            .finish()
+    }
+}
+
 pub struct IfElse<A: Allocator> {
-    predicate: TermArg<A>,
-    terms: Vec<TermObj<A>, A>,
-    else_statement: Option<Else<A>>,
+    pub predicate: TermArg<A>,
+    pub terms: Vec<TermObj<A>, A>,
+    pub else_statement: Option<Else<A>>,
 }
 
 impl<A: Allocator + Clone> IfElse<A> {
@@ -227,8 +262,18 @@ impl<A: Allocator + Clone> IfElse<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for IfElse<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("IfElse")
+            .field("predicate", &self.predicate)
+            .field("terms", &self.terms)
+            .field("else_statement", &self.else_statement)
+            .finish()
+    }
+}
+
 pub struct Else<A: Allocator> {
-    terms: Vec<TermObj<A>, A>,
+    pub terms: Vec<TermObj<A>, A>,
 }
 
 impl<A: Allocator + Clone> Else<A> {
@@ -259,6 +304,13 @@ impl<A: Allocator + Clone> Else<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Else<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Else").field("terms", &self.terms).finish()
+    }
+}
+
+#[derive(Debug)]
 pub struct Noop;
 
 impl Noop {
@@ -269,8 +321,8 @@ impl Noop {
 }
 
 pub struct Notify<A: Allocator> {
-    obj: SuperName<A>,
-    value: TermArg<A>,
+    pub obj: SuperName<A>,
+    pub value: TermArg<A>,
 }
 
 impl<A: Allocator + Clone> Notify<A> {
@@ -294,8 +346,17 @@ impl<A: Allocator + Clone> Notify<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Notify<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Notify")
+            .field("obj", &self.obj)
+            .field("value", &self.value)
+            .finish()
+    }
+}
+
 pub struct Release<A: Allocator> {
-    mutex: MutexObj<A>,
+    pub mutex: MutexObj<A>,
 }
 
 impl<A: Allocator + Clone> Release<A> {
@@ -318,8 +379,16 @@ impl<A: Allocator + Clone> Release<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Release<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Release")
+            .field("mutex", &self.mutex)
+            .finish()
+    }
+}
+
 pub struct Reset<A: Allocator> {
-    event: EventObj<A>,
+    pub event: EventObj<A>,
 }
 
 impl<A: Allocator + Clone> Reset<A> {
@@ -342,8 +411,14 @@ impl<A: Allocator + Clone> Reset<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Reset<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Reset").field("event", &self.event).finish()
+    }
+}
+
 pub struct Return<A: Allocator> {
-    arg: ArgObj<A>,
+    pub arg: ArgObj<A>,
 }
 
 impl<A: Allocator + Clone> Return<A> {
@@ -366,8 +441,14 @@ impl<A: Allocator + Clone> Return<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Return<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Return").field("arg", &self.arg).finish()
+    }
+}
+
 pub struct Signal<A: Allocator> {
-    event: EventObj<A>,
+    pub event: EventObj<A>,
 }
 
 impl<A: Allocator + Clone> Signal<A> {
@@ -390,8 +471,16 @@ impl<A: Allocator + Clone> Signal<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Signal<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Signal")
+            .field("event", &self.event)
+            .finish()
+    }
+}
+
 pub struct Sleep<A: Allocator> {
-    ms: TermArg<A>,
+    pub ms: TermArg<A>,
 }
 
 impl<A: Allocator + Clone> Sleep<A> {
@@ -414,8 +503,14 @@ impl<A: Allocator + Clone> Sleep<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Sleep<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Sleep").field("ms", &self.ms).finish()
+    }
+}
+
 pub struct Stall<A: Allocator> {
-    us: TermArg<A>,
+    pub us: TermArg<A>,
 }
 
 impl<A: Allocator + Clone> Stall<A> {
@@ -438,9 +533,15 @@ impl<A: Allocator + Clone> Stall<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Stall<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Stall").field("us", &self.us).finish()
+    }
+}
+
 pub struct While<A: Allocator> {
-    predicate: TermArg<A>,
-    terms: Vec<TermObj<A>, A>,
+    pub predicate: TermArg<A>,
+    pub terms: Vec<TermObj<A>, A>,
 }
 
 impl<A: Allocator + Clone> While<A> {
@@ -472,7 +573,16 @@ impl<A: Allocator + Clone> While<A> {
     }
 }
 
-pub struct MutexObj<A: Allocator>(Box<SuperName<A>, A>);
+impl<A: Allocator> core::fmt::Debug for While<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("While")
+            .field("predicate", &self.predicate)
+            .field("terms", &self.terms)
+            .finish()
+    }
+}
+
+pub struct MutexObj<A: Allocator>(pub Box<SuperName<A>, A>);
 
 impl<A: Allocator + Clone> MutexObj<A> {
     pub fn parse<'a>(
@@ -486,7 +596,13 @@ impl<A: Allocator + Clone> MutexObj<A> {
     }
 }
 
-pub struct EventObj<A: Allocator>(SuperName<A>);
+impl<A: Allocator> core::fmt::Debug for MutexObj<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("MutexObj").field(&self.0).finish()
+    }
+}
+
+pub struct EventObj<A: Allocator>(pub SuperName<A>);
 
 impl<A: Allocator + Clone> EventObj<A> {
     pub fn parse<'a>(
@@ -499,7 +615,13 @@ impl<A: Allocator + Clone> EventObj<A> {
     }
 }
 
-pub struct ArgObj<A: Allocator>(TermArg<A>);
+impl<A: Allocator> core::fmt::Debug for EventObj<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("EventObj").field(&self.0).finish()
+    }
+}
+
+pub struct ArgObj<A: Allocator>(pub TermArg<A>);
 
 impl<A: Allocator + Clone> ArgObj<A> {
     pub fn parse<'a>(
@@ -509,5 +631,11 @@ impl<A: Allocator + Clone> ArgObj<A> {
     ) -> ParseResult<'a, Self> {
         let (arg, input) = TermArg::parse(input, context, alloc)?;
         Ok((Self(arg), input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for ArgObj<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("ArgObj").field(&self.0).finish()
     }
 }

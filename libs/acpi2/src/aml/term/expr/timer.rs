@@ -3,6 +3,7 @@ use crate::aml::{
     parser::{Input, ParseResult},
 };
 
+#[derive(Debug)]
 pub struct Timer;
 
 impl Timer {

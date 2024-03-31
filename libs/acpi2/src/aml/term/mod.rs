@@ -56,18 +56,18 @@ impl<A: Allocator + Clone> SymbolAccess<A> {
     }
 }
 
-// impl<A: Allocator> core::fmt::Debug for SymbolAccess<A> {
-//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         match  self {
-//             SymbolAccess::Variable(name) => f.debug_tuple("Variable").field(name).finish(),
-//             SymbolAccess::Method { name, args } => f
-//                 .debug_struct("Method")
-//                 .field("name", name)
-//                 .field("args", args)
-//                 .finish(),
-//         }
-//     }
-// }
+impl<A: Allocator> core::fmt::Debug for SymbolAccess<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Variable(arg0) => f.debug_tuple("Variable").field(arg0).finish(),
+            Self::Method { name, args } => f
+                .debug_struct("Method")
+                .field("name", name)
+                .field("args", args)
+                .finish(),
+        }
+    }
+}
 
 pub enum Obj<A: Allocator> {
     NameSpaceModObj(NameSpaceModObj<A>),
@@ -88,6 +88,15 @@ impl<A: Allocator + Clone> Obj<A> {
 
         let (value, input) = NamedObj::parse(input, context, alloc)?;
         Ok((Self::NamedObj(value), input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Obj<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::NameSpaceModObj(arg0) => f.debug_tuple("NameSpaceModObj").field(arg0).finish(),
+            Self::NamedObj(arg0) => f.debug_tuple("NamedObj").field(arg0).finish(),
+        }
     }
 }
 
@@ -134,16 +143,16 @@ impl<A: Allocator + Clone> TermArg<A> {
     }
 }
 
-// impl<A: Allocator> core::fmt::Debug for TermArg<A> {
-//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         match  self {
-//             Self::ArgObj(inner) => f.debug_tuple("ArgObj").field(inner).finish(),
-//             Self::LocalObj(inner) => f.debug_tuple("LocalObj").field(inner).finish(),
-//             Self::DataObj(inner) => f.debug_tuple("DataObj").field(inner).finish(),
-//             Self::Expr(inner) => f.debug_tuple("Expr").field(inner).finish(),
-//         }
-//     }
-// }
+impl<A: Allocator> core::fmt::Debug for TermArg<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::ArgObj(arg0) => f.debug_tuple("ArgObj").field(arg0).finish(),
+            Self::LocalObj(arg0) => f.debug_tuple("LocalObj").field(arg0).finish(),
+            Self::DataObj(arg0) => f.debug_tuple("DataObj").field(arg0).finish(),
+            Self::Expr(arg0) => f.debug_tuple("Expr").field(arg0).finish(),
+        }
+    }
+}
 
 pub enum TermObj<A: Allocator> {
     Obj(Obj<A>),
@@ -171,5 +180,15 @@ impl<A: Allocator + Clone> TermObj<A> {
 
         let (value, input) = Expr::parse(input, context, alloc)?;
         Ok((Self::Expr(value), input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for TermObj<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Obj(arg0) => f.debug_tuple("Obj").field(arg0).finish(),
+            Self::Statement(arg0) => f.debug_tuple("Statement").field(arg0).finish(),
+            Self::Expr(arg0) => f.debug_tuple("Expr").field(arg0).finish(),
+        }
     }
 }

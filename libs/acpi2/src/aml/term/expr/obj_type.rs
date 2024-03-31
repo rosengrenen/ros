@@ -60,14 +60,14 @@ impl<A: Allocator + Clone> ObjType<A> {
     }
 }
 
-// impl<A: Allocator> core::fmt::Debug for ObjType<A> {
-//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         match  self {
-//             Self::SimpleName(inner) => f.debug_tuple("SimpleName").field(inner).finish(),
-//             Self::DebugObj(inner) => f.debug_tuple("DebugObj").field(inner).finish(),
-//             Self::RefOf(inner) => f.debug_tuple("RefOf").field(inner).finish(),
-//             Self::DerefOf(inner) => f.debug_tuple("DerefOf").field(inner).finish(),
-//             Self::Index(inner) => f.debug_tuple("Index").field(inner).finish(),
-//         }
-//     }
-// }
+impl<A: Allocator> core::fmt::Debug for ObjType<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::SimpleName(arg0) => f.debug_tuple("SimpleName").field(arg0).finish(),
+            Self::DebugObj(arg0) => f.debug_tuple("DebugObj").field(arg0).finish(),
+            Self::RefOf(arg0) => f.debug_tuple("RefOf").field(arg0).finish(),
+            Self::DerefOf(arg0) => f.debug_tuple("DerefOf").field(arg0).finish(),
+            Self::Index(arg0) => f.debug_tuple("Index").field(arg0).finish(),
+        }
+    }
+}

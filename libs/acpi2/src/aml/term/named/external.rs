@@ -8,9 +8,9 @@ use crate::aml::{
 };
 
 pub struct External<A: Allocator> {
-    name: NameString<A>,
-    obj_type: u8,
-    argument_count: u8,
+    pub name: NameString<A>,
+    pub obj_type: u8,
+    pub argument_count: u8,
 }
 
 impl<A: Allocator + Clone> External<A> {
@@ -29,5 +29,15 @@ impl<A: Allocator + Clone> External<A> {
             argument_count,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for External<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("External")
+            .field("name", &self.name)
+            .field("obj_type", &self.obj_type)
+            .field("argument_count", &self.argument_count)
+            .finish()
     }
 }
