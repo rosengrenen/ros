@@ -11,6 +11,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "acpi2"
+version = "0.0.0"
+dependencies = [
+ "alloc",
+]
+
+[[package]]
 name = "alloc"
 version = "0.0.0"
 
@@ -41,6 +48,7 @@ name = "ros"
 version = "0.0.0"
 dependencies = [
  "acpi",
+ "acpi2",
  "alloc",
  "bootloader_api",
  "buddy",
