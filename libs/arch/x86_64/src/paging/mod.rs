@@ -24,13 +24,28 @@ impl<'a, M: PageTableFrameMapper> MappedPageTable<'a, M> {
 
     pub fn translate(&self, page: VirtAddr) -> Result<PhysAddr, ()> {
         let p4 = &self.level_4_table;
-        let p3 = self.table_walker.get_next_table(&p4[page.p4_index()])?;
-        let p2 = self.table_walker.get_next_table(&p3[page.p3_index()])?;
-        let p1 = self.table_walker.get_next_table(&p2[page.p2_index()])?;
+        let p4_entry = &p4[page.p4_index()];
 
+        let p3 = self.table_walker.get_next_table(&p4[page.p4_index()])?;
+        let p3_entry = &p3[page.p3_index()];
+        if p3_entry.is_page() {
+            return p3_entry
+                .frame()
+                .map(|base| base.add(page.as_u64() & 0x3FFF_FFFF));
+        }
+
+        let p2 = self.table_walker.get_next_table(&p3[page.p3_index()])?;
+        let p2_entry = &p2[page.p2_index()];
+        if p2_entry.is_page() {
+            return p2_entry
+                .frame()
+                .map(|base| base.add(page.as_u64() & 0x1F_FFFF));
+        }
+
+        let p1 = self.table_walker.get_next_table(&p2[page.p2_index()])?;
         let p1_entry = &p1[page.p1_index()];
 
-        p1_entry.frame()
+        p1_entry.frame().map(|base| base.add(page.as_u64() & 0xFFF))
     }
 
     pub fn map<F: FrameAllocator>(
@@ -159,7 +174,7 @@ const NUM_ENTRIES: usize = 512;
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(4096))]
 pub struct PageTable {
-    entries: [PageTableEntry; NUM_ENTRIES],
+    pub entries: [PageTableEntry; NUM_ENTRIES],
 }
 
 impl core::ops::Index<usize> for PageTable {
