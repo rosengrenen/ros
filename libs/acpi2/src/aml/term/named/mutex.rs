@@ -8,8 +8,8 @@ use crate::aml::{
 };
 
 pub struct Mutex<A: Allocator> {
-    name: NameString<A>,
-    flags: u8,
+    pub name: NameString<A>,
+    pub flags: u8,
 }
 
 impl<A: Allocator + Clone> Mutex<A> {
@@ -22,5 +22,14 @@ impl<A: Allocator + Clone> Mutex<A> {
         let (name, input) = NameString::parse(input, alloc)?;
         let (flags, input) = byte_data(input)?;
         Ok((Self { name, flags }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Mutex<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Mutex")
+            .field("name", &self.name)
+            .field("flags", &self.flags)
+            .finish()
     }
 }

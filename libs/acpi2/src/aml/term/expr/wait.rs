@@ -8,8 +8,8 @@ use crate::aml::{
 };
 
 pub struct Wait<A: Allocator> {
-    event: EventObj<A>,
-    operand: TermArg<A>,
+    pub event: EventObj<A>,
+    pub operand: TermArg<A>,
 }
 
 impl<A: Allocator + Clone> Wait<A> {
@@ -30,5 +30,14 @@ impl<A: Allocator + Clone> Wait<A> {
         let (event, input) = EventObj::parse(input, context, alloc.clone())?;
         let (operand, input) = TermArg::parse(input, context, alloc)?;
         Ok((Self { event, operand }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Wait<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Wait")
+            .field("event", &self.event)
+            .field("operand", &self.operand)
+            .finish()
     }
 }

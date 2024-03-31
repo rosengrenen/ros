@@ -54,10 +54,22 @@ impl<A: Allocator + Clone> CreateConstField<A> {
     }
 }
 
-struct Bit<A: Allocator> {
-    source: TermArg<A>,
-    index: TermArg<A>,
-    name: NameString<A>,
+impl<A: Allocator> core::fmt::Debug for CreateConstField<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Bit(arg0) => f.debug_tuple("Bit").field(arg0).finish(),
+            Self::Byte(arg0) => f.debug_tuple("Byte").field(arg0).finish(),
+            Self::Word(arg0) => f.debug_tuple("Word").field(arg0).finish(),
+            Self::DWord(arg0) => f.debug_tuple("DWord").field(arg0).finish(),
+            Self::QWord(arg0) => f.debug_tuple("QWord").field(arg0).finish(),
+        }
+    }
+}
+
+pub struct Bit<A: Allocator> {
+    pub source: TermArg<A>,
+    pub index: TermArg<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> Bit<A> {
@@ -87,10 +99,20 @@ impl<A: Allocator + Clone> Bit<A> {
     }
 }
 
-struct Byte<A: Allocator> {
-    source: TermArg<A>,
-    index: TermArg<A>,
-    name: NameString<A>,
+impl<A: Allocator> core::fmt::Debug for Bit<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Bit")
+            .field("source", &self.source)
+            .field("index", &self.index)
+            .field("name", &self.name)
+            .finish()
+    }
+}
+
+pub struct Byte<A: Allocator> {
+    pub source: TermArg<A>,
+    pub index: TermArg<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> Byte<A> {
@@ -120,10 +142,20 @@ impl<A: Allocator + Clone> Byte<A> {
     }
 }
 
-struct Word<A: Allocator> {
-    source: TermArg<A>,
-    index: TermArg<A>,
-    name: NameString<A>,
+impl<A: Allocator> core::fmt::Debug for Byte<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Byte")
+            .field("source", &self.source)
+            .field("index", &self.index)
+            .field("name", &self.name)
+            .finish()
+    }
+}
+
+pub struct Word<A: Allocator> {
+    pub source: TermArg<A>,
+    pub index: TermArg<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> Word<A> {
@@ -153,10 +185,20 @@ impl<A: Allocator + Clone> Word<A> {
     }
 }
 
-struct DWord<A: Allocator> {
-    source: TermArg<A>,
-    index: TermArg<A>,
-    name: NameString<A>,
+impl<A: Allocator> core::fmt::Debug for Word<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Word")
+            .field("source", &self.source)
+            .field("index", &self.index)
+            .field("name", &self.name)
+            .finish()
+    }
+}
+
+pub struct DWord<A: Allocator> {
+    pub source: TermArg<A>,
+    pub index: TermArg<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> DWord<A> {
@@ -186,10 +228,20 @@ impl<A: Allocator + Clone> DWord<A> {
     }
 }
 
-struct QWord<A: Allocator> {
-    source: TermArg<A>,
-    index: TermArg<A>,
-    name: NameString<A>,
+impl<A: Allocator> core::fmt::Debug for DWord<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("DWord")
+            .field("source", &self.source)
+            .field("index", &self.index)
+            .field("name", &self.name)
+            .finish()
+    }
+}
+
+pub struct QWord<A: Allocator> {
+    pub source: TermArg<A>,
+    pub index: TermArg<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> QWord<A> {
@@ -219,11 +271,21 @@ impl<A: Allocator + Clone> QWord<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for QWord<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("QWord")
+            .field("source", &self.source)
+            .field("index", &self.index)
+            .field("name", &self.name)
+            .finish()
+    }
+}
+
 pub struct CreateField<A: Allocator> {
-    source_buf: TermArg<A>,
-    bit_index: TermArg<A>,
-    num_bits: TermArg<A>,
-    name: NameString<A>,
+    pub source_buf: TermArg<A>,
+    pub bit_index: TermArg<A>,
+    pub num_bits: TermArg<A>,
+    pub name: NameString<A>,
 }
 
 impl<A: Allocator + Clone> CreateField<A> {
@@ -252,5 +314,16 @@ impl<A: Allocator + Clone> CreateField<A> {
             name,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for CreateField<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("CreateField")
+            .field("source_buf", &self.source_buf)
+            .field("bit_index", &self.bit_index)
+            .field("num_bits", &self.num_bits)
+            .field("name", &self.name)
+            .finish()
     }
 }

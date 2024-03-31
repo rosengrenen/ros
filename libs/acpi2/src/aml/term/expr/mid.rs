@@ -9,10 +9,10 @@ use crate::aml::{
 };
 
 pub struct Mid<A: Allocator> {
-    mid_obj: TermArg<A>,
-    term1: TermArg<A>,
-    term2: TermArg<A>,
-    target: Target<A>,
+    pub mid_obj: TermArg<A>,
+    pub term1: TermArg<A>,
+    pub term2: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> Mid<A> {
@@ -41,5 +41,16 @@ impl<A: Allocator + Clone> Mid<A> {
             target,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Mid<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Mid")
+            .field("mid_obj", &self.mid_obj)
+            .field("term1", &self.term1)
+            .field("term2", &self.term2)
+            .field("target", &self.target)
+            .finish()
     }
 }

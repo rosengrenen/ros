@@ -9,9 +9,9 @@ use crate::aml::{
 };
 
 pub struct Index<A: Allocator> {
-    buf_pkg_str_obj: TermArg<A>,
-    index_value: TermArg<A>,
-    target: Target<A>,
+    pub buf_pkg_str_obj: TermArg<A>,
+    pub index_value: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> Index<A> {
@@ -38,5 +38,15 @@ impl<A: Allocator + Clone> Index<A> {
             target,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Index<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Index")
+            .field("buf_pkg_str_obj", &self.buf_pkg_str_obj)
+            .field("index_value", &self.index_value)
+            .field("target", &self.target)
+            .finish()
     }
 }

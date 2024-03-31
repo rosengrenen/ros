@@ -8,12 +8,12 @@ use crate::aml::{
 };
 
 pub struct LoadTable<A: Allocator> {
-    arg1: TermArg<A>,
-    arg2: TermArg<A>,
-    arg3: TermArg<A>,
-    arg4: TermArg<A>,
-    arg5: TermArg<A>,
-    arg6: TermArg<A>,
+    pub arg1: TermArg<A>,
+    pub arg2: TermArg<A>,
+    pub arg3: TermArg<A>,
+    pub arg4: TermArg<A>,
+    pub arg5: TermArg<A>,
+    pub arg6: TermArg<A>,
 }
 
 impl<A: Allocator + Clone> LoadTable<A> {
@@ -46,5 +46,18 @@ impl<A: Allocator + Clone> LoadTable<A> {
             arg6,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for LoadTable<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("LoadTable")
+            .field("arg1", &self.arg1)
+            .field("arg2", &self.arg2)
+            .field("arg3", &self.arg3)
+            .field("arg4", &self.arg4)
+            .field("arg5", &self.arg5)
+            .field("arg6", &self.arg6)
+            .finish()
     }
 }

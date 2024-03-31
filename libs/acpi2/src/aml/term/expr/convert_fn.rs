@@ -67,9 +67,23 @@ impl<A: Allocator + Clone> ConvertFn<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for ConvertFn<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::FromBcd(arg0) => f.debug_tuple("FromBcd").field(arg0).finish(),
+            Self::ToBcd(arg0) => f.debug_tuple("ToBcd").field(arg0).finish(),
+            Self::ToBuffer(arg0) => f.debug_tuple("ToBuffer").field(arg0).finish(),
+            Self::ToDecimalString(arg0) => f.debug_tuple("ToDecimalString").field(arg0).finish(),
+            Self::ToHexString(arg0) => f.debug_tuple("ToHexString").field(arg0).finish(),
+            Self::ToInteger(arg0) => f.debug_tuple("ToInteger").field(arg0).finish(),
+            Self::ToString(arg0) => f.debug_tuple("ToString").field(arg0).finish(),
+        }
+    }
+}
+
 pub struct FromBcd<A: Allocator> {
-    input: TermArg<A>,
-    target: Target<A>,
+    pub input: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> FromBcd<A> {
@@ -99,9 +113,18 @@ impl<A: Allocator + Clone> FromBcd<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for FromBcd<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("FromBcd")
+            .field("input", &self.input)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct ToBcd<A: Allocator> {
-    input: TermArg<A>,
-    target: Target<A>,
+    pub input: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> ToBcd<A> {
@@ -131,9 +154,18 @@ impl<A: Allocator + Clone> ToBcd<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for ToBcd<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ToBcd")
+            .field("input", &self.input)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct ToBuffer<A: Allocator> {
-    input: TermArg<A>,
-    target: Target<A>,
+    pub input: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> ToBuffer<A> {
@@ -163,9 +195,18 @@ impl<A: Allocator + Clone> ToBuffer<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for ToBuffer<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ToBuffer")
+            .field("input", &self.input)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct ToDecimalString<A: Allocator> {
-    input: TermArg<A>,
-    target: Target<A>,
+    pub input: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> ToDecimalString<A> {
@@ -195,9 +236,18 @@ impl<A: Allocator + Clone> ToDecimalString<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for ToDecimalString<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ToDecimalString")
+            .field("input", &self.input)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct ToHexString<A: Allocator> {
-    input: TermArg<A>,
-    target: Target<A>,
+    pub input: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> ToHexString<A> {
@@ -227,9 +277,18 @@ impl<A: Allocator + Clone> ToHexString<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for ToHexString<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ToHexString")
+            .field("input", &self.input)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct ToInteger<A: Allocator> {
-    input: TermArg<A>,
-    target: Target<A>,
+    pub input: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> ToInteger<A> {
@@ -259,10 +318,19 @@ impl<A: Allocator + Clone> ToInteger<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for ToInteger<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ToInteger")
+            .field("input", &self.input)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct ToString<A: Allocator> {
-    arg1: TermArg<A>,
-    length_arg: TermArg<A>,
-    target: Target<A>,
+    pub arg1: TermArg<A>,
+    pub length_arg: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> ToString<A> {
@@ -291,5 +359,15 @@ impl<A: Allocator + Clone> ToString<A> {
             },
             input,
         ))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for ToString<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ToString")
+            .field("arg1", &self.arg1)
+            .field("length_arg", &self.length_arg)
+            .field("target", &self.target)
+            .finish()
     }
 }

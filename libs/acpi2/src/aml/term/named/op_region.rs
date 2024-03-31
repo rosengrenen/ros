@@ -10,10 +10,10 @@ use crate::aml::{
 };
 
 pub struct OpRegion<A: Allocator> {
-    name: NameString<A>,
-    space: u8,
-    offset: TermArg<A>,
-    len: TermArg<A>,
+    pub name: NameString<A>,
+    pub space: u8,
+    pub offset: TermArg<A>,
+    pub len: TermArg<A>,
 }
 
 impl<A: Allocator + Clone> OpRegion<A> {
@@ -42,5 +42,16 @@ impl<A: Allocator + Clone> OpRegion<A> {
             len,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for OpRegion<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("OpRegion")
+            .field("name", &self.name)
+            .field("space", &self.space)
+            .field("offset", &self.offset)
+            .field("len", &self.len)
+            .finish()
     }
 }

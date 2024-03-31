@@ -54,6 +54,18 @@ impl<A: Allocator + Clone> ComputationalData<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for ComputationalData<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::ConstInteger(arg0) => f.debug_tuple("ConstInteger").field(arg0).finish(),
+            Self::String(arg0) => f.debug_tuple("String").field(arg0).finish(),
+            Self::ConstObj(arg0) => f.debug_tuple("ConstObj").field(arg0).finish(),
+            Self::RevisionOp(arg0) => f.debug_tuple("RevisionOp").field(arg0).finish(),
+            Self::Buffer(arg0) => f.debug_tuple("Buffer").field(arg0).finish(),
+        }
+    }
+}
+
 pub enum DataObj<A: Allocator> {
     ComputationalData(ComputationalData<A>),
     Pkg(Pkg<A>),
@@ -85,6 +97,18 @@ impl<A: Allocator + Clone> DataObj<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for DataObj<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::ComputationalData(arg0) => {
+                f.debug_tuple("ComputationalData").field(arg0).finish()
+            }
+            Self::Pkg(arg0) => f.debug_tuple("Pkg").field(arg0).finish(),
+            Self::VarPkg(arg0) => f.debug_tuple("VarPkg").field(arg0).finish(),
+        }
+    }
+}
+
 pub enum DataRefObj<A: Allocator> {
     DataObj(DataObj<A>),
     // ObjRef(ObjRef),
@@ -101,6 +125,15 @@ impl<A: Allocator + Clone> DataRefObj<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for DataRefObj<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::DataObj(arg0) => f.debug_tuple("DataObj").field(arg0).finish(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum ConstInteger {
     ByteConst(ByteConst),
     WordConst(WordConst),
@@ -133,7 +166,8 @@ impl ConstInteger {
     }
 }
 
-pub struct ByteConst(u8);
+#[derive(Debug)]
+pub struct ByteConst(pub u8);
 
 impl ByteConst {
     pub fn parse<'a>(input: Input<'a>) -> ParseResult<'a, Self> {
@@ -143,7 +177,9 @@ impl ByteConst {
     }
 }
 
-pub struct WordConst(u16);
+#[derive(Debug)]
+pub struct WordConst(pub u16);
+
 impl WordConst {
     pub fn parse<'a>(input: Input<'a>) -> ParseResult<'a, Self> {
         let (_, input) = WordPrefix::parse(input)?;
@@ -152,7 +188,8 @@ impl WordConst {
     }
 }
 
-pub struct DWordConst(u32);
+#[derive(Debug)]
+pub struct DWordConst(pub u32);
 
 impl DWordConst {
     pub fn parse<'a>(input: Input<'a>) -> ParseResult<'a, Self> {
@@ -162,7 +199,8 @@ impl DWordConst {
     }
 }
 
-pub struct QWordConst(u64);
+#[derive(Debug)]
+pub struct QWordConst(pub u64);
 
 impl QWordConst {
     pub fn parse<'a>(input: Input<'a>) -> ParseResult<'a, Self> {
@@ -194,7 +232,7 @@ pub fn qword_data<'a>(input: Input<'a>) -> ParseResult<'a, u64> {
     Ok(((higher as u64) << 32 | lower as u64, input))
 }
 
-pub struct String<A: Allocator>(Vec<u8, A>);
+pub struct String<A: Allocator>(pub Vec<u8, A>);
 
 impl<A: Allocator> String<A> {
     pub fn parse<'a>(input: Input<'a>, alloc: A) -> ParseResult<'a, Self> {
@@ -210,6 +248,13 @@ impl<A: Allocator> String<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for String<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("String").field(&self.0).finish()
+    }
+}
+
+#[derive(Debug)]
 pub enum ConstObj {
     ZeroOp(ZeroOp),
     OneOp(OneOp),

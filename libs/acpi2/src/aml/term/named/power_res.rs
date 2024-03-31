@@ -12,10 +12,10 @@ use crate::aml::{
 use alloc::vec::Vec;
 
 pub struct PowerRes<A: Allocator> {
-    name: NameString<A>,
-    system_level: u8,
-    resource_order: u16,
-    terms: Vec<TermObj<A>, A>,
+    pub name: NameString<A>,
+    pub system_level: u8,
+    pub resource_order: u16,
+    pub terms: Vec<TermObj<A>, A>,
 }
 
 impl<A: Allocator + Clone> PowerRes<A> {
@@ -54,5 +54,16 @@ impl<A: Allocator + Clone> PowerRes<A> {
             terms,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for PowerRes<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("PowerRes")
+            .field("name", &self.name)
+            .field("system_level", &self.system_level)
+            .field("resource_order", &self.resource_order)
+            .field("terms", &self.terms)
+            .finish()
     }
 }

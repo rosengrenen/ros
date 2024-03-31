@@ -8,7 +8,7 @@ use crate::aml::{
 };
 
 pub struct DerefOf<A: Allocator> {
-    obj_ref: TermArg<A>,
+    pub obj_ref: TermArg<A>,
 }
 
 impl<A: Allocator + Clone> DerefOf<A> {
@@ -28,5 +28,13 @@ impl<A: Allocator + Clone> DerefOf<A> {
     ) -> ParseResult<'a, Self> {
         let (obj_ref, input) = TermArg::parse(input, context, alloc)?;
         Ok((Self { obj_ref }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for DerefOf<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("DerefOf")
+            .field("obj_ref", &self.obj_ref)
+            .finish()
     }
 }

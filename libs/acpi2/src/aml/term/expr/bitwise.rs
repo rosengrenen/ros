@@ -72,10 +72,25 @@ impl<A: Allocator + Clone> Bitwise<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Bitwise<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::And(arg0) => f.debug_tuple("And").field(arg0).finish(),
+            Self::NAnd(arg0) => f.debug_tuple("NAnd").field(arg0).finish(),
+            Self::NOr(arg0) => f.debug_tuple("NOr").field(arg0).finish(),
+            Self::Or(arg0) => f.debug_tuple("Or").field(arg0).finish(),
+            Self::XOr(arg0) => f.debug_tuple("XOr").field(arg0).finish(),
+            Self::Not(arg0) => f.debug_tuple("Not").field(arg0).finish(),
+            Self::ShiftLeft(arg0) => f.debug_tuple("ShiftLeft").field(arg0).finish(),
+            Self::ShiftRight(arg0) => f.debug_tuple("ShiftRight").field(arg0).finish(),
+        }
+    }
+}
+
 pub struct And<A: Allocator> {
-    left: TermArg<A>,
-    right: TermArg<A>,
-    target: Target<A>,
+    pub left: TermArg<A>,
+    pub right: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> And<A> {
@@ -105,10 +120,20 @@ impl<A: Allocator + Clone> And<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for And<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("And")
+            .field("left", &self.left)
+            .field("right", &self.right)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct NAnd<A: Allocator> {
-    left: TermArg<A>,
-    right: TermArg<A>,
-    target: Target<A>,
+    pub left: TermArg<A>,
+    pub right: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> NAnd<A> {
@@ -138,10 +163,20 @@ impl<A: Allocator + Clone> NAnd<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for NAnd<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("NAnd")
+            .field("left", &self.left)
+            .field("right", &self.right)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct NOr<A: Allocator> {
-    left: TermArg<A>,
-    right: TermArg<A>,
-    target: Target<A>,
+    pub left: TermArg<A>,
+    pub right: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> NOr<A> {
@@ -171,10 +206,20 @@ impl<A: Allocator + Clone> NOr<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for NOr<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("NOr")
+            .field("left", &self.left)
+            .field("right", &self.right)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct Or<A: Allocator> {
-    left: TermArg<A>,
-    right: TermArg<A>,
-    target: Target<A>,
+    pub left: TermArg<A>,
+    pub right: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> Or<A> {
@@ -204,10 +249,20 @@ impl<A: Allocator + Clone> Or<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Or<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Or")
+            .field("left", &self.left)
+            .field("right", &self.right)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct XOr<A: Allocator> {
-    left: TermArg<A>,
-    right: TermArg<A>,
-    target: Target<A>,
+    pub left: TermArg<A>,
+    pub right: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> XOr<A> {
@@ -237,9 +292,19 @@ impl<A: Allocator + Clone> XOr<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for XOr<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("XOr")
+            .field("left", &self.left)
+            .field("right", &self.right)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct Not<A: Allocator> {
-    operand: TermArg<A>,
-    target: Target<A>,
+    pub operand: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> Not<A> {
@@ -263,10 +328,19 @@ impl<A: Allocator + Clone> Not<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Not<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Not")
+            .field("operand", &self.operand)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct ShiftLeft<A: Allocator> {
-    operand: TermArg<A>,
-    shift_count: TermArg<A>,
-    target: Target<A>,
+    pub operand: TermArg<A>,
+    pub shift_count: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> ShiftLeft<A> {
@@ -296,10 +370,20 @@ impl<A: Allocator + Clone> ShiftLeft<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for ShiftLeft<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ShiftLeft")
+            .field("operand", &self.operand)
+            .field("shift_count", &self.shift_count)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct ShiftRight<A: Allocator> {
-    operand: TermArg<A>,
-    shift_count: TermArg<A>,
-    target: Target<A>,
+    pub operand: TermArg<A>,
+    pub shift_count: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> ShiftRight<A> {
@@ -326,5 +410,15 @@ impl<A: Allocator + Clone> ShiftRight<A> {
             target,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for ShiftRight<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ShiftRight")
+            .field("operand", &self.operand)
+            .field("shift_count", &self.shift_count)
+            .field("target", &self.target)
+            .finish()
     }
 }

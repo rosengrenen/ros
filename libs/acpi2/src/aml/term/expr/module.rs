@@ -9,9 +9,9 @@ use crate::aml::{
 };
 
 pub struct Mod<A: Allocator> {
-    dividend: TermArg<A>,
-    divisor: TermArg<A>,
-    target: Target<A>,
+    pub dividend: TermArg<A>,
+    pub divisor: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> Mod<A> {
@@ -38,5 +38,15 @@ impl<A: Allocator + Clone> Mod<A> {
             target,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Mod<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Mod")
+            .field("dividend", &self.dividend)
+            .field("divisor", &self.divisor)
+            .field("target", &self.target)
+            .finish()
     }
 }

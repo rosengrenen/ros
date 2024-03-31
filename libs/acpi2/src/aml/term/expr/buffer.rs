@@ -10,8 +10,8 @@ use crate::aml::{
 use alloc::{iter::IteratorCollectIn, vec::Vec};
 
 pub struct Buffer<A: Allocator> {
-    len: TermArg<A>,
-    bytes: Vec<u8, A>,
+    pub len: TermArg<A>,
+    pub bytes: Vec<u8, A>,
 }
 
 impl<A: Allocator + Clone> Buffer<A> {
@@ -37,5 +37,14 @@ impl<A: Allocator + Clone> Buffer<A> {
         let (bytes, input) = take(input, input_len)?;
         let bytes = bytes.iter().copied().collect_in(alloc).unwrap();
         Ok((Self { len, bytes }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Buffer<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Buffer")
+            .field("len", &self.len)
+            .field("bytes", &self.bytes)
+            .finish()
     }
 }

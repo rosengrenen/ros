@@ -42,9 +42,19 @@ impl<A: Allocator + Clone> NameSpaceModObj<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for NameSpaceModObj<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Alias(arg0) => f.debug_tuple("Alias").field(arg0).finish(),
+            Self::Name(arg0) => f.debug_tuple("Name").field(arg0).finish(),
+            Self::Scope(arg0) => f.debug_tuple("Scope").field(arg0).finish(),
+        }
+    }
+}
+
 pub struct Alias<A: Allocator> {
-    source: NameString<A>,
-    alias: NameString<A>,
+    pub source: NameString<A>,
+    pub alias: NameString<A>,
 }
 
 impl<A: Allocator + Clone> Alias<A> {
@@ -60,9 +70,18 @@ impl<A: Allocator + Clone> Alias<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Alias<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Alias")
+            .field("source", &self.source)
+            .field("alias", &self.alias)
+            .finish()
+    }
+}
+
 pub struct Name<A: Allocator> {
-    name: NameString<A>,
-    data: DataRefObj<A>,
+    pub name: NameString<A>,
+    pub data: DataRefObj<A>,
 }
 
 impl<A: Allocator + Clone> Name<A> {
@@ -86,9 +105,18 @@ impl<A: Allocator + Clone> Name<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Name<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Name")
+            .field("name", &self.name)
+            .field("data", &self.data)
+            .finish()
+    }
+}
+
 pub struct Scope<A: Allocator> {
-    name: NameString<A>,
-    terms: Vec<TermObj<A>, A>,
+    pub name: NameString<A>,
+    pub terms: Vec<TermObj<A>, A>,
 }
 
 impl<A: Allocator + Clone> Scope<A> {
@@ -119,5 +147,14 @@ impl<A: Allocator + Clone> Scope<A> {
 
         context.pop_scope();
         Ok((Self { name, terms }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Scope<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Scope")
+            .field("name", &self.name)
+            .field("terms", &self.terms)
+            .finish()
     }
 }

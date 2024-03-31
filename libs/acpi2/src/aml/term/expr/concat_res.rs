@@ -9,9 +9,9 @@ use crate::aml::{
 };
 
 pub struct ConcatRes<A: Allocator> {
-    left: TermArg<A>,
-    right: TermArg<A>,
-    target: Target<A>,
+    pub left: TermArg<A>,
+    pub right: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> ConcatRes<A> {
@@ -38,5 +38,15 @@ impl<A: Allocator + Clone> ConcatRes<A> {
             target,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for ConcatRes<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ConcatRes")
+            .field("left", &self.left)
+            .field("right", &self.right)
+            .field("target", &self.target)
+            .finish()
     }
 }

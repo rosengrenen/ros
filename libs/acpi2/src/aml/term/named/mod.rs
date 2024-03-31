@@ -153,3 +153,25 @@ impl<A: Allocator + Clone> NamedObj<A> {
         Ok((Self::Processor(value), input))
     }
 }
+
+impl<A: Allocator> core::fmt::Debug for NamedObj<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::BankField(arg0) => f.debug_tuple("BankField").field(arg0).finish(),
+            Self::CreateConstField(arg0) => f.debug_tuple("CreateConstField").field(arg0).finish(),
+            Self::CreateField(arg0) => f.debug_tuple("CreateField").field(arg0).finish(),
+            Self::DataRegion(arg0) => f.debug_tuple("DataRegion").field(arg0).finish(),
+            Self::External(arg0) => f.debug_tuple("External").field(arg0).finish(),
+            Self::OpRegion(arg0) => f.debug_tuple("OpRegion").field(arg0).finish(),
+            Self::PowerRes(arg0) => f.debug_tuple("PowerRes").field(arg0).finish(),
+            Self::ThermalZone(arg0) => f.debug_tuple("ThermalZone").field(arg0).finish(),
+            Self::Field(arg0) => f.debug_tuple("Field").field(arg0).finish(),
+            Self::Method(arg0) => f.debug_tuple("Method").field(arg0).finish(),
+            Self::Device(arg0) => f.debug_tuple("Device").field(arg0).finish(),
+            Self::Event(arg0) => f.debug_tuple("Event").field(arg0).finish(),
+            Self::IndexField(arg0) => f.debug_tuple("IndexField").field(arg0).finish(),
+            Self::Mutex(arg0) => f.debug_tuple("Mutex").field(arg0).finish(),
+            Self::Processor(arg0) => f.debug_tuple("Processor").field(arg0).finish(),
+        }
+    }
+}

@@ -12,11 +12,11 @@ use crate::aml::{
 use alloc::vec::Vec;
 
 pub struct Processor<A: Allocator> {
-    name: NameString<A>,
-    proc_id: u8,
-    pblk_addr: u32,
-    pblk_len: u8,
-    terms: Vec<TermObj<A>, A>,
+    pub name: NameString<A>,
+    pub proc_id: u8,
+    pub pblk_addr: u32,
+    pub pblk_len: u8,
+    pub terms: Vec<TermObj<A>, A>,
 }
 
 impl<A: Allocator + Clone> Processor<A> {
@@ -57,5 +57,17 @@ impl<A: Allocator + Clone> Processor<A> {
             terms,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Processor<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Processor")
+            .field("name", &self.name)
+            .field("proc_id", &self.proc_id)
+            .field("pblk_addr", &self.pblk_addr)
+            .field("pblk_len", &self.pblk_len)
+            .field("terms", &self.terms)
+            .finish()
     }
 }

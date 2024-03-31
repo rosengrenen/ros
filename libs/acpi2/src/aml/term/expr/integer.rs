@@ -58,10 +58,23 @@ impl<A: Allocator + Clone> Integer<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Integer<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Add(arg0) => f.debug_tuple("Add").field(arg0).finish(),
+            Self::Multiply(arg0) => f.debug_tuple("Multiply").field(arg0).finish(),
+            Self::Subtract(arg0) => f.debug_tuple("Subtract").field(arg0).finish(),
+            Self::Divide(arg0) => f.debug_tuple("Divide").field(arg0).finish(),
+            Self::Decrement(arg0) => f.debug_tuple("Decrement").field(arg0).finish(),
+            Self::Increment(arg0) => f.debug_tuple("Increment").field(arg0).finish(),
+        }
+    }
+}
+
 pub struct Add<A: Allocator> {
-    left: TermArg<A>,
-    right: TermArg<A>,
-    target: Target<A>,
+    pub left: TermArg<A>,
+    pub right: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> Add<A> {
@@ -91,10 +104,20 @@ impl<A: Allocator + Clone> Add<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Add<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Add")
+            .field("left", &self.left)
+            .field("right", &self.right)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct Multiply<A: Allocator> {
-    left: TermArg<A>,
-    right: TermArg<A>,
-    target: Target<A>,
+    pub left: TermArg<A>,
+    pub right: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> Multiply<A> {
@@ -124,10 +147,20 @@ impl<A: Allocator + Clone> Multiply<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Multiply<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Multiply")
+            .field("left", &self.left)
+            .field("right", &self.right)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct Subtract<A: Allocator> {
-    left: TermArg<A>,
-    right: TermArg<A>,
-    target: Target<A>,
+    pub left: TermArg<A>,
+    pub right: TermArg<A>,
+    pub target: Target<A>,
 }
 
 impl<A: Allocator + Clone> Subtract<A> {
@@ -157,11 +190,21 @@ impl<A: Allocator + Clone> Subtract<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Subtract<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Subtract")
+            .field("left", &self.left)
+            .field("right", &self.right)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
 pub struct Divide<A: Allocator> {
-    dividend: TermArg<A>,
-    divisor: TermArg<A>,
-    remainder: Target<A>,
-    quotient: Target<A>,
+    pub dividend: TermArg<A>,
+    pub divisor: TermArg<A>,
+    pub remainder: Target<A>,
+    pub quotient: Target<A>,
 }
 
 impl<A: Allocator + Clone> Divide<A> {
@@ -193,8 +236,19 @@ impl<A: Allocator + Clone> Divide<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Divide<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Divide")
+            .field("dividend", &self.dividend)
+            .field("divisor", &self.divisor)
+            .field("remainder", &self.remainder)
+            .field("quotient", &self.quotient)
+            .finish()
+    }
+}
+
 pub struct Decrement<A: Allocator> {
-    name: SuperName<A>,
+    pub name: SuperName<A>,
 }
 
 impl<A: Allocator + Clone> Decrement<A> {
@@ -217,8 +271,16 @@ impl<A: Allocator + Clone> Decrement<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for Decrement<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Decrement")
+            .field("name", &self.name)
+            .finish()
+    }
+}
+
 pub struct Increment<A: Allocator> {
-    name: SuperName<A>,
+    pub name: SuperName<A>,
 }
 
 impl<A: Allocator + Clone> Increment<A> {
@@ -238,5 +300,13 @@ impl<A: Allocator + Clone> Increment<A> {
     ) -> ParseResult<'a, Self> {
         let (name, input) = SuperName::parse(input, context, alloc.clone())?;
         Ok((Self { name }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Increment<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Increment")
+            .field("name", &self.name)
+            .finish()
     }
 }

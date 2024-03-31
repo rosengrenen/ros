@@ -27,7 +27,7 @@ fn name_char<'a>(input: Input<'a>) -> ParseResult<'a, u8> {
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
-pub struct NameSeg([u8; 4]);
+pub struct NameSeg(pub [u8; 4]);
 
 impl core::fmt::Debug for NameSeg {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -75,19 +75,19 @@ impl<A: Allocator + Clone> NameString<A> {
     }
 }
 
-// impl<A: Allocator> core::fmt::Debug for NameString<A> {
-//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         match  self {
-//             Self::Absolute(name) => f.debug_tuple("Absolute").field(&name).finish(),
-//             Self::Relative(count, name) => {
-//                 f.debug_tuple("Relative").field(count).field(&name).finish()
-//             }
-//         }
-//     }
-// }
+impl<A: Allocator> core::fmt::Debug for NameString<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Absolute(name) => f.debug_tuple("Absolute").field(&name).finish(),
+            Self::Relative(count, name) => {
+                f.debug_tuple("Relative").field(count).field(&name).finish()
+            }
+        }
+    }
+}
 
 pub struct PrefixPath {
-    length: usize,
+    pub length: usize,
 }
 
 impl PrefixPath {
@@ -138,18 +138,30 @@ impl<A: Allocator> NamePath<A> {
     }
 }
 
+impl<A: Allocator> core::fmt::Debug for NamePath<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::NameSeg(arg0) => f.debug_tuple("NameSeg").field(arg0).finish(),
+            Self::DualNamePath(arg0) => f.debug_tuple("DualNamePath").field(arg0).finish(),
+            Self::MultiNamePath(arg0) => f.debug_tuple("MultiNamePath").field(arg0).finish(),
+            Self::NullName(arg0) => f.debug_tuple("NullName").field(arg0).finish(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct DualNamePath {
     pub first: NameSeg,
     pub second: NameSeg,
 }
 
 impl DualNamePath {
-    pub fn parse(input: Input) -> ParseResult<Self> {
+    pub fn parse<'a>(input: Input) -> ParseResult<Self> {
         let (_, input) = DualNamePrefix::parse(input)?;
         fail(Self::parse_inner(input))
     }
 
-    fn parse_inner(input: Input) -> ParseResult<Self> {
+    fn parse_inner<'a>(input: Input) -> ParseResult<Self> {
         let (first, input) = NameSeg::parse(input)?;
         let (second, input) = NameSeg::parse(input)?;
         Ok((Self { first, second }, input))
@@ -157,12 +169,6 @@ impl DualNamePath {
 }
 
 pub struct MultiNamePath<A: Allocator>(pub Vec<NameSeg, A>);
-
-impl<A: Allocator> core::fmt::Debug for MultiNamePath<A> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_tuple("MultiNamePath").field(&self.0).finish()
-    }
-}
 
 impl<A: Allocator> MultiNamePath<A> {
     pub fn parse<'a>(input: Input<'a>, alloc: A) -> ParseResult<'a, Self> {
@@ -180,6 +186,12 @@ impl<A: Allocator> MultiNamePath<A> {
         }
 
         Ok((Self(segments), input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for MultiNamePath<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("MultiNamePath").field(&self.0).finish()
     }
 }
 
@@ -205,6 +217,16 @@ impl<A: Allocator + Clone> SimpleName<A> {
 
         let (value, input) = NameString::parse(input, alloc)?;
         Ok((Self::NameString(value), input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for SimpleName<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::ArgObj(arg0) => f.debug_tuple("ArgObj").field(arg0).finish(),
+            Self::LocalObj(arg0) => f.debug_tuple("LocalObj").field(arg0).finish(),
+            Self::NameString(arg0) => f.debug_tuple("NameString").field(arg0).finish(),
+        }
     }
 }
 
@@ -237,16 +259,17 @@ impl<A: Allocator + Clone> SuperName<A> {
     }
 }
 
-// impl<A: Allocator> core::fmt::Debug for SuperName<A> {
-//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         match  self {
-//             Self::SimpleName(inner) => f.debug_tuple("SimpleName").field(&inner).finish(),
-//             Self::DebugObj(inner) => f.debug_tuple("DebugObj").field(&inner).finish(),
-//             Self::RefTypeOpcode(inner) => f.debug_tuple("RefTypeOpcode").field(&inner).finish(),
-//         }
-//     }
-// }
+impl<A: Allocator> core::fmt::Debug for SuperName<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::SimpleName(arg0) => f.debug_tuple("SimpleName").field(arg0).finish(),
+            Self::DebugObj(arg0) => f.debug_tuple("DebugObj").field(arg0).finish(),
+            Self::RefTypeOpcode(arg0) => f.debug_tuple("RefTypeOpcode").field(arg0).finish(),
+        }
+    }
+}
 
+#[derive(Debug)]
 pub struct NullName;
 
 impl NullName {
@@ -275,5 +298,14 @@ impl<A: Allocator + Clone> Target<A> {
 
         let (value, input) = NullName::parse(input)?;
         Ok((Self::NullName(value), input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for Target<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::SuperName(arg0) => f.debug_tuple("SuperName").field(arg0).finish(),
+            Self::NullName(arg0) => f.debug_tuple("NullName").field(arg0).finish(),
+        }
     }
 }

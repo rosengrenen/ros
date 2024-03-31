@@ -9,10 +9,10 @@ use crate::aml::{
 };
 
 pub struct DataRegion<A: Allocator> {
-    name: NameString<A>,
-    term1: TermArg<A>,
-    term2: TermArg<A>,
-    term3: TermArg<A>,
+    pub name: NameString<A>,
+    pub term1: TermArg<A>,
+    pub term2: TermArg<A>,
+    pub term3: TermArg<A>,
 }
 
 impl<A: Allocator + Clone> DataRegion<A> {
@@ -41,5 +41,16 @@ impl<A: Allocator + Clone> DataRegion<A> {
             term3,
         };
         Ok((this, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for DataRegion<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("DataRegion")
+            .field("name", &self.name)
+            .field("term1", &self.term1)
+            .field("term2", &self.term2)
+            .field("term3", &self.term3)
+            .finish()
     }
 }

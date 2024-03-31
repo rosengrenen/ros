@@ -11,8 +11,8 @@ use crate::aml::{
 use alloc::vec::Vec;
 
 pub struct ThermalZone<A: Allocator> {
-    name: NameString<A>,
-    terms: Vec<TermObj<A>, A>,
+    pub name: NameString<A>,
+    pub terms: Vec<TermObj<A>, A>,
 }
 
 impl<A: Allocator + Clone> ThermalZone<A> {
@@ -43,5 +43,14 @@ impl<A: Allocator + Clone> ThermalZone<A> {
 
         context.pop_scope();
         Ok((Self { name, terms }, input))
+    }
+}
+
+impl<A: Allocator> core::fmt::Debug for ThermalZone<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ThermalZone")
+            .field("name", &self.name)
+            .field("terms", &self.terms)
+            .finish()
     }
 }
