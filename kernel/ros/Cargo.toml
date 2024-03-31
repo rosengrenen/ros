@@ -11,6 +11,7 @@ panic = "abort"
 
 [dependencies]
 acpi = { path = "../../libs/acpi" }
+acpi2 = { path = "../../libs/acpi2" }
 alloc = { path = "../../libs/alloc" }
 bootloader_api = { path = "../../bootloader_api" }
 buddy = { path = "../buddy" }

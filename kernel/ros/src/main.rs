@@ -15,9 +15,10 @@ mod slub;
 mod spinlock;
 
 use crate::kalloc::KernelAllocator;
-use acpi::{
-    aml::{Context, LocatedInput, SimpleError, SimpleErrorKind, TermObj},
-    tables::{DefinitionHeader, Fadt, Rsdp},
+use acpi::tables::{DefinitionHeader, Fadt, Rsdp};
+use acpi2::{
+    aml::{context::Context, parser::Input},
+    parse_term_objs,
 };
 use bootloader_api::BootInfo;
 use buddy::BuddyAllocator;
@@ -134,7 +135,13 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     let page_table = FRAME_OFFSET_MAPPER
         .frame_to_page(PhysAddr::new(Cr3::read().pba_pml4))
         .as_ref_mut::<PageTable>();
+    // sprintln!("{:x?}", &page_table.entries);
     let mut mapped_page_table = MappedPageTable::new(page_table, FRAME_OFFSET_MAPPER);
+
+    // sprintln!(
+    //     "0xf77d0ec {:x?}",
+    //     mapped_page_table.translate(VirtAddr::new(0xf77d0ec))
+    // );
 
     {
         sprintln!("Expanding stack...");
@@ -209,27 +216,31 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     //     );
     // }
 
+    let a = 0xf77e02c as *mut u8;
+    sprintln!("{}", unsafe { *a });
+
     let rsdp_addr = FRAME_OFFSET_MAPPER
         .frame_to_page(PhysAddr::new(info.rsdp as u64))
         .as_u64();
     sprintln!("Reading rsdp at {:x?}...", rsdp_addr);
     let rsdp = unsafe { Rsdp::from_addr(rsdp_addr) };
 
-    // for table_ptr in rsdp.table_ptrs() {
-    //     let table_ptr = FRAME_OFFSET_MAPPER
-    //         .frame_to_page(PhysAddr::new(table_ptr as u64))
-    //         .as_ptr::<DefinitionHeader>();
-    //     let header = unsafe { table_ptr.read() };
-    //     if &header.signature == b"FACP" {
-    //         let ptr = table_ptr as *const Fadt;
-    //         let fadt = unsafe { ptr.read_unaligned() };
-    //         let dsdt_addr = FRAME_OFFSET_MAPPER
-    //             .frame_to_page(PhysAddr::new(fadt.dsdt as u64))
-    //             .as_u64();
-    //         sprintln!("Reading dsdt...");
-    //         print_dsdt(dsdt_addr, &kalloc);
-    //     }
-    // }
+    for table_ptr in rsdp.table_ptrs() {
+        let table_ptr = FRAME_OFFSET_MAPPER
+            .frame_to_page(PhysAddr::new(table_ptr as u64))
+            .as_ptr::<DefinitionHeader>();
+        sprintln!("{:?}", table_ptr);
+        let header = unsafe { table_ptr.read() };
+        if &header.signature == b"FACP" {
+            let ptr = table_ptr as *const Fadt;
+            let fadt = unsafe { ptr.read_unaligned() };
+            let dsdt_addr = FRAME_OFFSET_MAPPER
+                .frame_to_page(PhysAddr::new(fadt.dsdt as u64))
+                .as_u64();
+            sprintln!("Reading dsdt...");
+            print_dsdt(dsdt_addr, &kalloc);
+        }
+    }
 
     // {
     //     let mut heap = heap.inner.lock();
@@ -310,36 +321,15 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
     let dsdt_ptr = dsdt_addr as *const u8;
     let dsdt_len = hdr.length;
     let dsdt_slice = unsafe { core::slice::from_raw_parts(dsdt_ptr, dsdt_len as usize) };
-    let input = LocatedInput::new(&dsdt_slice[core::mem::size_of::<DefinitionHeader>()..]);
+    sprintln!("{:x?}", dsdt_slice);
+    let input = Input::new(dsdt_slice);
     let mut context = Context::new(alloc);
-    let res = many(TermObj::p::<LocatedInput<&[u8]>, SimpleError<LocatedInput<&[u8]>, _>>).parse(
-        input,
-        &mut context,
-        alloc,
-    );
+    let res = parse_term_objs(input, &mut context, alloc);
     match res {
-        Ok(_ast) => {
+        Ok(ast) => {
             sprintln!("Dsdt ok!");
         }
-        Err(e) => match e {
-            parser::error::ParserError::Error(_) => sprintln!("err"),
-            parser::error::ParserError::Failure(e) => {
-                sprintln!("fail");
-                for (i, e) in e.errors.iter() {
-                    match e {
-                        SimpleErrorKind::Context(context) => {
-                            sprintln!(
-                                "{:x?} {:x?} {:x?}",
-                                context,
-                                i.span,
-                                &i.inner[0..i.inner.len().min(32)]
-                            );
-                        }
-                        SimpleErrorKind::Parser(_) => (),
-                    }
-                }
-            }
-        },
+        Err(e) => sprintln!("Dsdt err..."),
     }
 }
 
