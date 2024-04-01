@@ -1,4 +1,4 @@
-use crate::allocator::BumpAllocator;
+use crate::{allocator::BumpAllocator, sprintln};
 
 #[derive(Debug)]
 pub struct KernelExecutable {
@@ -50,6 +50,7 @@ pub fn mount_kernel(
     let mut kernel_virt_base = u64::MAX;
     let mut kernel_virt_limit = 0;
     for &entry in load_entries.clone() {
+        sprintln!("{entry:#x?}");
         kernel_virt_base = kernel_virt_base.min(entry.physical_address);
         kernel_virt_limit = kernel_virt_limit.max(entry.physical_address + entry.segment_mem_size);
     }
