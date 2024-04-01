@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+acpi = { version = "0.0.0", path = "../libs/acpi" }
+acpi2 = { version = "0.0.0", path = "../libs/acpi2" }
 alloc = { path = "../libs/alloc" }
 bootloader_api = { path = "../bootloader_api" }
 common = { path = "../libs/common" }

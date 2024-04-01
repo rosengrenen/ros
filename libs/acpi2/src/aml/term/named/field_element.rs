@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use crate::aml::{
     data::byte_data,
     name::{NameSeg, NameString},
@@ -101,7 +103,7 @@ pub enum FieldElement<A: Allocator> {
     Reserved(Reserved),
     Access(Access),
     ExtendedAccess(ExtendedAccess),
-    Connect(Connect<A>),
+    Connect(Box<Connect<A>, A>),
 }
 
 impl<A: Allocator + Clone> FieldElement<A> {
@@ -130,8 +132,8 @@ impl<A: Allocator + Clone> FieldElement<A> {
             Err(_) => (),
         }
 
-        let (value, input) = Connect::parse(input, alloc)?;
-        Ok((Self::Connect(value), input))
+        let (value, input) = Connect::parse(input, alloc.clone())?;
+        Ok((Self::Connect(Box::new(value, alloc).unwrap()), input))
     }
 }
 

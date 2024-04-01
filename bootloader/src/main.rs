@@ -9,6 +9,11 @@ mod allocator;
 mod elf;
 
 use crate::{allocator::BumpAllocator, elf::mount_kernel};
+use acpi::tables::{DefinitionHeader, Fadt, Rsdp};
+use acpi2::{
+    aml::{context::Context, parser::Input},
+    parse_term_objs,
+};
 use alloc::{raw_vec::RawVec, vec::Vec};
 use bootloader_api::{AllocatedFrameRange, BootInfo, MemoryRegion, MemoryRegionType};
 use common::{
@@ -16,7 +21,7 @@ use common::{
     frame::FrameAllocator,
 };
 use core::{
-    alloc::Layout,
+    alloc::{Allocator, Layout},
     fmt::{Arguments, Write},
 };
 use serial::{SerialPort, COM1_BASE};
@@ -45,6 +50,29 @@ fn serial_print(args: Arguments) {
     serial.write_fmt(args).unwrap();
 }
 
+fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
+    let ptr = dsdt_addr as *const DefinitionHeader;
+    let hdr = unsafe { ptr.read() };
+    let dsdt_ptr = dsdt_addr as *const u8;
+    let dsdt_len = hdr.length;
+    let dsdt_slice = unsafe { core::slice::from_raw_parts(dsdt_ptr, dsdt_len as usize) };
+    sprintln!("{:x?}", dsdt_slice);
+    let addr = parse_term_objs::<&A> as u64;
+    sprintln!("address of parse_term_objs {:#x?}", addr);
+    let input = Input::new(&dsdt_slice[36..]);
+    sprintln!("created input");
+    let mut context = Context::new(alloc);
+    sprintln!("created context");
+    let res = parse_term_objs(input, &mut context, alloc);
+    sprintln!("parsed");
+    match res {
+        Ok(ast) => {
+            sprintln!("Dsdt ok!");
+        }
+        Err(e) => sprintln!("Dsdt err... {:?}", e),
+    }
+}
+
 #[no_mangle]
 pub extern "efiapi" fn efi_main(
     image_handle: uefi::Handle,
@@ -58,6 +86,22 @@ pub extern "efiapi" fn efi_main(
         read_kernel_executable(system_table.boot_services(), &uefi_allocator).unwrap();
 
     let rsdp = get_rsdp(&system_table);
+
+    {
+        sprintln!("Reading rsdp at {:x?}...", rsdp);
+        let rsdp = unsafe { Rsdp::from_addr(rsdp as u64) };
+
+        for table_ptr in rsdp.table_ptrs() {
+            sprintln!("{:?}", table_ptr);
+            let header = unsafe { table_ptr.read() };
+            if &header.signature == b"FACP" {
+                let ptr = table_ptr as *const Fadt;
+                let fadt = unsafe { ptr.read_unaligned() };
+                sprintln!("Reading dsdt...");
+                print_dsdt(fadt.dsdt as u64, &uefi_allocator);
+            }
+        }
+    }
 
     let memory_map = system_table
         .boot_services()
@@ -97,9 +141,11 @@ pub extern "efiapi" fn efi_main(
         .map(|region| region.end)
         .max()
         .unwrap();
+    sprintln!("Mapping 0-{} gb", max_addr.div_ceil(GB));
     const GB: u64 = 1024 * 1024 * 1024;
     const UPPER_HALF: u64 = 0xffff_8000_0000_0000;
     for i in 0..max_addr.div_ceil(GB) {
+        sprintln!("{:x}-{:x}", i * GB, (i + 1) * GB - 1);
         // Temporary identity map
         mapped_page_table
             .map_1gb(
@@ -133,7 +179,7 @@ pub extern "efiapi" fn efi_main(
 
     // Allocate stack for the kernel and map it to virtual addresses
     let kernel_stack_frames = 8;
-    let stack_start: u64 = 0xffff_ffff_ffff_fff8;
+    let stack_start: u64 = 0xffff_ffff_ffff_fff0;
     let stack_end = stack_start & !0xfff - (kernel_stack_frames - 1) * 4096;
     for frame in 0..kernel_stack_frames {
         let stack_frame = bump_allocator.allocate_frame().unwrap();

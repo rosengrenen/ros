@@ -1,6 +1,6 @@
 use core::{
     alloc::{AllocError, Allocator, Layout},
-    fmt::{self, Debug},
+    fmt,
     mem::MaybeUninit,
     ops::{Deref, DerefMut},
     ptr::Unique,
@@ -42,9 +42,15 @@ impl<T, A: Allocator> Box<MaybeUninit<T>, A> {
     }
 }
 
-impl<T: fmt::Debug, A: Allocator> Debug for Box<T, A> {
+impl<T: fmt::Debug, A: Allocator> fmt::Debug for Box<T, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(unsafe { self.ptr.as_ref() }, f)
+    }
+}
+
+impl<T: fmt::Display, A: Allocator> fmt::Display for Box<T, A> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(unsafe { self.ptr.as_ref() }, f)
     }
 }
 

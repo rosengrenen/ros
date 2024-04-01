@@ -155,9 +155,9 @@ impl<A: Allocator> core::fmt::Debug for TermArg<A> {
 }
 
 pub enum TermObj<A: Allocator> {
-    Obj(Obj<A>),
-    Statement(Statement<A>),
-    Expr(Expr<A>),
+    Obj(Box<Obj<A>, A>),
+    Statement(Box<Statement<A>, A>),
+    Expr(Box<Expr<A>, A>),
 }
 
 impl<A: Allocator + Clone> TermObj<A> {
@@ -167,19 +167,21 @@ impl<A: Allocator + Clone> TermObj<A> {
         alloc: A,
     ) -> ParseResult<'a, Self> {
         match Obj::parse(input, context, alloc.clone()) {
-            Ok((value, input)) => return Ok((Self::Obj(value), input)),
+            Ok((value, input)) => return Ok((Self::Obj(Box::new(value, alloc).unwrap()), input)),
             Err(ParserError::Failure) => return Err(ParserError::Failure),
             Err(_) => (),
         }
 
         match Statement::parse(input, context, alloc.clone()) {
-            Ok((value, input)) => return Ok((Self::Statement(value), input)),
+            Ok((value, input)) => {
+                return Ok((Self::Statement(Box::new(value, alloc).unwrap()), input))
+            }
             Err(ParserError::Failure) => return Err(ParserError::Failure),
             Err(_) => (),
         }
 
-        let (value, input) = Expr::parse(input, context, alloc)?;
-        Ok((Self::Expr(value), input))
+        let (value, input) = Expr::parse(input, context, alloc.clone())?;
+        Ok((Self::Expr(Box::new(value, alloc).unwrap()), input))
     }
 }
 

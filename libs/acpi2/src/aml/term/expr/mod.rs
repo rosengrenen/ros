@@ -27,6 +27,8 @@ pub mod wait;
 
 use core::alloc::Allocator;
 
+use alloc::boxed::Box;
+
 use self::{
     acquire::Acquire, bitwise::Bitwise, buffer::Buffer, concat::Concat, concat_res::ConcatRes,
     cond_ref_of::CondRefOf, convert_fn::ConvertFn, copy_obj::CopyObj, deref_of::DerefOf,
@@ -366,8 +368,8 @@ impl<A: Allocator> core::fmt::Debug for Load<A> {
 }
 
 pub enum PkgElement<A: Allocator> {
-    DataRefObj(DataRefObj<A>),
-    NameString(NameString<A>),
+    DataRefObj(Box<DataRefObj<A>, A>),
+    NameString(Box<NameString<A>, A>),
 }
 
 impl<A: Allocator + Clone> PkgElement<A> {
@@ -377,13 +379,15 @@ impl<A: Allocator + Clone> PkgElement<A> {
         alloc: A,
     ) -> ParseResult<'a, Self> {
         match DataRefObj::parse(input, context, alloc.clone()) {
-            Ok((value, input)) => return Ok((Self::DataRefObj(value), input)),
+            Ok((value, input)) => {
+                return Ok((Self::DataRefObj(Box::new(value, alloc).unwrap()), input))
+            }
             Err(ParserError::Failure) => return Err(ParserError::Failure),
             Err(_) => (),
         }
 
-        let (value, input) = NameString::parse(input, alloc)?;
-        Ok((Self::NameString(value), input))
+        let (value, input) = NameString::parse(input, alloc.clone())?;
+        Ok((Self::NameString(Box::new(value, alloc).unwrap()), input))
     }
 }
 

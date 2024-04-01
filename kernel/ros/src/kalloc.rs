@@ -53,24 +53,53 @@ unsafe impl<'f, F: FrameAllocator> Allocator for KernelAllocator<'f, F> {
         layout: Layout,
     ) -> Result<core::ptr::NonNull<[u8]>, core::alloc::AllocError> {
         let size = layout.size();
-        sprintln!("allocation {} bytes", size);
-        if size <= 32 {
-            self.slab_32.lock().allocate(layout)
+        sprintln!("allocation size: {}, align: {}", size, layout.align());
+        let res = if size <= 32 {
+            sprintln!("kalloc 32");
+            let res = self.slab_32.lock().allocate(layout);
+            sprintln!("kalloc 32 done");
+            res
         } else if size <= 64 {
-            self.slab_64.lock().allocate(layout)
+            sprintln!("kalloc 64");
+            let res = self.slab_64.lock().allocate(layout);
+            sprintln!("kalloc 64 done");
+            res
         } else if size <= 128 {
-            self.slab_128.lock().allocate(layout)
+            sprintln!("kalloc 128");
+            let res = self.slab_128.lock().allocate(layout);
+            sprintln!("kalloc 128 done");
+            res
         } else if size <= 256 {
-            self.slab_256.lock().allocate(layout)
+            sprintln!("kalloc 256");
+            let res = self.slab_256.lock().allocate(layout);
+            sprintln!("kalloc 256 done");
+            res
         } else if size <= 512 {
-            self.slab_512.lock().allocate(layout)
+            sprintln!("kalloc 512");
+            let res = self.slab_512.lock().allocate(layout);
+            sprintln!("kalloc 512 done");
+            res
         } else if size <= 1024 {
-            self.slab_1k.lock().allocate(layout)
+            sprintln!("kalloc 1024");
+            let res = self.slab_1k.lock().allocate(layout);
+            sprintln!("kalloc 1024 done");
+            res
         } else if size <= 2048 {
-            self.slab_2k.lock().allocate(layout)
+            sprintln!("kalloc 2048");
+            let res = self.slab_2k.lock().allocate(layout);
+            sprintln!("kalloc 2048 done");
+            res
         } else {
             panic!("kernel allocator does not yet support 2k> allocations");
+        };
+
+        if let Ok(res) = &res {
+            if res.as_ptr() as *mut u8 as usize % layout.align() != 0 {
+                panic!();
+            }
         }
+
+        res
     }
 
     unsafe fn deallocate(&self, ptr: core::ptr::NonNull<u8>, layout: Layout) {
