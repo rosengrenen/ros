@@ -118,6 +118,11 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     let mut serial = SerialPort::new(COM1_BASE);
     serial.configure(1);
 
+    unsafe {
+        let slice = core::slice::from_raw_parts(0xffffffff80006010 as *const u8, 100);
+        sprintln!("{:#x?}", slice);
+    }
+
     sprintln!("Setting up buddy allocator...");
     let mut memory_regions = info
         .memory_regions
@@ -173,6 +178,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
                     VirtAddr::new(info.kernel.stack_end - (i + 1) * 4096),
                     frame,
                     &buddy_allocator,
+                    true,
                 )
                 .unwrap();
         }

@@ -73,11 +73,9 @@ unsafe impl<F: FrameAllocator> Allocator for KernelAllocator<F> {
         let addr = current_frame + inner.offset;
         inner.offset += size as u64;
 
-        Ok(NonNull::new(core::ptr::slice_from_raw_parts_mut(
-            addr as *mut u8,
-            size as usize,
-        ))
-        .unwrap())
+        let slice = core::ptr::slice_from_raw_parts_mut(addr as *mut u8, size as usize);
+        let ptr = NonNull::new(slice).unwrap();
+        Ok(ptr)
     }
 
     unsafe fn deallocate(&self, ptr: core::ptr::NonNull<u8>, layout: Layout) {
