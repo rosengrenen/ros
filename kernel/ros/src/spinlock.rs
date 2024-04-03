@@ -39,10 +39,10 @@ impl<T> Mutex<T> {
     }
 
     fn unlock(&self) {
-        if !self
+        let is_locked = !self
             .locked
-            .swap(false, core::sync::atomic::Ordering::AcqRel)
-        {
+            .swap(false, core::sync::atomic::Ordering::AcqRel);
+        if is_locked {
             panic!("already released");
         }
     }

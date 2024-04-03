@@ -173,6 +173,7 @@ pub extern "efiapi" fn efi_main(
                 VirtAddr::new(kernel.image_start + page as u64 * 4096),
                 PhysAddr::new(kernel.frame_addr + page as u64 * 4096),
                 &bump_allocator,
+                false,
             )
             .unwrap();
     }
@@ -188,6 +189,7 @@ pub extern "efiapi" fn efi_main(
                 VirtAddr::new(stack_end + frame * 4096),
                 stack_frame,
                 &bump_allocator,
+                true,
             )
             .unwrap();
     }
@@ -251,6 +253,11 @@ pub extern "efiapi" fn efi_main(
     // Set new page table
     // TODO: make it take a phys addr instead of u64
     Cr3::write(pml4_frame.as_u64());
+
+    unsafe {
+        let slice = core::slice::from_raw_parts(0xffffffff80005ff0 as *const u8, 100);
+        sprintln!("{:#x?}", slice);
+    }
 
     sprintln!("Bootloader is launching kernel");
 
