@@ -1,5 +1,6 @@
 use alloc::raw_vec::RawVec;
-use core::alloc::{Layout, LayoutError};
+use core::alloc::Layout;
+use core::alloc::LayoutError;
 
 pub type BitmapVecEntry = u64;
 

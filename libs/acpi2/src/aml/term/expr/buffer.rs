@@ -1,13 +1,16 @@
+use alloc::iter::IteratorCollectIn;
+use alloc::vec::Vec;
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    ops::BufferOp,
-    parser::{fail, fail_if_not_empty, take, Input, ParseResult},
-    pkg_len::pkg,
-    term::TermArg,
-};
-use alloc::{iter::IteratorCollectIn, vec::Vec};
+use crate::aml::context::Context;
+use crate::aml::ops::BufferOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::fail_if_not_empty;
+use crate::aml::parser::take;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::pkg_len::pkg;
+use crate::aml::term::TermArg;
 
 pub struct Buffer<A: Allocator> {
     pub len: TermArg<A>,

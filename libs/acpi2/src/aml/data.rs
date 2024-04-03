@@ -1,15 +1,26 @@
+use alloc::vec::Vec;
 use core::alloc::Allocator;
 
-use super::{
-    context::Context,
-    ops::{
-        BytePrefix, DWordPrefix, OneOp, OnesOp, QWordPrefix, RevisionOp, StringPrefix, WordPrefix,
-        ZeroOp,
-    },
-    parser::{fail, item, satisfy, take_one, Input, ParseResult, ParserError},
-    term::expr::{buffer::Buffer, pkg::Pkg, var_pkg::VarPkg},
-};
-use alloc::vec::Vec;
+use super::context::Context;
+use super::ops::BytePrefix;
+use super::ops::DWordPrefix;
+use super::ops::OneOp;
+use super::ops::OnesOp;
+use super::ops::QWordPrefix;
+use super::ops::RevisionOp;
+use super::ops::StringPrefix;
+use super::ops::WordPrefix;
+use super::ops::ZeroOp;
+use super::parser::fail;
+use super::parser::item;
+use super::parser::satisfy;
+use super::parser::take_one;
+use super::parser::Input;
+use super::parser::ParseResult;
+use super::parser::ParserError;
+use super::term::expr::buffer::Buffer;
+use super::term::expr::pkg::Pkg;
+use super::term::expr::var_pkg::VarPkg;
 
 pub enum ComputationalData<A: Allocator> {
     ConstInteger(ConstInteger),

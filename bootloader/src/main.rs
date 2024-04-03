@@ -8,31 +8,35 @@
 mod allocator;
 mod elf;
 
-use crate::{allocator::BumpAllocator, elf::mount_kernel};
-use acpi::tables::DefinitionHeader;
-use alloc::{raw_vec::RawVec, vec::Vec};
-use bootloader_api::{AllocatedFrameRange, BootInfo, MemoryRegion, MemoryRegionType};
-use common::{
-    addr::{PhysAddr, VirtAddr},
-    frame::FrameAllocator,
-};
-use core::{
-    alloc::{Allocator, Layout},
-    fmt::{Arguments, Write},
-};
-use serial::{SerialPort, COM1_BASE};
-use uefi::{
-    allocator::UefiAllocator,
-    services::{
-        boot::{BootServices, Guid, MemoryMap, MemoryType},
-        filesystem::FileSystem,
-    },
-    string::String16,
-};
-use x86_64::{
-    control::Cr3,
-    paging::{MappedPageTable, PageTable, PageTableFrameOffsetMapper},
-};
+use alloc::raw_vec::RawVec;
+use alloc::vec::Vec;
+use core::alloc::Layout;
+use core::fmt::Arguments;
+use core::fmt::Write;
+
+use bootloader_api::AllocatedFrameRange;
+use bootloader_api::BootInfo;
+use bootloader_api::MemoryRegion;
+use bootloader_api::MemoryRegionType;
+use common::addr::PhysAddr;
+use common::addr::VirtAddr;
+use common::frame::FrameAllocator;
+use serial::SerialPort;
+use serial::COM1_BASE;
+use uefi::allocator::UefiAllocator;
+use uefi::services::boot::BootServices;
+use uefi::services::boot::Guid;
+use uefi::services::boot::MemoryMap;
+use uefi::services::boot::MemoryType;
+use uefi::services::filesystem::FileSystem;
+use uefi::string::String16;
+use x86_64::control::Cr3;
+use x86_64::paging::MappedPageTable;
+use x86_64::paging::PageTable;
+use x86_64::paging::PageTableFrameOffsetMapper;
+
+use crate::allocator::BumpAllocator;
+use crate::elf::mount_kernel;
 
 #[macro_export]
 macro_rules! sprintln {

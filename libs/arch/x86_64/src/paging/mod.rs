@@ -1,13 +1,17 @@
 mod addr;
 pub mod entry;
 
-use self::{addr::VirtAddrExt, entry::PageTableEntry};
-use crate::control::{Cr0, Cr3};
-use common::{
-    addr::{PhysAddr, VirtAddr},
-    frame::FrameAllocator,
-};
-use core::{fmt::Write, marker::PhantomData};
+use core::fmt::Write;
+use core::marker::PhantomData;
+
+use common::addr::PhysAddr;
+use common::addr::VirtAddr;
+use common::frame::FrameAllocator;
+
+use self::addr::VirtAddrExt;
+use self::entry::PageTableEntry;
+use crate::control::Cr0;
+use crate::control::Cr3;
 
 pub struct MappedPageTable<'a, M: PageTableFrameMapper> {
     level_4_table: &'a mut PageTable,

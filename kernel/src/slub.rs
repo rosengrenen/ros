@@ -1,10 +1,12 @@
-use crate::{spinlock::Mutex, sprintln, FRAME_OFFSET_MAPPER};
+use core::alloc::Allocator;
+use core::alloc::Layout;
+use core::ptr::NonNull;
+
 use common::frame::FrameAllocator;
-use core::{
-    alloc::{Allocator, Layout},
-    ptr::NonNull,
-};
 use x86_64::paging::PageTableFrameMapper;
+
+use crate::spinlock::Mutex;
+use crate::FRAME_OFFSET_MAPPER;
 
 // This is a simple slab allocator, and only works on a single cpu for now.
 // Basically just a number of freestanding frames that have fixed size slots of a particular size.

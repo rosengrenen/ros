@@ -1,12 +1,15 @@
 use alloc::boxed::Box;
-
-use crate::aml::{
-    data::byte_data,
-    name::{NameSeg, NameString},
-    parser::{fail, item, Input, ParseResult, ParserError},
-    pkg_len::pkg_length,
-};
 use core::alloc::Allocator;
+
+use crate::aml::data::byte_data;
+use crate::aml::name::NameSeg;
+use crate::aml::name::NameString;
+use crate::aml::parser::fail;
+use crate::aml::parser::item;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::parser::ParserError;
+use crate::aml::pkg_len::pkg_length;
 
 #[derive(Debug)]
 pub struct Named {

@@ -1,0 +1,22 @@
+[package]
+name = "ros"
+version = "0.0.0"
+edition = "2021"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+acpi = { path = "../libs/acpi" }
+acpi2 = { path = "../libs/acpi2" }
+alloc = { path = "../libs/alloc" }
+bootloader_api = { path = "../bootloader_api" }
+buddy = { path = "../libs/buddy" }
+common = { path = "../libs/common" }
+parser = { path = "../libs/parser" }
+serial = { path = "../libs/serial" }
+uefi = { path = "../libs/uefi" }
+x86_64 = { path = "../libs/arch/x86_64" }

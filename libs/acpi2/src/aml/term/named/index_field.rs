@@ -1,14 +1,15 @@
+use alloc::vec::Vec;
 use core::alloc::Allocator;
 
 use super::field_element::FieldElement;
-use crate::aml::{
-    data::byte_data,
-    name::NameString,
-    ops::IndexFieldOp,
-    parser::{fail, fail_if_not_empty, Input, ParseResult},
-    pkg_len::pkg,
-};
-use alloc::vec::Vec;
+use crate::aml::data::byte_data;
+use crate::aml::name::NameString;
+use crate::aml::ops::IndexFieldOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::fail_if_not_empty;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::pkg_len::pkg;
 
 pub struct IndexField<A: Allocator> {
     pub name1: NameString<A>,

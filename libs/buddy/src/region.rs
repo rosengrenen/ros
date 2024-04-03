@@ -1,9 +1,10 @@
-use crate::{
-    layered_bitmap::{LayeredBitmap, LayeredBitmapLayout},
-    util::ilog_ceil,
-};
 use alloc::raw_vec::RawVec;
-use core::alloc::{Layout, LayoutError};
+use core::alloc::Layout;
+use core::alloc::LayoutError;
+
+use crate::layered_bitmap::LayeredBitmap;
+use crate::layered_bitmap::LayeredBitmapLayout;
+use crate::util::ilog_ceil;
 
 #[derive(Debug)]
 pub struct Region<const ORDERS: usize, const FRAME_SIZE: usize> {

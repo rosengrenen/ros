@@ -1,11 +1,11 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    data::byte_data,
-    name::NameString,
-    ops::ExternalOp,
-    parser::{fail, Input, ParseResult},
-};
+use crate::aml::data::byte_data;
+use crate::aml::name::NameString;
+use crate::aml::ops::ExternalOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
 
 pub struct External<A: Allocator> {
     pub name: NameString<A>,

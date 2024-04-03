@@ -1,9 +1,12 @@
-use crate::{
-    error::{ParseError, ParseErrorKind, ParseResult, ParserError},
-    input::Input,
-    parser::Parser,
-};
-use core::{alloc::Allocator, marker::PhantomData};
+use core::alloc::Allocator;
+use core::marker::PhantomData;
+
+use crate::error::ParseError;
+use crate::error::ParseErrorKind;
+use crate::error::ParseResult;
+use crate::error::ParserError;
+use crate::input::Input;
+use crate::parser::Parser;
 
 pub fn fail<I, E, C, A>() -> impl Parser<I, C, A, Output = (), Error = E>
 where

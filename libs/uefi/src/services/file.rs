@@ -1,7 +1,11 @@
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+use core::alloc::Allocator;
+use core::ffi::c_void;
+
 use super::boot::Guid;
-use crate::{string::RawString16, Status};
-use alloc::{boxed::Box, vec::Vec};
-use core::{alloc::Allocator, ffi::c_void};
+use crate::string::RawString16;
+use crate::Status;
 
 impl File {
     pub fn open(&self, name: RawString16, open_mode: u64, attributes: u64) -> Result<&File, usize> {

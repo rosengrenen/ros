@@ -1,14 +1,15 @@
+use alloc::vec::Vec;
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    name::NameString,
-    ops::ThermalZoneOp,
-    parser::{fail, fail_if_not_empty, Input, ParseResult},
-    pkg_len::pkg,
-    term::TermObj,
-};
-use alloc::vec::Vec;
+use crate::aml::context::Context;
+use crate::aml::name::NameString;
+use crate::aml::ops::ThermalZoneOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::fail_if_not_empty;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::pkg_len::pkg;
+use crate::aml::term::TermObj;
 
 pub struct ThermalZone<A: Allocator> {
     pub name: NameString<A>,

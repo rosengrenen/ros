@@ -1,12 +1,19 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    name::{SuperName, Target},
-    ops::{AddOp, DecrementOp, DivideOp, IncrementOp, MultiplyOp, SubtractOp},
-    parser::{fail, Input, ParseResult, ParserError},
-    term::TermArg,
-};
+use crate::aml::context::Context;
+use crate::aml::name::SuperName;
+use crate::aml::name::Target;
+use crate::aml::ops::AddOp;
+use crate::aml::ops::DecrementOp;
+use crate::aml::ops::DivideOp;
+use crate::aml::ops::IncrementOp;
+use crate::aml::ops::MultiplyOp;
+use crate::aml::ops::SubtractOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::parser::ParserError;
+use crate::aml::term::TermArg;
 
 pub enum Integer<A: Allocator> {
     Add(Add<A>),

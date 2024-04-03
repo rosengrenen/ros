@@ -11,17 +11,17 @@ mod layered_bitmap;
 mod region;
 mod util;
 
-use self::{
-    bitmap::Bitmap,
-    region::{Region, RegionError},
-};
 use alloc::raw_vec::RawVec;
+use core::alloc::Layout;
+use core::alloc::LayoutError;
+use core::cmp;
+use core::mem::MaybeUninit;
+
 use bitmap::BitmapLayout;
-use core::{
-    alloc::{Layout, LayoutError},
-    cmp,
-    mem::MaybeUninit,
-};
+
+use self::bitmap::Bitmap;
+use self::region::Region;
+use self::region::RegionError;
 
 #[derive(Debug)]
 pub struct BuddyAllocator<const ORDERS: usize, const FRAME_SIZE: usize> {

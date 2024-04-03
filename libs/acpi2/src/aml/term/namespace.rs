@@ -1,17 +1,19 @@
+use alloc::vec::Vec;
 use core::alloc::Allocator;
 
-use alloc::vec::Vec;
-
-use crate::aml::{
-    context::Context,
-    data::DataRefObj,
-    name::NameString,
-    ops::{AliasOp, NameOp, ScopeOp},
-    parser::{fail, fail_if_not_empty, Input, ParseResult, ParserError},
-    pkg_len::pkg,
-};
-
 use super::TermObj;
+use crate::aml::context::Context;
+use crate::aml::data::DataRefObj;
+use crate::aml::name::NameString;
+use crate::aml::ops::AliasOp;
+use crate::aml::ops::NameOp;
+use crate::aml::ops::ScopeOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::fail_if_not_empty;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::parser::ParserError;
+use crate::aml::pkg_len::pkg;
 
 pub enum NameSpaceModObj<A: Allocator> {
     Alias(Alias<A>),

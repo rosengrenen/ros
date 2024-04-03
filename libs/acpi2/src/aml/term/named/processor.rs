@@ -1,15 +1,17 @@
+use alloc::vec::Vec;
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    data::{byte_data, dword_data},
-    name::NameString,
-    ops::ProcessorOp,
-    parser::{fail, fail_if_not_empty, Input, ParseResult},
-    pkg_len::pkg,
-    term::TermObj,
-};
-use alloc::vec::Vec;
+use crate::aml::context::Context;
+use crate::aml::data::byte_data;
+use crate::aml::data::dword_data;
+use crate::aml::name::NameString;
+use crate::aml::ops::ProcessorOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::fail_if_not_empty;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::pkg_len::pkg;
+use crate::aml::term::TermObj;
 
 pub struct Processor<A: Allocator> {
     pub name: NameString<A>,

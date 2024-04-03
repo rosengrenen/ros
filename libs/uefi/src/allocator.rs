@@ -1,8 +1,10 @@
-use crate::services::boot::{BootServices, MemoryType};
-use core::{
-    alloc::{AllocError, Allocator, Layout},
-    ptr::NonNull,
-};
+use core::alloc::AllocError;
+use core::alloc::Allocator;
+use core::alloc::Layout;
+use core::ptr::NonNull;
+
+use crate::services::boot::BootServices;
+use crate::services::boot::MemoryType;
 
 #[derive(Clone, Copy)]
 pub struct UefiAllocator<'bs> {

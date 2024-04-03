@@ -1,12 +1,16 @@
-use super::{deref_of::DerefOf, index::Index, ref_of::RefOf};
-use crate::aml::{
-    context::Context,
-    misc::DebugObj,
-    name::SimpleName,
-    ops::ObjTypeOp,
-    parser::{fail, Input, ParseResult, ParserError},
-};
 use core::alloc::Allocator;
+
+use super::deref_of::DerefOf;
+use super::index::Index;
+use super::ref_of::RefOf;
+use crate::aml::context::Context;
+use crate::aml::misc::DebugObj;
+use crate::aml::name::SimpleName;
+use crate::aml::ops::ObjTypeOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::parser::ParserError;
 
 pub enum ObjType<A: Allocator> {
     SimpleName(SimpleName<A>),

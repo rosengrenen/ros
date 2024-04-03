@@ -1,18 +1,34 @@
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use core::alloc::Allocator;
 
-use super::{TermArg, TermObj};
-use crate::aml::{
-    context::Context,
-    data::{byte_data, dword_data},
-    name::SuperName,
-    ops::{
-        BreakOp, BreakPointOp, ContinueOp, ElseOp, FatalOp, IfOp, NoopOp, NotifyOp, ReleaseOp,
-        ResetOp, ReturnOp, SignalOp, SleepOp, StallOp, WhileOp,
-    },
-    parser::{fail, fail_if_not_empty, Input, ParseResult, ParserError},
-    pkg_len::pkg,
-};
-use alloc::{boxed::Box, vec::Vec};
+use super::TermArg;
+use super::TermObj;
+use crate::aml::context::Context;
+use crate::aml::data::byte_data;
+use crate::aml::data::dword_data;
+use crate::aml::name::SuperName;
+use crate::aml::ops::BreakOp;
+use crate::aml::ops::BreakPointOp;
+use crate::aml::ops::ContinueOp;
+use crate::aml::ops::ElseOp;
+use crate::aml::ops::FatalOp;
+use crate::aml::ops::IfOp;
+use crate::aml::ops::NoopOp;
+use crate::aml::ops::NotifyOp;
+use crate::aml::ops::ReleaseOp;
+use crate::aml::ops::ResetOp;
+use crate::aml::ops::ReturnOp;
+use crate::aml::ops::SignalOp;
+use crate::aml::ops::SleepOp;
+use crate::aml::ops::StallOp;
+use crate::aml::ops::WhileOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::fail_if_not_empty;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::parser::ParserError;
+use crate::aml::pkg_len::pkg;
 
 pub enum Statement<A: Allocator> {
     Break(Break),

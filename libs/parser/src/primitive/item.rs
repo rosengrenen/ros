@@ -1,10 +1,12 @@
+use core::alloc::Allocator;
+use core::marker::PhantomData;
+
 use super::take::take_const;
-use crate::{
-    error::{ParseError, ParseErrorKind, ParseResult},
-    input::Input,
-    parser::Parser,
-};
-use core::{alloc::Allocator, marker::PhantomData};
+use crate::error::ParseError;
+use crate::error::ParseErrorKind;
+use crate::error::ParseResult;
+use crate::input::Input;
+use crate::parser::Parser;
 
 pub fn take_one<I, E, C, A>() -> impl Parser<I, C, A, Output = I::Item, Error = E>
 where

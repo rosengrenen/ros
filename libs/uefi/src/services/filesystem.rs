@@ -1,7 +1,6 @@
-use super::{
-    boot::{Guid, UefiProtocol},
-    file::File,
-};
+use super::boot::Guid;
+use super::boot::UefiProtocol;
+use super::file::File;
 use crate::Status;
 
 impl FileSystem {

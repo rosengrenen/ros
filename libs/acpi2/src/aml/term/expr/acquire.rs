@@ -1,12 +1,12 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    data::word_data,
-    ops::AcquireOp,
-    parser::{fail, Input, ParseResult},
-    term::statement::MutexObj,
-};
+use crate::aml::context::Context;
+use crate::aml::data::word_data;
+use crate::aml::ops::AcquireOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::term::statement::MutexObj;
 
 pub struct Acquire<A: Allocator> {
     pub mutex: MutexObj<A>,

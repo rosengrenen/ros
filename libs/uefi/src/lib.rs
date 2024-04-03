@@ -21,7 +21,9 @@ pub mod allocator;
 pub mod services;
 pub mod string;
 
-use core::{ffi::c_void, marker::PhantomData};
+use core::ffi::c_void;
+use core::marker::PhantomData;
+
 use services::boot::Guid;
 
 /// UEFI Spec 2.10 section 4.2.1

@@ -1,12 +1,12 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    name::Target,
-    ops::MidOp,
-    parser::{fail, Input, ParseResult},
-    term::TermArg,
-};
+use crate::aml::context::Context;
+use crate::aml::name::Target;
+use crate::aml::ops::MidOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::term::TermArg;
 
 pub struct Mid<A: Allocator> {
     pub mid_obj: TermArg<A>,

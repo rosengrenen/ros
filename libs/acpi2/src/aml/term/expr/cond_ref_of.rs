@@ -1,11 +1,12 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    name::{SuperName, Target},
-    ops::CondRefOfOp,
-    parser::{fail, Input, ParseResult},
-};
+use crate::aml::context::Context;
+use crate::aml::name::SuperName;
+use crate::aml::name::Target;
+use crate::aml::ops::CondRefOfOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
 
 pub struct CondRefOf<A: Allocator> {
     pub name: SuperName<A>,

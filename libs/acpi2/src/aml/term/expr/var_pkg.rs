@@ -1,14 +1,15 @@
+use alloc::vec::Vec;
 use core::alloc::Allocator;
 
 use super::PkgElement;
-use crate::aml::{
-    context::Context,
-    ops::VarPkgOp,
-    parser::{fail, fail_if_not_empty, Input, ParseResult},
-    pkg_len::pkg,
-    term::TermArg,
-};
-use alloc::vec::Vec;
+use crate::aml::context::Context;
+use crate::aml::ops::VarPkgOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::fail_if_not_empty;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::pkg_len::pkg;
+use crate::aml::term::TermArg;
 
 pub struct VarPkg<A: Allocator> {
     pub len: TermArg<A>,

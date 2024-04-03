@@ -1,10 +1,11 @@
-use core::{
-    alloc::{AllocError, Allocator, Layout},
-    fmt,
-    mem::MaybeUninit,
-    ops::{Deref, DerefMut},
-    ptr::Unique,
-};
+use core::alloc::AllocError;
+use core::alloc::Allocator;
+use core::alloc::Layout;
+use core::fmt;
+use core::mem::MaybeUninit;
+use core::ops::Deref;
+use core::ops::DerefMut;
+use core::ptr::Unique;
 
 pub struct Box<T: ?Sized, A: Allocator> {
     ptr: Unique<T>,

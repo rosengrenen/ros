@@ -1,10 +1,12 @@
+use core::alloc::Allocator;
+use core::marker::PhantomData;
+
 use super::util::iter_to_array_unchecked;
-use crate::{
-    error::{ParseError, ParseErrorKind, ParseResult},
-    input::Input,
-    parser::Parser,
-};
-use core::{alloc::Allocator, marker::PhantomData};
+use crate::error::ParseError;
+use crate::error::ParseErrorKind;
+use crate::error::ParseResult;
+use crate::input::Input;
+use crate::parser::Parser;
 
 pub fn take<I, E, C, A>(count: usize) -> impl Parser<I, C, A, Output = I, Error = E>
 where

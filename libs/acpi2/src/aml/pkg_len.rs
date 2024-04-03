@@ -1,4 +1,8 @@
-use super::parser::{take, take_one, Input, ParseResult, ParserError};
+use super::parser::take;
+use super::parser::take_one;
+use super::parser::Input;
+use super::parser::ParseResult;
+use super::parser::ParserError;
 
 pub fn pkg_length<'a>(input: Input<'a>) -> ParseResult<'a, usize> {
     let ((pkg_len, _), input) = pkg_length_inner(input)?;

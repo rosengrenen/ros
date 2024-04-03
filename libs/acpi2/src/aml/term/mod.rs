@@ -1,14 +1,20 @@
-use self::{expr::Expr, named::NamedObj, namespace::NameSpaceModObj, statement::Statement};
-
-use super::{
-    context::Context,
-    data::DataObj,
-    misc::{ArgObj, LocalObj},
-    name::NameString,
-    parser::{fail, Input, ParseResult, ParserError},
-};
-use alloc::{boxed::Box, vec::Vec};
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use core::alloc::Allocator;
+
+use self::expr::Expr;
+use self::named::NamedObj;
+use self::namespace::NameSpaceModObj;
+use self::statement::Statement;
+use super::context::Context;
+use super::data::DataObj;
+use super::misc::ArgObj;
+use super::misc::LocalObj;
+use super::name::NameString;
+use super::parser::fail;
+use super::parser::Input;
+use super::parser::ParseResult;
+use super::parser::ParserError;
 
 pub mod expr;
 pub mod named;

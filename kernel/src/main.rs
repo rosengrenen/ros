@@ -14,26 +14,33 @@ mod msr;
 mod slub;
 mod spinlock;
 
-use crate::kalloc::KernelAllocator;
-use acpi::tables::{DefinitionHeader, Fadt, Rsdp};
-use acpi2::{
-    aml::{context::Context, parser::Input},
-    parse_term_objs,
-};
-use bootloader_api::{BootInfo, MemoryRegionType};
+use core::alloc::Allocator;
+use core::panic::PanicInfo;
+
+use acpi::tables::DefinitionHeader;
+use acpi::tables::Fadt;
+use acpi::tables::Rsdp;
+use acpi2::aml::context::Context;
+use acpi2::aml::parser::Input;
+use acpi2::parse_term_objs;
+use bootloader_api::BootInfo;
+use bootloader_api::MemoryRegionType;
 use buddy::BuddyAllocator;
-use common::{
-    addr::{PhysAddr, VirtAddr},
-    frame::{FrameAllocError, FrameAllocator},
-};
-use core::{alloc::Allocator, panic::PanicInfo};
-use serial::{SerialPort, COM1_BASE};
-use x86_64::{
-    control::Cr3,
-    gdt::GdtDesc,
-    idt::IdtEntry,
-    paging::{MappedPageTable, PageTable, PageTableFrameMapper, PageTableFrameOffsetMapper},
-};
+use common::addr::PhysAddr;
+use common::addr::VirtAddr;
+use common::frame::FrameAllocError;
+use common::frame::FrameAllocator;
+use serial::SerialPort;
+use serial::COM1_BASE;
+use x86_64::control::Cr3;
+use x86_64::gdt::GdtDesc;
+use x86_64::idt::IdtEntry;
+use x86_64::paging::MappedPageTable;
+use x86_64::paging::PageTable;
+use x86_64::paging::PageTableFrameMapper;
+use x86_64::paging::PageTableFrameOffsetMapper;
+
+use crate::kalloc::KernelAllocator;
 
 #[macro_export]
 macro_rules! sprintln {

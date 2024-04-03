@@ -1,9 +1,10 @@
+use core::alloc::AllocError;
+use core::cell::RefCell;
+
 use bootloader_api::AllocatedFrameRange;
-use common::{
-    addr::PhysAddr,
-    frame::{FrameAllocError, FrameAllocator},
-};
-use core::{alloc::AllocError, cell::RefCell};
+use common::addr::PhysAddr;
+use common::frame::FrameAllocError;
+use common::frame::FrameAllocator;
 use stack_vec::StackVec;
 use uefi::services::boot::MemoryDescriptor;
 

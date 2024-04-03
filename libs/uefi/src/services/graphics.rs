@@ -1,4 +1,5 @@
-use super::boot::{Guid, UefiProtocol};
+use super::boot::Guid;
+use super::boot::UefiProtocol;
 use crate::Status;
 
 impl Graphics {

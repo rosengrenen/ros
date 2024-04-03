@@ -1,19 +1,21 @@
-use crate::branch::alt::{Alt, AltHelper};
+use core::alloc::Allocator;
+use core::marker::PhantomData;
+
+use crate::branch::alt::Alt;
+use crate::branch::alt::AltHelper;
+use crate::combinator::add_context::AddContext;
+use crate::combinator::and_then::AndThen;
+use crate::combinator::boxed::Boxed;
+use crate::combinator::cut::Cut;
+use crate::combinator::map::Map;
 use crate::combinator::map_context::MapContext;
-use crate::{
-    combinator::{
-        add_context::AddContext,
-        and_then::AndThen,
-        boxed::Boxed,
-        cut::Cut,
-        map::Map,
-        map_res::{MapRes, MapRes1},
-        opt::Opt,
-        or::Or,
-    },
-    error::{FromExternalError, ParseError, ParseResult},
-};
-use core::{alloc::Allocator, marker::PhantomData};
+use crate::combinator::map_res::MapRes;
+use crate::combinator::map_res::MapRes1;
+use crate::combinator::opt::Opt;
+use crate::combinator::or::Or;
+use crate::error::FromExternalError;
+use crate::error::ParseError;
+use crate::error::ParseResult;
 
 pub trait Parser<I, C, A>: Clone
 where

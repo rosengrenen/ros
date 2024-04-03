@@ -1,10 +1,10 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    name::NameString,
-    ops::EventOp,
-    parser::{fail, Input, ParseResult},
-};
+use crate::aml::name::NameString;
+use crate::aml::ops::EventOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
 
 pub struct Event<A: Allocator> {
     pub name: NameString<A>,

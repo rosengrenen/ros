@@ -1,10 +1,22 @@
-use super::{
-    ops::{
-        Arg0Op, Arg1Op, Arg2Op, Arg3Op, Arg4Op, Arg5Op, Arg6Op, DebugOp, Local0Op, Local1Op,
-        Local2Op, Local3Op, Local4Op, Local5Op, Local6Op, Local7Op,
-    },
-    parser::{Input, ParseResult, ParserError},
-};
+use super::ops::Arg0Op;
+use super::ops::Arg1Op;
+use super::ops::Arg2Op;
+use super::ops::Arg3Op;
+use super::ops::Arg4Op;
+use super::ops::Arg5Op;
+use super::ops::Arg6Op;
+use super::ops::DebugOp;
+use super::ops::Local0Op;
+use super::ops::Local1Op;
+use super::ops::Local2Op;
+use super::ops::Local3Op;
+use super::ops::Local4Op;
+use super::ops::Local5Op;
+use super::ops::Local6Op;
+use super::ops::Local7Op;
+use super::parser::Input;
+use super::parser::ParseResult;
+use super::parser::ParserError;
 
 #[derive(Debug)]
 pub enum ArgObj {
