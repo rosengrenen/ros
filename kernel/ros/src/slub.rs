@@ -34,7 +34,6 @@ unsafe impl<F: FrameAllocator> Allocator for SlabCache<F> {
         let mut active = if let Some(active) = inner.active {
             active
         } else {
-            sprintln!("created new slab");
             // TODO: use page allocator not a frame allocator
             let frame = self.frame_allocator.allocate_frame().unwrap();
             let slab_layout = Layout::new::<Slab>();
@@ -114,7 +113,6 @@ impl Slab {
         if let Some(freelist) = self.freelist {
             self.freelist = unsafe { freelist.as_ref() }.next;
             unsafe {
-                sprintln!("allocated {:?}", freelist);
                 NonNull::new_unchecked(core::ptr::slice_from_raw_parts_mut(
                     freelist.cast().as_mut(),
                     layout.size(),

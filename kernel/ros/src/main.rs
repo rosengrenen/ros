@@ -8,28 +8,25 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 // mod bitmap;
-mod falloc;
 mod interrupt;
 mod kalloc;
-mod kalloc2;
 mod msr;
 mod slub;
 mod spinlock;
 
-use crate::kalloc2::KernelAllocator;
+use crate::kalloc::KernelAllocator;
 use acpi::tables::{DefinitionHeader, Fadt, Rsdp};
 use acpi2::{
     aml::{context::Context, parser::Input},
     parse_term_objs,
 };
-use bootloader_api::BootInfo;
+use bootloader_api::{BootInfo, MemoryRegionType};
 use buddy::BuddyAllocator;
 use common::{
     addr::{PhysAddr, VirtAddr},
     frame::{FrameAllocError, FrameAllocator},
 };
 use core::{alloc::Allocator, panic::PanicInfo};
-use parser::{multi::many::many, parser::Parser};
 use serial::{SerialPort, COM1_BASE};
 use x86_64::{
     control::Cr3,
@@ -66,11 +63,6 @@ struct Buddy(spinlock::Mutex<BuddyAllocator<5, 4096>>);
 
 impl FrameAllocator for Buddy {
     fn allocate_frames(&self, num_frames: usize) -> Result<PhysAddr, FrameAllocError> {
-        sprintln!(
-            "allocate frames {}, order: {}",
-            num_frames,
-            ilog_ceil(2, num_frames) + 1
-        );
         let a = self
             .0
             .lock()
@@ -97,18 +89,6 @@ pub struct DescriptorTablePointer {
     pub base: u64,
 }
 
-use alloc::vec::Vec;
-
-#[inline(never)]
-fn humminahaa<A: Allocator + Clone>(b: usize, alloc: A) {
-    if b > 1000 {
-        return;
-    }
-
-    alloc::boxed::Box::new(b, alloc.clone()).unwrap();
-    humminahaa(b + 1, alloc);
-}
-
 pub static mut LAPIC: msr::LApic = msr::LApic { base: 0 };
 
 #[no_mangle]
@@ -118,18 +98,16 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     let mut serial = SerialPort::new(COM1_BASE);
     serial.configure(1);
 
-    unsafe {
-        let slice = core::slice::from_raw_parts(0xffffffff80006010 as *const u8, 100);
-        sprintln!("{:#x?}", slice);
-    }
-
     sprintln!("Setting up buddy allocator...");
     let mut memory_regions = info
         .memory_regions
         .iter()
+        .filter(|region| region.ty == MemoryRegionType::KernelUsable)
         .filter(|region| {
-            info.allocated_frame_ranges.iter().any(|range| {
-                range.base < region.end && range.base + range.frames as u64 * 4096 > region.start
+            info.allocated_frame_ranges.iter().all(|range| {
+                !(region.start..=region.end).contains(&range.base)
+                    && !(region.start..=region.end)
+                        .contains(&(range.base + range.frames as u64 * 4096))
             })
         })
         .map(|region| {
@@ -138,6 +116,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
                 (region.end - region.start) as usize / 4096,
             )
         });
+
     let first_memory_region = memory_regions.next().unwrap();
     let mut buddy_allocator = buddy::BuddyAllocator::<5, 4096>::new(
         first_memory_region.0,
@@ -150,22 +129,10 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
 
     let kalloc = KernelAllocator::new(&buddy_allocator);
 
-    // TODO: all usable memory is now identity mapped!!!
-    // UPDATE: first 4gb should be mapped
-    // sprintln!("Creating init frame allocator...");
-    // let init_frame_allocator =
-    //     InitFrameAllocator::new(&info.memory_regions[..], &info.allocated_frame_ranges[..]);
-
     let page_table = FRAME_OFFSET_MAPPER
         .frame_to_page(PhysAddr::new(Cr3::read().pba_pml4))
         .as_ref_mut::<PageTable>();
-    // sprintln!("{:x?}", &page_table.entries);
     let mut mapped_page_table = MappedPageTable::new(page_table, FRAME_OFFSET_MAPPER);
-
-    // sprintln!(
-    //     "0xf77d0ec {:x?}",
-    //     mapped_page_table.translate(VirtAddr::new(0xf77d0ec))
-    // );
 
     {
         sprintln!("Expanding stack...");
@@ -205,10 +172,10 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     sprintln!("Setting up IDT...");
     interrupt::init(idt);
 
-    // unsafe {
-    //     sprintln!("Testing breakpoint interrupt...");
-    //     core::arch::asm!("int3");
-    // }
+    unsafe {
+        sprintln!("Testing breakpoint interrupt...");
+        core::arch::asm!("int3");
+    }
 
     // let enabled_timer = false;
     // if enabled_timer {
@@ -232,23 +199,17 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     //     }
     // }
 
-    humminahaa(0, &kalloc);
-
-    loop {}
-    // let a = 0xf77e02c as *mut u8;
-    // sprintln!("{}", unsafe { *a });
-
     let rsdp_addr = FRAME_OFFSET_MAPPER
         .frame_to_page(PhysAddr::new(info.rsdp as u64))
         .as_u64();
     sprintln!("Reading rsdp at {:x?}...", rsdp_addr);
     let rsdp = unsafe { Rsdp::from_addr(rsdp_addr) };
 
+    // TODO: table_ptrs is not offset_mapped
     for table_ptr in rsdp.table_ptrs() {
         let table_ptr = FRAME_OFFSET_MAPPER
             .frame_to_page(PhysAddr::new(table_ptr as u64))
             .as_ptr::<DefinitionHeader>();
-        sprintln!("{:?}", table_ptr);
         let header = unsafe { table_ptr.read() };
         if &header.signature == b"FACP" {
             let ptr = table_ptr as *const Fadt;
@@ -260,25 +221,6 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
             print_dsdt(dsdt_addr, &kalloc);
         }
     }
-
-    // {
-    //     let mut heap = heap.inner.lock();
-    //     let heap: &mut HeapInner = &mut heap;
-    //     heap.defragment();
-    //     let free_bytes = heap
-    //         .free_spaces
-    //         .iter()
-    //         .map(|(start, end)| end - start)
-    //         .sum::<u64>();
-    //     sprintln!("free bytes: {:x?}", free_bytes);
-    //     sprintln!("free bytes: {:x?}", 24 * 1024 * 1024 - free_bytes);
-    //     // sprintln!("{:x?}", heap);
-    //     sprintln!(
-    //         "Heap max: {}K, heap current: {}K",
-    //         heap.max_allocated_bytes / 1024,
-    //         heap.allocated_bytes / 1024
-    //     );
-    // }
 
     sprintln!("Entering halt loop...");
     loop {
@@ -340,15 +282,9 @@ fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
     let dsdt_ptr = dsdt_addr as *const u8;
     let dsdt_len = hdr.length;
     let dsdt_slice = unsafe { core::slice::from_raw_parts(dsdt_ptr, dsdt_len as usize) };
-    sprintln!("{:x?}", dsdt_slice);
-    let addr = parse_term_objs::<&A> as u64;
-    sprintln!("address of parse_term_objs {:#x?}", addr);
-    let input = Input::new(&dsdt_slice[36..]);
-    sprintln!("created input");
+    let input = Input::new(&dsdt_slice[core::mem::size_of::<DefinitionHeader>()..]);
     let mut context = Context::new(alloc);
-    sprintln!("created context");
     let res = parse_term_objs(input, &mut context, alloc);
-    sprintln!("parsed");
     match res {
         Ok(ast) => {
             sprintln!("Dsdt ok!");

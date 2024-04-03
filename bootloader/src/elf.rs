@@ -50,7 +50,6 @@ pub fn mount_kernel(
     let mut kernel_virt_base = u64::MAX;
     let mut kernel_virt_limit = 0;
     for &entry in load_entries.clone() {
-        sprintln!("{entry:#x?}");
         kernel_virt_base = kernel_virt_base.min(entry.physical_address);
         kernel_virt_limit = kernel_virt_limit.max(entry.physical_address + entry.segment_mem_size);
     }
@@ -74,11 +73,6 @@ pub fn mount_kernel(
         let entry_files_offset = entry.segment_file_offset as usize;
         let entry_phys_base = (entry.virtual_address - kernel_virt_base) as usize;
         let file_size = entry.segment_file_size as usize;
-        sprintln!(
-            "loading kernel from {:#x} to {:#x}",
-            entry.virtual_address,
-            entry.virtual_address + entry.segment_mem_size
-        );
         kernel[entry_phys_base..(file_size + entry_phys_base)]
             .copy_from_slice(&elf.bytes[entry_files_offset..(entry_files_offset + file_size)]);
         // Zero remaining bytes

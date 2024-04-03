@@ -53,6 +53,7 @@ impl<'a, M: PageTableFrameMapper> MappedPageTable<'a, M> {
         page: VirtAddr,
         frame: PhysAddr,
         frame_allocator: &F,
+        writeable: bool,
     ) -> Result<(), ()> {
         // TODO: check addr alignment, maybe wrap virt and phys addr in
         // page and frame type which are generic over sizes, which provide
@@ -77,7 +78,7 @@ impl<'a, M: PageTableFrameMapper> MappedPageTable<'a, M> {
 
         p1_entry.set_present(true);
         p1_entry.set_is_page(true);
-        p1_entry.set_writable(true);
+        p1_entry.set_writable(writeable);
         p1_entry.set_frame(frame);
         Ok(())
     }
@@ -112,7 +113,7 @@ impl<'a, M: PageTableFrameMapper> MappedPageTable<'a, M> {
         frame_allocator: &F,
     ) -> Result<(), ()> {
         // TODO: prevent this kind of virt -> phys transformation, might be dangerous
-        self.map(page, PhysAddr::new(page.as_u64()), frame_allocator)
+        self.map(page, PhysAddr::new(page.as_u64()), frame_allocator, false)
     }
 
     pub fn unmap(

@@ -9,11 +9,7 @@ mod allocator;
 mod elf;
 
 use crate::{allocator::BumpAllocator, elf::mount_kernel};
-use acpi::tables::{DefinitionHeader, Fadt, Rsdp};
-use acpi2::{
-    aml::{context::Context, parser::Input},
-    parse_term_objs,
-};
+use acpi::tables::DefinitionHeader;
 use alloc::{raw_vec::RawVec, vec::Vec};
 use bootloader_api::{AllocatedFrameRange, BootInfo, MemoryRegion, MemoryRegionType};
 use common::{
@@ -35,7 +31,7 @@ use uefi::{
 };
 use x86_64::{
     control::Cr3,
-    paging::{MappedPageTable, PageTable, PageTableFrameMapper, PageTableFrameOffsetMapper},
+    paging::{MappedPageTable, PageTable, PageTableFrameOffsetMapper},
 };
 
 #[macro_export]
@@ -48,29 +44,6 @@ macro_rules! sprintln {
 fn serial_print(args: Arguments) {
     let mut serial = SerialPort::new(COM1_BASE);
     serial.write_fmt(args).unwrap();
-}
-
-fn print_dsdt<A: Allocator>(dsdt_addr: u64, alloc: &A) {
-    let ptr = dsdt_addr as *const DefinitionHeader;
-    let hdr = unsafe { ptr.read() };
-    let dsdt_ptr = dsdt_addr as *const u8;
-    let dsdt_len = hdr.length;
-    let dsdt_slice = unsafe { core::slice::from_raw_parts(dsdt_ptr, dsdt_len as usize) };
-    sprintln!("{:x?}", dsdt_slice);
-    let addr = parse_term_objs::<&A> as u64;
-    sprintln!("address of parse_term_objs {:#x?}", addr);
-    let input = Input::new(&dsdt_slice[36..]);
-    sprintln!("created input");
-    let mut context = Context::new(alloc);
-    sprintln!("created context");
-    let res = parse_term_objs(input, &mut context, alloc);
-    sprintln!("parsed");
-    match res {
-        Ok(ast) => {
-            sprintln!("Dsdt ok!");
-        }
-        Err(e) => sprintln!("Dsdt err... {:?}", e),
-    }
 }
 
 #[no_mangle]
@@ -86,22 +59,6 @@ pub extern "efiapi" fn efi_main(
         read_kernel_executable(system_table.boot_services(), &uefi_allocator).unwrap();
 
     let rsdp = get_rsdp(&system_table);
-
-    {
-        sprintln!("Reading rsdp at {:x?}...", rsdp);
-        let rsdp = unsafe { Rsdp::from_addr(rsdp as u64) };
-
-        for table_ptr in rsdp.table_ptrs() {
-            sprintln!("{:?}", table_ptr);
-            let header = unsafe { table_ptr.read() };
-            if &header.signature == b"FACP" {
-                let ptr = table_ptr as *const Fadt;
-                let fadt = unsafe { ptr.read_unaligned() };
-                sprintln!("Reading dsdt...");
-                print_dsdt(fadt.dsdt as u64, &uefi_allocator);
-            }
-        }
-    }
 
     let memory_map = system_table
         .boot_services()
@@ -141,11 +98,9 @@ pub extern "efiapi" fn efi_main(
         .map(|region| region.end)
         .max()
         .unwrap();
-    sprintln!("Mapping 0-{} gb", max_addr.div_ceil(GB));
     const GB: u64 = 1024 * 1024 * 1024;
     const UPPER_HALF: u64 = 0xffff_8000_0000_0000;
     for i in 0..max_addr.div_ceil(GB) {
-        sprintln!("{:x}-{:x}", i * GB, (i + 1) * GB - 1);
         // Temporary identity map
         mapped_page_table
             .map_1gb(
@@ -254,12 +209,7 @@ pub extern "efiapi" fn efi_main(
     // TODO: make it take a phys addr instead of u64
     Cr3::write(pml4_frame.as_u64());
 
-    unsafe {
-        let slice = core::slice::from_raw_parts(0xffffffff80005ff0 as *const u8, 100);
-        sprintln!("{:#x?}", slice);
-    }
-
-    sprintln!("Bootloader is launching kernel");
+    sprintln!("Bootloader is launching kernel...");
 
     // Jump to kernel
     unsafe {
