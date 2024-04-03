@@ -1,4 +1,6 @@
-use super::parser::{item, Input, ParseResult};
+use super::parser::item;
+use super::parser::Input;
+use super::parser::ParseResult;
 
 macro_rules! op {
     ($opcode:literal, $name:ident) => {

@@ -1,11 +1,11 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    ops::DerefOfOp,
-    parser::{fail, Input, ParseResult},
-    term::TermArg,
-};
+use crate::aml::context::Context;
+use crate::aml::ops::DerefOfOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::term::TermArg;
 
 pub struct DerefOf<A: Allocator> {
     pub obj_ref: TermArg<A>,

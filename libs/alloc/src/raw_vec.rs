@@ -1,8 +1,7 @@
-use core::{
-    fmt::Debug,
-    ops::{Deref, DerefMut},
-    ptr::Unique,
-};
+use core::fmt::Debug;
+use core::ops::Deref;
+use core::ops::DerefMut;
+use core::ptr::Unique;
 
 pub struct RawVec<T> {
     ptr: Unique<T>,

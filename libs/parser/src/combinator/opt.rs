@@ -1,9 +1,11 @@
-use crate::{
-    error::{ParseError, ParseErrorKind, ParseResult, ParserError},
-    input::Input,
-    parser::Parser,
-};
 use core::alloc::Allocator;
+
+use crate::error::ParseError;
+use crate::error::ParseErrorKind;
+use crate::error::ParseResult;
+use crate::error::ParserError;
+use crate::input::Input;
+use crate::parser::Parser;
 
 #[derive(Clone)]
 pub struct Opt<P> {

@@ -1,15 +1,18 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    name::NameString,
-    ops::{
-        CreateBitFieldOp, CreateByteFieldOp, CreateDWordFieldOp, CreateFieldOp, CreateQWordFieldOp,
-        CreateWordFieldOp,
-    },
-    parser::{fail, Input, ParseResult, ParserError},
-    term::TermArg,
-};
+use crate::aml::context::Context;
+use crate::aml::name::NameString;
+use crate::aml::ops::CreateBitFieldOp;
+use crate::aml::ops::CreateByteFieldOp;
+use crate::aml::ops::CreateDWordFieldOp;
+use crate::aml::ops::CreateFieldOp;
+use crate::aml::ops::CreateQWordFieldOp;
+use crate::aml::ops::CreateWordFieldOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::parser::ParserError;
+use crate::aml::term::TermArg;
 
 pub enum CreateConstField<A: Allocator> {
     Bit(Bit<A>),

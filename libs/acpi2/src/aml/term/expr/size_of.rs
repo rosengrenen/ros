@@ -1,11 +1,11 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    name::SuperName,
-    ops::SizeOfOp,
-    parser::{fail, Input, ParseResult},
-};
+use crate::aml::context::Context;
+use crate::aml::name::SuperName;
+use crate::aml::ops::SizeOfOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
 
 pub struct SizeOf<A: Allocator> {
     pub name: SuperName<A>,

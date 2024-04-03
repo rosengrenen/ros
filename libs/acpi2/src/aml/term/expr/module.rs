@@ -1,12 +1,12 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    name::Target,
-    ops::ModOp,
-    parser::{fail, Input, ParseResult},
-    term::TermArg,
-};
+use crate::aml::context::Context;
+use crate::aml::name::Target;
+use crate::aml::ops::ModOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::term::TermArg;
 
 pub struct Mod<A: Allocator> {
     pub dividend: TermArg<A>,

@@ -1,13 +1,13 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    data::byte_data,
-    name::NameString,
-    ops::OpRegionOp,
-    parser::{fail, Input, ParseResult},
-    term::TermArg,
-};
+use crate::aml::context::Context;
+use crate::aml::data::byte_data;
+use crate::aml::name::NameString;
+use crate::aml::ops::OpRegionOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::term::TermArg;
 
 pub struct OpRegion<A: Allocator> {
     pub name: NameString<A>,

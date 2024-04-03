@@ -1,4 +1,5 @@
-use crate::{string::RawString16, Status};
+use crate::string::RawString16;
+use crate::Status;
 
 impl ConsoleOutput {
     pub fn reset(&self, extended_verification: bool) -> Result<(), usize> {

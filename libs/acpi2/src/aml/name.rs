@@ -1,14 +1,23 @@
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use core::alloc::Allocator;
 
-use alloc::{boxed::Box, vec::Vec};
-
-use super::{
-    context::Context,
-    misc::{ArgObj, DebugObj, LocalObj},
-    ops::{DualNamePrefix, MultiNamePrefix, ParentPrefixChar, RootChar},
-    parser::{fail, item, satisfy, take_one, Input, ParseResult, ParserError},
-    term::expr::RefTypeOpcode,
-};
+use super::context::Context;
+use super::misc::ArgObj;
+use super::misc::DebugObj;
+use super::misc::LocalObj;
+use super::ops::DualNamePrefix;
+use super::ops::MultiNamePrefix;
+use super::ops::ParentPrefixChar;
+use super::ops::RootChar;
+use super::parser::fail;
+use super::parser::item;
+use super::parser::satisfy;
+use super::parser::take_one;
+use super::parser::Input;
+use super::parser::ParseResult;
+use super::parser::ParserError;
+use super::term::expr::RefTypeOpcode;
 
 fn lead_name_char<'a>(input: Input<'a>) -> ParseResult<'a, u8> {
     satisfy(input, |b| b == b'_' || b.is_ascii_uppercase())

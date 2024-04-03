@@ -16,26 +16,25 @@ pub mod thermal_zone;
 
 use core::alloc::Allocator;
 
-use self::{
-    bank_field::BankField,
-    create_field::{CreateConstField, CreateField},
-    data_region::DataRegion,
-    device::Device,
-    event::Event,
-    external::External,
-    field::Field,
-    index_field::IndexField,
-    method::Method,
-    mutex::Mutex,
-    op_region::OpRegion,
-    power_res::PowerRes,
-    thermal_zone::ThermalZone,
-};
-use crate::aml::{
-    context::Context,
-    parser::{Input, ParseResult, ParserError},
-    term::named::processor::Processor,
-};
+use self::bank_field::BankField;
+use self::create_field::CreateConstField;
+use self::create_field::CreateField;
+use self::data_region::DataRegion;
+use self::device::Device;
+use self::event::Event;
+use self::external::External;
+use self::field::Field;
+use self::index_field::IndexField;
+use self::method::Method;
+use self::mutex::Mutex;
+use self::op_region::OpRegion;
+use self::power_res::PowerRes;
+use self::thermal_zone::ThermalZone;
+use crate::aml::context::Context;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::parser::ParserError;
+use crate::aml::term::named::processor::Processor;
 
 pub enum NamedObj<A: Allocator> {
     BankField(BankField<A>),

@@ -1,14 +1,20 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    ops::{
-        LAndOp, LEqualOp, LGreaterEqualOp, LGreaterOp, LLessEqualOp, LLessOp, LNotEqualOp, LNotOp,
-        LOrOp,
-    },
-    parser::{fail, Input, ParseResult, ParserError},
-    term::TermArg,
-};
+use crate::aml::context::Context;
+use crate::aml::ops::LAndOp;
+use crate::aml::ops::LEqualOp;
+use crate::aml::ops::LGreaterEqualOp;
+use crate::aml::ops::LGreaterOp;
+use crate::aml::ops::LLessEqualOp;
+use crate::aml::ops::LLessOp;
+use crate::aml::ops::LNotEqualOp;
+use crate::aml::ops::LNotOp;
+use crate::aml::ops::LOrOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::parser::ParserError;
+use crate::aml::term::TermArg;
 
 pub enum Logical<A: Allocator> {
     And(And<A>),

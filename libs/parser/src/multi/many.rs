@@ -1,11 +1,12 @@
-use super::fold::FoldMN;
-use crate::{
-    error::{ParseError, ParseErrorKind, ParseResult},
-    input::Input,
-    parser::Parser,
-};
 use alloc::vec::Vec;
 use core::alloc::Allocator;
+
+use super::fold::FoldMN;
+use crate::error::ParseError;
+use crate::error::ParseErrorKind;
+use crate::error::ParseResult;
+use crate::input::Input;
+use crate::parser::Parser;
 
 pub fn many<I, O, E, C, P, A>(parser: P) -> impl Parser<I, C, A, Output = Vec<O, A>, Error = E>
 where

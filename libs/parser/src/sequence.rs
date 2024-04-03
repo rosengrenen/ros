@@ -1,9 +1,10 @@
-use crate::{
-    error::{ParseError, ParseErrorKind, ParseResult},
-    input::Input,
-    parser::Parser,
-};
 use core::alloc::Allocator;
+
+use crate::error::ParseError;
+use crate::error::ParseErrorKind;
+use crate::error::ParseResult;
+use crate::input::Input;
+use crate::parser::Parser;
 
 pub fn preceded<I, O1, O2, E, C, P1, P2, A>(first: P1, second: P2) -> Preceded<P1, P2>
 where

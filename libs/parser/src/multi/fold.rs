@@ -1,9 +1,11 @@
-use crate::{
-    error::{ParseError, ParseErrorKind, ParserError},
-    input::Input,
-    parser::Parser,
-};
-use core::{alloc::Allocator, ops::ControlFlow};
+use core::alloc::Allocator;
+use core::ops::ControlFlow;
+
+use crate::error::ParseError;
+use crate::error::ParseErrorKind;
+use crate::error::ParserError;
+use crate::input::Input;
+use crate::parser::Parser;
 
 pub fn fold<I, O, E, C, P, F, Init, Acc, A>(
     parser: P,

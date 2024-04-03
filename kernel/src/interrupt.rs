@@ -1,7 +1,12 @@
-use crate::{DescriptorTablePointer, LAPIC};
 use core::fmt::Write;
-use serial::{SerialPort, COM1_BASE};
-use x86_64::{control::Cr2, idt::IdtEntry};
+
+use serial::SerialPort;
+use serial::COM1_BASE;
+use x86_64::control::Cr2;
+use x86_64::idt::IdtEntry;
+
+use crate::DescriptorTablePointer;
+use crate::LAPIC;
 
 pub fn init(idt: &mut [IdtEntry]) {
     // entry point, index 1 of gdt  (1 << 3) = 8, options(0x8f00) = [present, gate type is trap gate]

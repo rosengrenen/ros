@@ -1,5 +1,8 @@
-use super::{PageTable, PhysAddr};
-use core::{fmt::Debug, marker::PhantomData};
+use core::fmt::Debug;
+use core::marker::PhantomData;
+
+use super::PageTable;
+use super::PhysAddr;
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]

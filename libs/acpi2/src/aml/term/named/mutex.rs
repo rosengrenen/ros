@@ -1,11 +1,11 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    data::byte_data,
-    name::NameString,
-    ops::MutexOp,
-    parser::{fail, Input, ParseResult},
-};
+use crate::aml::data::byte_data;
+use crate::aml::name::NameString;
+use crate::aml::ops::MutexOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
 
 pub struct Mutex<A: Allocator> {
     pub name: NameString<A>,

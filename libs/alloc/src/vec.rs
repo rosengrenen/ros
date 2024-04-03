@@ -1,10 +1,13 @@
+use core::alloc::AllocError;
+use core::alloc::Allocator;
+use core::alloc::Layout;
+use core::alloc::LayoutError;
+use core::fmt::Debug;
+use core::ops::Deref;
+use core::ops::DerefMut;
+use core::ptr::Unique;
+
 use crate::iter::FromIteratorIn;
-use core::{
-    alloc::{AllocError, Allocator, Layout, LayoutError},
-    fmt::Debug,
-    ops::{Deref, DerefMut},
-    ptr::Unique,
-};
 
 pub struct Vec<T, A: Allocator> {
     ptr: Unique<T>,

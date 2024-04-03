@@ -1,12 +1,20 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    name::Target,
-    ops::{AndOp, NAndOp, NOrOp, NotOp, OrOp, ShiftLeftOp, ShiftRightOp, XOrOp},
-    parser::{fail, Input, ParseResult, ParserError},
-    term::TermArg,
-};
+use crate::aml::context::Context;
+use crate::aml::name::Target;
+use crate::aml::ops::AndOp;
+use crate::aml::ops::NAndOp;
+use crate::aml::ops::NOrOp;
+use crate::aml::ops::NotOp;
+use crate::aml::ops::OrOp;
+use crate::aml::ops::ShiftLeftOp;
+use crate::aml::ops::ShiftRightOp;
+use crate::aml::ops::XOrOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::parser::ParserError;
+use crate::aml::term::TermArg;
 
 pub enum Bitwise<A: Allocator> {
     And(And<A>),

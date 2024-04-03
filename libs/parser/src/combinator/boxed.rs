@@ -1,10 +1,10 @@
-use crate::{
-    error::{ParseErrorKind, ParseResult},
-    input::Input,
-    parser::Parser,
-};
 use alloc::boxed::Box;
 use core::alloc::Allocator;
+
+use crate::error::ParseErrorKind;
+use crate::error::ParseResult;
+use crate::input::Input;
+use crate::parser::Parser;
 
 #[derive(Clone)]
 pub struct Boxed<P> {

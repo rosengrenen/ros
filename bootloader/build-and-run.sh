@@ -26,17 +26,17 @@ mmd -i fat.img ::/EFI/BOOT
 mcopy -i fat.img target/x86_64-unknown-uefi/$UEFI_PROFILE/BOOTX64.EFI ::/EFI/BOOT
 case $KERNEL_PROFILE in
     debug)
-        cd ../kernel/ros && cargo build && cd -
+        cd ../kernel && cargo build && cd -
         ;;
     release)
-        cd ../kernel/ros && cargo build --release && cd -
+        cd ../kernel && cargo build --release && cd -
         ;;
     *)
         echo "Invalid kernel profile: $KERNEL_PROFILE"
         exit 1
         ;;
 esac
-mcopy -i fat.img ../kernel/ros/target/x86_64/$KERNEL_PROFILE/ros ::/
+mcopy -i fat.img ../kernel/target/x86_64/$KERNEL_PROFILE/ros ::/
 
 mkgpt -o hdimage.bin --part fat.img --type system
 # sudo qemu-system-x86_64 -m 1G -L /usr/share/ovmf/x64 -pflash /usr/share/ovmf/x64/OVMF.fd -hda hdimage.bin -serial stdio -no-reboot

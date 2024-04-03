@@ -1,9 +1,10 @@
-use crate::{
-    error::{ParseError, ParseResult, ParserError},
-    input::Input,
-    parser::Parser,
-};
 use core::alloc::Allocator;
+
+use crate::error::ParseError;
+use crate::error::ParseResult;
+use crate::error::ParserError;
+use crate::input::Input;
+use crate::parser::Parser;
 
 #[derive(Clone)]
 pub struct AddContext<P> {

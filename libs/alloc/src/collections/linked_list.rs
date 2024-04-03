@@ -1,8 +1,7 @@
-use core::{
-    alloc::{Allocator, Layout},
-    marker::PhantomData,
-    ptr::NonNull,
-};
+use core::alloc::Allocator;
+use core::alloc::Layout;
+use core::marker::PhantomData;
+use core::ptr::NonNull;
 
 pub struct LinkedList<T, A: Allocator> {
     ends: Option<Ends<T>>,

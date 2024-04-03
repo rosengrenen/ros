@@ -1,9 +1,13 @@
-use crate::{
-    error::{FromExternalError, ParseError, ParseErrorKind, ParseResult, ParserError},
-    input::Input,
-    parser::Parser,
-};
-use core::{alloc::Allocator, marker::PhantomData};
+use core::alloc::Allocator;
+use core::marker::PhantomData;
+
+use crate::error::FromExternalError;
+use crate::error::ParseError;
+use crate::error::ParseErrorKind;
+use crate::error::ParseResult;
+use crate::error::ParserError;
+use crate::input::Input;
+use crate::parser::Parser;
 
 #[derive(Clone)]
 pub struct MapRes<P, F, E> {

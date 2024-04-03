@@ -1,9 +1,9 @@
-use crate::{
-    error::{ParseError, ParseResult},
-    input::Input,
-    parser::Parser,
-};
 use core::alloc::Allocator;
+
+use crate::error::ParseError;
+use crate::error::ParseResult;
+use crate::input::Input;
+use crate::parser::Parser;
 
 #[derive(Clone)]
 pub struct MapContext<P, F> {

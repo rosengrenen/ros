@@ -1,4 +1,5 @@
-use core::alloc::{AllocError, Allocator};
+use core::alloc::AllocError;
+use core::alloc::Allocator;
 
 pub trait FromIteratorIn<T, A: Allocator>: Sized {
     fn from_iter_in<I: IntoIterator<Item = T>>(iter: I, alloc: A) -> Result<Self, AllocError>;

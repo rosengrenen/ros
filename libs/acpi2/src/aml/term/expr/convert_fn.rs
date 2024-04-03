@@ -1,14 +1,19 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    name::Target,
-    ops::{
-        FromBcdOp, ToBcdOp, ToBufferOp, ToDecimalStringOp, ToHexStringOp, ToIntegerOp, ToStringOp,
-    },
-    parser::{fail, Input, ParseResult, ParserError},
-    term::TermArg,
-};
+use crate::aml::context::Context;
+use crate::aml::name::Target;
+use crate::aml::ops::FromBcdOp;
+use crate::aml::ops::ToBcdOp;
+use crate::aml::ops::ToBufferOp;
+use crate::aml::ops::ToDecimalStringOp;
+use crate::aml::ops::ToHexStringOp;
+use crate::aml::ops::ToIntegerOp;
+use crate::aml::ops::ToStringOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::parser::ParserError;
+use crate::aml::term::TermArg;
 
 pub enum ConvertFn<A: Allocator> {
     FromBcd(FromBcd<A>),

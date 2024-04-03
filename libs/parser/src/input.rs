@@ -1,5 +1,12 @@
-use crate::error::{ParseError, ParseErrorKind, ParseResult, ParserError};
-use core::{alloc::Allocator, fmt::Debug, iter::Copied, slice::Iter};
+use core::alloc::Allocator;
+use core::fmt::Debug;
+use core::iter::Copied;
+use core::slice::Iter;
+
+use crate::error::ParseError;
+use crate::error::ParseErrorKind;
+use crate::error::ParseResult;
+use crate::error::ParserError;
 
 pub trait Input: Clone + Debug {
     type Item;

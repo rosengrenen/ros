@@ -1,14 +1,20 @@
+use alloc::collections::HashMap;
+use alloc::vec::Vec;
 #[allow(deprecated)]
-use core::{
-    alloc::Allocator,
-    hash::{BuildHasherDefault, SipHasher},
-    marker::PhantomData,
-};
+use core::alloc::Allocator;
+#[allow(deprecated)]
+use core::hash::BuildHasherDefault;
+#[allow(deprecated)]
+use core::hash::SipHasher;
+#[allow(deprecated)]
+use core::marker::PhantomData;
 
-use crate::aml::name::{MultiNamePath, NameString};
-use alloc::{collections::HashMap, vec::Vec};
-
-use super::name::{DualNamePath, NamePath, NameSeg, NullName};
+use super::name::DualNamePath;
+use super::name::NamePath;
+use super::name::NameSeg;
+use super::name::NullName;
+use crate::aml::name::MultiNamePath;
+use crate::aml::name::NameString;
 
 pub struct Context<A: Allocator> {
     pub root_scope: Scope<A>,

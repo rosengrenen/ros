@@ -1,14 +1,15 @@
 pub mod linked_list;
-pub use self::hash::{Entry, HashMap};
+pub use self::hash::Entry;
+pub use self::hash::HashMap;
 
 mod hash {
+    use core::alloc::Allocator;
+    use core::hash::BuildHasher;
+    use core::hash::Hash;
+    use core::marker::PhantomData;
+
     use super::linked_list::LinkedList;
     use crate::vec::Vec;
-    use core::{
-        alloc::Allocator,
-        hash::{BuildHasher, Hash},
-        marker::PhantomData,
-    };
 
     pub struct HashMap<K, V, H, A: Allocator> {
         slots: Vec<LinkedList<(K, V), A>, A>,

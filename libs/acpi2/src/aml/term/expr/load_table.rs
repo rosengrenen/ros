@@ -1,11 +1,11 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    ops::LoadTableOp,
-    parser::{fail, Input, ParseResult},
-    term::TermArg,
-};
+use crate::aml::context::Context;
+use crate::aml::ops::LoadTableOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::term::TermArg;
 
 pub struct LoadTable<A: Allocator> {
     pub arg1: TermArg<A>,

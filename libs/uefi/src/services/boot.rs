@@ -1,6 +1,10 @@
-use crate::{Handle, Status, TableHeader};
 use alloc::vec::Vec;
-use core::{alloc::Allocator, ffi::c_void};
+use core::alloc::Allocator;
+use core::ffi::c_void;
+
+use crate::Handle;
+use crate::Status;
+use crate::TableHeader;
 
 impl BootServices {
     pub fn allocate_pages(

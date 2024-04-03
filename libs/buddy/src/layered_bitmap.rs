@@ -1,9 +1,11 @@
-use crate::{
-    bitmap::{Bitmap, BitmapLayout, BitmapVecEntry},
-    util::ilog_ceil,
-};
 use alloc::raw_vec::RawVec;
-use core::alloc::{Layout, LayoutError};
+use core::alloc::Layout;
+use core::alloc::LayoutError;
+
+use crate::bitmap::Bitmap;
+use crate::bitmap::BitmapLayout;
+use crate::bitmap::BitmapVecEntry;
+use crate::util::ilog_ceil;
 
 #[derive(Debug)]
 pub struct LayeredBitmap {
@@ -161,8 +163,9 @@ impl LayeredBitmapLayout {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use test::Bencher;
+
+    use super::*;
 
     fn create_bitmap(entries: usize) -> LayeredBitmap {
         let layout = LayeredBitmapLayout::new(entries).unwrap();

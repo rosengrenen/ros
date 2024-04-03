@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+    "acpi",
+    "acpi2",
+    "alloc",
+    "arch/x86_64",
+    "buddy",
+    "common",
+    "parser",
+    "serial",
+    "stack_vec",
+    "uefi",
+]

@@ -25,26 +25,45 @@ pub mod timer;
 pub mod var_pkg;
 pub mod wait;
 
+use alloc::boxed::Box;
 use core::alloc::Allocator;
 
-use alloc::boxed::Box;
-
-use self::{
-    acquire::Acquire, bitwise::Bitwise, buffer::Buffer, concat::Concat, concat_res::ConcatRes,
-    cond_ref_of::CondRefOf, convert_fn::ConvertFn, copy_obj::CopyObj, deref_of::DerefOf,
-    find_set_left_bit::FindSetLeftBit, find_set_right_bit::FindSetRightBit, index::Index,
-    integer::Integer, load_table::LoadTable, logical::Logical, match_pkg::Match, mid::Mid,
-    module::Mod, obj_type::ObjType, pkg::Pkg, ref_of::RefOf, size_of::SizeOf, store::Store,
-    timer::Timer, var_pkg::VarPkg, wait::Wait,
-};
+use self::acquire::Acquire;
+use self::bitwise::Bitwise;
+use self::buffer::Buffer;
+use self::concat::Concat;
+use self::concat_res::ConcatRes;
+use self::cond_ref_of::CondRefOf;
+use self::convert_fn::ConvertFn;
+use self::copy_obj::CopyObj;
+use self::deref_of::DerefOf;
+use self::find_set_left_bit::FindSetLeftBit;
+use self::find_set_right_bit::FindSetRightBit;
+use self::index::Index;
+use self::integer::Integer;
+use self::load_table::LoadTable;
+use self::logical::Logical;
+use self::match_pkg::Match;
+use self::mid::Mid;
+use self::module::Mod;
+use self::obj_type::ObjType;
+use self::pkg::Pkg;
+use self::ref_of::RefOf;
+use self::size_of::SizeOf;
+use self::store::Store;
+use self::timer::Timer;
+use self::var_pkg::VarPkg;
+use self::wait::Wait;
 use super::SymbolAccess;
-use crate::aml::{
-    context::Context,
-    data::DataRefObj,
-    name::{NameString, Target},
-    ops::LoadOp,
-    parser::{fail, Input, ParseResult, ParserError},
-};
+use crate::aml::context::Context;
+use crate::aml::data::DataRefObj;
+use crate::aml::name::NameString;
+use crate::aml::name::Target;
+use crate::aml::ops::LoadOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::parser::ParserError;
 
 pub enum Expr<A: Allocator> {
     Acquire(Acquire<A>),

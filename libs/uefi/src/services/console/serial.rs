@@ -1,8 +1,8 @@
-use crate::{
-    services::boot::{Guid, UefiProtocol},
-    Status,
-};
 use core::ffi::c_void;
+
+use crate::services::boot::Guid;
+use crate::services::boot::UefiProtocol;
+use crate::Status;
 
 impl Serial {
     pub fn reset(&mut self) -> Result<(), usize> {

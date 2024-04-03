@@ -1,9 +1,9 @@
-use crate::{
-    error::{ParseErrorKind, ParseResult},
-    input::Input,
-    parser::Parser,
-};
 use core::alloc::Allocator;
+
+use crate::error::ParseErrorKind;
+use crate::error::ParseResult;
+use crate::input::Input;
+use crate::parser::Parser;
 
 #[derive(Clone)]
 pub struct Map<P, F> {

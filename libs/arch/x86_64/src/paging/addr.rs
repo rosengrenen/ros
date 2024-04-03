@@ -1,4 +1,5 @@
-use common::addr::{PhysAddr, VirtAddr};
+use common::addr::PhysAddr;
+use common::addr::VirtAddr;
 
 pub(crate) trait VirtAddrExt {
     fn p4_index(&self) -> usize;

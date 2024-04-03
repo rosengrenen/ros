@@ -2,7 +2,8 @@
 
 use core::fmt::Debug;
 use core::mem::MaybeUninit;
-use core::ops::{Index, IndexMut};
+use core::ops::Index;
+use core::ops::IndexMut;
 
 pub struct StackVec<const N: usize, T> {
     array: [MaybeUninit<T>; N],

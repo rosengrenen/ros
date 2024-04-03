@@ -1,9 +1,10 @@
-use crate::{
-    error::{ParseError, ParseResult},
-    input::Input,
-    parser::Parser,
-};
-use core::{alloc::Allocator, marker::PhantomData};
+use core::alloc::Allocator;
+use core::marker::PhantomData;
+
+use crate::error::ParseError;
+use crate::error::ParseResult;
+use crate::input::Input;
+use crate::parser::Parser;
 
 pub fn rest<I, E, C, A>() -> impl Parser<I, C, A, Output = I, Error = E>
 where

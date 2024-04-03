@@ -1,11 +1,12 @@
 use core::alloc::Allocator;
 
-use crate::aml::{
-    context::Context,
-    ops::WaitOp,
-    parser::{fail, Input, ParseResult},
-    term::{statement::EventObj, TermArg},
-};
+use crate::aml::context::Context;
+use crate::aml::ops::WaitOp;
+use crate::aml::parser::fail;
+use crate::aml::parser::Input;
+use crate::aml::parser::ParseResult;
+use crate::aml::term::statement::EventObj;
+use crate::aml::term::TermArg;
 
 pub struct Wait<A: Allocator> {
     pub event: EventObj<A>,
