@@ -30,6 +30,7 @@ use common::addr::PhysAddr;
 use common::addr::VirtAddr;
 use common::frame::FrameAllocError;
 use common::frame::FrameAllocator;
+use kalloc::KernelAllocator;
 use serial::SerialPort;
 use serial::COM1_BASE;
 use x86_64::control::Cr3;
@@ -39,8 +40,6 @@ use x86_64::paging::MappedPageTable;
 use x86_64::paging::PageTable;
 use x86_64::paging::PageTableFrameMapper;
 use x86_64::paging::PageTableFrameOffsetMapper;
-
-use crate::kalloc::KernelAllocator;
 
 #[macro_export]
 macro_rules! sprintln {
@@ -184,27 +183,25 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         core::arch::asm!("int3");
     }
 
-    // let enabled_timer = false;
-    // if enabled_timer {
-    //     sprintln!("Setting up Local APIC for timer interrupts...");
-    //     unsafe {
-    //         LAPIC = {
-    //             let lapic = msr::LApic::current();
-    //             let page = page_allocator.allocate_pages(1);
-    //             page_table.map(
-    //                 VirtAddr::new(page),
-    //                 PhysAddr::new(lapic.base),
-    //                 &frame_allocator,
-    //             );
-    //             msr::LApic { base: page }
-    //         }
-    //     };
-    //     unsafe {
-    //         LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
-    //         LAPIC.write_divide_configuration(0b1010);
-    //         LAPIC.write_timer_lvt((1 << 17) | 0x20);
-    //     }
-    // }
+    let enabled_timer = true;
+    if enabled_timer {
+        sprintln!("Setting up Local APIC for timer interrupts...");
+        unsafe {
+            LAPIC = {
+                let lapic = msr::LApic::current();
+                let phys_addr = PhysAddr::new(lapic.base);
+                let virt_addr = FRAME_OFFSET_MAPPER.frame_to_page(phys_addr);
+                msr::LApic {
+                    base: virt_addr.as_u64(),
+                }
+            }
+        };
+        unsafe {
+            LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
+            LAPIC.write_divide_configuration(0b1010);
+            LAPIC.write_timer_lvt((1 << 17) | 0x20);
+        }
+    }
 
     let rsdp_addr = FRAME_OFFSET_MAPPER
         .frame_to_page(PhysAddr::new(info.rsdp as u64))

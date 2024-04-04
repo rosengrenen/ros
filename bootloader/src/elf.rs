@@ -1,4 +1,4 @@
-use crate::allocator::BumpAllocator;
+use common::frame::FrameAllocator;
 
 #[derive(Debug)]
 pub struct KernelExecutable {
@@ -32,9 +32,10 @@ impl<'elf> Elf<'elf> {
     }
 }
 
-pub fn mount_kernel(
+pub fn mount_kernel<F: FrameAllocator>(
     elf: &[u8],
-    bump_alloc: &BumpAllocator,
+    loaded_segments: &mut [Option<ProgramHeader>],
+    frame_alloc: F,
 ) -> Result<KernelExecutable, &'static str> {
     let elf = Elf { bytes: elf };
     let header = elf.header();
@@ -49,7 +50,8 @@ pub fn mount_kernel(
     let load_entries = elf.program_headers().iter().filter(|e| e.ty == 1);
     let mut kernel_virt_base = u64::MAX;
     let mut kernel_virt_limit = 0;
-    for &entry in load_entries.clone() {
+    for (i, &entry) in load_entries.clone().enumerate() {
+        loaded_segments[i] = Some(entry);
         kernel_virt_base = kernel_virt_base.min(entry.physical_address);
         kernel_virt_limit = kernel_virt_limit.max(entry.physical_address + entry.segment_mem_size);
     }
@@ -59,7 +61,7 @@ pub fn mount_kernel(
     kernel_virt_limit &= !0xfff;
     let kernel_frames = (kernel_virt_limit - kernel_virt_base) as usize / 4096;
     // TODO: allocate zeroed
-    let mut kernel_phys_base = bump_alloc
+    let mut kernel_phys_base = frame_alloc
         .allocate_frames(kernel_frames)
         .unwrap()
         .as_virt_ident();
@@ -136,14 +138,14 @@ impl TryFrom<&[u8]> for ElfHeader {
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct ProgramHeader {
-    ty: u32,
-    flags: u32,
-    segment_file_offset: u64,
-    virtual_address: u64,
-    physical_address: u64,
-    segment_file_size: u64,
-    segment_mem_size: u64,
-    align: u64,
+    pub ty: u32,
+    pub flags: u32,
+    pub segment_file_offset: u64,
+    pub virtual_address: u64,
+    pub physical_address: u64,
+    pub segment_file_size: u64,
+    pub segment_mem_size: u64,
+    pub align: u64,
 }
 
 impl TryFrom<&[u8]> for ProgramHeader {

@@ -74,7 +74,8 @@ pub extern "efiapi" fn efi_main(
 
     let kernel_memory_map = optimize_memory_map(&memory_map, &bump_allocator);
     core::mem::forget(memory_map);
-    let kernel = mount_kernel(&kernel_executable, &bump_allocator).unwrap();
+    let mut loaded_segments = [None; 8];
+    let kernel = mount_kernel(&kernel_executable, &mut loaded_segments, &bump_allocator).unwrap();
     core::mem::forget(kernel_executable);
 
     // Exit UEFI boot services
@@ -94,7 +95,6 @@ pub extern "efiapi" fn efi_main(
             // TODO: whitelist instead of blacklist
             MemoryRegionType::ReservedMemoryType => false,
             MemoryRegionType::UnusableMemory => false,
-            MemoryRegionType::MemoryMappedIO => false,
             MemoryRegionType::MemoryMappedIOPortSpace => false,
             MemoryRegionType::UnacceptedMemoryType => false,
             _ => true,
@@ -125,15 +125,23 @@ pub extern "efiapi" fn efi_main(
     }
 
     // Map kernel to virtual addresses
-    // TODO: make text segment read/execute only
+    let writable_segments = loaded_segments
+        .iter()
+        .copied()
+        .filter_map(|s| s)
+        .filter(|s| s.flags & 0x2 == 0x2);
     for page in 0..kernel.num_frames {
+        let virt_addr = VirtAddr::new(kernel.image_start + page as u64 * 4096);
+        let phys_addr = PhysAddr::new(kernel.frame_addr + page as u64 * 4096);
+        let writable = writable_segments.clone().any(|s| {
+            let page_start = virt_addr.as_u64();
+            let page_end = page_start + 4096;
+            let seg_start = s.virtual_address;
+            let seg_end = seg_start + s.segment_mem_size;
+            seg_end >= page_start && seg_start <= page_end
+        });
         mapped_page_table
-            .map(
-                VirtAddr::new(kernel.image_start + page as u64 * 4096),
-                PhysAddr::new(kernel.frame_addr + page as u64 * 4096),
-                &bump_allocator,
-                false,
-            )
+            .map(virt_addr, phys_addr, &bump_allocator, writable)
             .unwrap();
     }
 
