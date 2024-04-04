@@ -44,6 +44,8 @@ pub struct LApic {
 impl LApic {
     const EOI: u64 = 0x00b0;
     const SPURIOUS_VECTOR_INTERRUPT: u64 = 0x00f0;
+    const ICR_LOW: u64 = 0x300;
+    const ICR_HIGH: u64 = 0x310;
     const TIMER_LVT: u64 = 0x0320;
     const INITIAL_COUNT: u64 = 0x0380;
     const CURRENT_COUNT: u64 = 0x0390;
@@ -93,6 +95,14 @@ impl LApic {
 
     pub fn read_current_count(&self) -> u32 {
         self.read(Self::CURRENT_COUNT)
+    }
+
+    pub fn write_icr_low(&self, value: u32) {
+        self.write(Self::ICR_LOW, value)
+    }
+
+    pub fn write_icr_high(&self, value: u32) {
+        self.write(Self::ICR_HIGH, value)
     }
 
     fn read(&self, offset: u64) -> u32 {
