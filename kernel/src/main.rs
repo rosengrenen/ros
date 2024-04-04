@@ -183,24 +183,50 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         core::arch::asm!("int3");
     }
 
-    let enabled_timer = true;
-    if enabled_timer {
-        sprintln!("Setting up Local APIC for timer interrupts...");
-        unsafe {
-            LAPIC = {
-                let lapic = msr::LApic::current();
-                let phys_addr = PhysAddr::new(lapic.base);
-                let virt_addr = FRAME_OFFSET_MAPPER.frame_to_page(phys_addr);
-                msr::LApic {
-                    base: virt_addr.as_u64(),
-                }
+    sprintln!("Setting up Local APIC for timer interrupts...");
+    unsafe {
+        LAPIC = {
+            let lapic = msr::LApic::current();
+            let phys_addr = PhysAddr::new(lapic.base);
+            let virt_addr = FRAME_OFFSET_MAPPER.frame_to_page(phys_addr);
+            msr::LApic {
+                base: virt_addr.as_u64(),
             }
-        };
-        unsafe {
-            LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
+        }
+    };
+    unsafe {
+        // This line enables the lapic (i think), so not specific to timers
+        LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
+        let timer_enabled = true;
+        if timer_enabled {
             LAPIC.write_divide_configuration(0b1010);
             LAPIC.write_timer_lvt((1 << 17) | 0x20);
         }
+    }
+
+    {
+        // TODO: get these from MADT
+        // Define I/O APIC registers addresses
+        const IOAPIC_REGSEL: u64 = 0xFEC00000;
+        const IOAPIC_REGWIN: u64 = 0xFEC00010;
+
+        // Function to write to an I/O APIC register
+        fn ioapic_write(reg: u32, value: u32) {
+            unsafe {
+                (IOAPIC_REGSEL as *mut u32).write(reg);
+                (IOAPIC_REGWIN as *mut u32).write(value);
+            }
+        }
+
+        // Route PS/2 interrupt (IRQ 0x12) to vector 0x21
+        let ioapic_irq_low: u32 = 0x21 | (1 << 15); // Set the destination CPU (in this case, CPU 0)
+        let ioapic_irq_high: u32 = 0; // Set the delivery mode and other flags to default (0)
+
+        // Configure the I/O APIC entry for IRQ 0x12
+        ioapic_write(0x12, ioapic_irq_low);
+        ioapic_write(0x13, ioapic_irq_high);
+
+        sprintln!("PS/2 interrupt (IRQ 0x1) routed to vector 0x21 successfully");
     }
 
     let rsdp_addr = FRAME_OFFSET_MAPPER
@@ -224,12 +250,62 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
             sprintln!("Reading dsdt...");
             print_dsdt(dsdt_addr, &kalloc);
         }
+
+        if &header.signature == b"APIC" {
+            let mut offset: usize = 44;
+            while offset < header.length as usize {
+                let ptr = unsafe { table_ptr.cast::<u8>().add(offset) };
+                let ty = unsafe { ptr.read() };
+                let len = unsafe { ptr.add(1).read() };
+                match ty {
+                    0 => {
+                        let uid = unsafe { ptr.add(2).read() };
+                        let apic_id = unsafe { ptr.add(3).read() };
+                        let flags = unsafe { ptr.add(4).cast::<u32>().read_unaligned() };
+                        sprintln!(
+                            "Processor local apic => uid: {}, apic id: {}, flags: {:#b}",
+                            uid,
+                            apic_id,
+                            flags
+                        );
+                    }
+                    1 => {
+                        let apic_id = unsafe { ptr.add(2).read() };
+                        let io_apic_addr = unsafe { ptr.add(4).cast::<u32>().read_unaligned() };
+                        let global_system_interrupt_base =
+                            unsafe { ptr.add(8).cast::<u32>().read_unaligned() };
+                        sprintln!(
+                            "I/O apic => apic id: {}, ip apic addr: {:#x}, global system interrupt base: {}",
+                            apic_id,
+                            io_apic_addr,
+                            global_system_interrupt_base
+                        );
+                    }
+                    2 => {
+                        let bus = unsafe { ptr.add(2).read() };
+                        let source = unsafe { ptr.add(3).read() };
+                        let global_system_interrupt =
+                            unsafe { ptr.add(4).cast::<u32>().read_unaligned() };
+                        let flags = unsafe { ptr.add(8).cast::<u16>().read_unaligned() };
+                        sprintln!(
+                            "Interrupt source override => bus: {}, source: {}, global system interrupt: {}, flags: {:#b}",
+                            bus,
+                            source,
+                            global_system_interrupt,
+                            flags
+                        );
+                    }
+                    _ => (),
+                }
+                offset += len as usize;
+            }
+        }
     }
 
     sprintln!("Entering halt loop...");
     loop {
         unsafe { core::arch::asm!("hlt") };
-        sprintln!("Waking up from halt");
+        // sprintln!("Waking up from halt");
     }
 }
 
