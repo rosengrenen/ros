@@ -1,0 +1,24 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "gdb",
+			"request": "attach",
+			"name": "GDB attach",
+			"executable": "${workspaceFolder}/kernel/target/x86_64/debug/ros",
+			"target": ":1234",
+			"remote": true,
+			"cwd": "${workspaceRoot}",
+			"valuesFormatting": "parseText"
+		},
+		{
+			"type": "lldb",
+			"request": "custom",
+			"name": "LLDB attach",
+			"targetCreateCommands": [
+				"target create ${workspaceFolder}/kernel/target/x86_64/debug/ros"
+			],
+			"processCreateCommands": ["gdb-remote localhost:1234"]
+		}
+	]
+}
