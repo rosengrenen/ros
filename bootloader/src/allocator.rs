@@ -29,11 +29,18 @@ impl BumpAllocator {
             mem_regions.push(*item);
         }
 
-        let addr = mem_regions[0].physical_start.max(4096);
+        let mut region_index = 0;
+        while region_index < mem_regions.len()
+            && mem_regions[region_index].physical_start < 0x100000
+        {
+            region_index += 1;
+        }
+
+        let addr = mem_regions[region_index].physical_start.max(4096);
         Self {
             mem_regions,
             inner: RefCell::new(BumpAllocatorInner {
-                region_index: 0,
+                region_index,
                 addr,
                 allocated_frames: StackVec::new(),
             }),

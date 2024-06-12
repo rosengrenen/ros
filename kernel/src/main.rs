@@ -132,6 +132,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     .unwrap();
     buddy_allocator.add_regions(memory_regions).unwrap();
     let buddy_allocator = Buddy(spinlock::Mutex::new(buddy_allocator));
+    let trampoline_frame = buddy_allocator.allocate_frame().unwrap().as_u64();
 
     let kalloc = KernelAllocator::new(&buddy_allocator);
 
@@ -142,8 +143,8 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
 
     {
         sprintln!("Expanding stack...");
-        let target_pages = 64;
         let current_pages = (info.kernel.stack_start - info.kernel.stack_end + 4095) / 4096;
+        let target_pages = 64.max(current_pages);
         for i in 0..target_pages - current_pages {
             let frame = buddy_allocator.allocate_frame().unwrap();
             mapped_page_table
@@ -197,7 +198,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     unsafe {
         // This line enables the lapic (i think), so not specific to timers
         LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
-        let timer_enabled = true;
+        let timer_enabled = false;
         if timer_enabled {
             LAPIC.write_divide_configuration(0b1010);
             LAPIC.write_timer_lvt((1 << 17) | 0x20);
@@ -229,6 +230,26 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         sprintln!("PS/2 interrupt (IRQ 0x1) routed to vector 0x21 successfully");
     }
 
+    unsafe {
+        LAPIC.write_icr_low(0x000C4500);
+        if trampoline_frame >= 0x100000 {
+            panic!(
+                "trampoline must be loaded in a frame below 1MB {:x?}",
+                trampoline_frame
+            );
+        }
+
+        let trampoline_code = include_bytes!("../trampoline.bin");
+
+        let slice = core::slice::from_raw_parts_mut(trampoline_frame as *mut u8, 4096);
+        for (i, b) in trampoline_code.iter().enumerate() {
+            slice[i] = *b;
+        }
+
+        sprintln!("trampoline segment {:#x?}", trampoline_frame / 4096);
+        LAPIC.write_icr_low(0x000C4600 | (trampoline_frame as u32 / 4096));
+    }
+
     let rsdp_addr = FRAME_OFFSET_MAPPER
         .frame_to_page(PhysAddr::new(info.rsdp as u64))
         .as_u64();
@@ -241,7 +262,9 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
             .frame_to_page(PhysAddr::new(table_ptr as u64))
             .as_ptr::<DefinitionHeader>();
         let header = unsafe { table_ptr.read() };
-        if &header.signature == b"FACP" {
+        let sig = unsafe { core::str::from_utf8_unchecked(&header.signature) };
+        sprintln!("{:?}", sig);
+        if sig == "FACP" {
             let ptr = table_ptr as *const Fadt;
             let fadt = unsafe { ptr.read_unaligned() };
             let dsdt_addr = FRAME_OFFSET_MAPPER
@@ -251,7 +274,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
             print_dsdt(dsdt_addr, &kalloc);
         }
 
-        if &header.signature == b"APIC" {
+        if sig == "APIC" {
             let mut offset: usize = 44;
             while offset < header.length as usize {
                 let ptr = unsafe { table_ptr.cast::<u8>().add(offset) };
@@ -305,7 +328,6 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     sprintln!("Entering halt loop...");
     loop {
         unsafe { core::arch::asm!("hlt") };
-        // sprintln!("Waking up from halt");
     }
 }
 

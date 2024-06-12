@@ -75,14 +75,14 @@ extern "x86-interrupt" fn interrupt_page_fault(frame: InterruptStackFrame, code:
 static mut COUNT: usize = 0;
 
 extern "x86-interrupt" fn interrupt_timer(frame: InterruptStackFrame) {
-    // let mut serial = SerialPort::new(COM1_BASE);
-    // writeln!(
-    //     serial,
-    //     "{:?} Timer interrupt, frame: {:#x?}",
-    //     unsafe { COUNT },
-    //     frame,
-    // )
-    // .unwrap();
+    let mut serial = SerialPort::new(COM1_BASE);
+    writeln!(
+        serial,
+        "{:?} Timer interrupt, frame: {:#x?}",
+        unsafe { COUNT },
+        frame,
+    )
+    .unwrap();
     unsafe {
         COUNT += 1;
         LAPIC.write_eoi();
@@ -91,13 +91,6 @@ extern "x86-interrupt" fn interrupt_timer(frame: InterruptStackFrame) {
 
 extern "x86-interrupt" fn interrupt_kb(frame: InterruptStackFrame) {
     let scancode = unsafe { inb(0x60) };
-    // let mut serial = SerialPort::new(COM1_BASE);
-    // writeln!(
-    //     serial,
-    //     "Keyboard interrupt, frame => scancode: {:x}",
-    //     scancode
-    // )
-    // .unwrap();
     print_scancode(scancode);
     unsafe {
         LAPIC.write_eoi();
