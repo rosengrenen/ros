@@ -220,6 +220,7 @@ pub extern "efiapi" fn efi_main(
     // Set new page table
     // TODO: make it take a phys addr instead of u64
     Cr3::write(pml4_frame.as_u64());
+    sprintln!("setting cr3 to {:x}", pml4_frame.as_u64());
 
     sprintln!("Bootloader is launching kernel...");
 

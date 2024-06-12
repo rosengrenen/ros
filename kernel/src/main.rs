@@ -98,8 +98,30 @@ pub struct DescriptorTablePointer {
 pub static mut LAPIC: msr::LApic = msr::LApic { base: 0 };
 
 #[no_mangle]
+pub extern "C" fn _start2() -> ! {
+    sprintln!("Cpu is starting...");
+    loop {
+        unsafe {
+            core::arch::asm!(
+                "
+            mov al, 115;
+            mov dx, 0x03f8;
+            out dx, al;
+        "
+            );
+        }
+    }
+
+    loop {}
+}
+
+#[no_mangle]
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     sprintln!("Kernel is starting...");
+
+    sprintln!("Address of _start2 is {:x}", _start2 as u64);
+
+    sprintln!("{:#x?}", info);
 
     let mut serial = SerialPort::new(COM1_BASE);
     serial.configure(1);
@@ -246,10 +268,16 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
             slice[i] = *b;
         }
 
+        let stack = buddy_allocator.allocate_frame().unwrap();
         sprintln!("trampoline segment {:#x?}", trampoline_frame / 4096);
+        sprintln!(
+            "stack addr {:#x?}",
+            FRAME_OFFSET_MAPPER.frame_to_page(stack)
+        );
         LAPIC.write_icr_low(0x000C4600 | (trampoline_frame as u32 / 4096));
     }
 
+    loop {}
     let rsdp_addr = FRAME_OFFSET_MAPPER
         .frame_to_page(PhysAddr::new(info.rsdp as u64))
         .as_u64();
