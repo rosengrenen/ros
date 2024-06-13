@@ -224,6 +224,8 @@ pub extern "efiapi" fn efi_main(
 
     sprintln!("Bootloader is launching kernel...");
 
+    sprintln!("Jumping to {:#x?}", kernel.entry_point);
+
     // Jump to kernel
     unsafe {
         core::arch::asm!("mov rsp, {}; jmp {}",

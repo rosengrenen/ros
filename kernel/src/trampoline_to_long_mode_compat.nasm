@@ -1,6 +1,6 @@
 [BITS 32]
 
-mov eax, 0x132000 ; TODO: this should not be hard coded
+mov eax, 0x134000 ; TODO: this should not be hard coded
 mov cr3, eax
 
 mov eax, cr4                 ; Set the A-register to control register 4.
