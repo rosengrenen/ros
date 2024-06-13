@@ -1,9 +1,10 @@
 %include "src/gdt.nasm"
 
-%define CodeSegment 0x8
-%define DataSegment 0x10
+%define CodeSegment32 0x8
+%define DataSegment32 0x10
 
 [BITS 16]
+
 ; data selector should be same as code selector
 mov ax, cs
 mov ds, ax
@@ -17,31 +18,31 @@ mov ds, ax
 ; set base low from code selector
 mov ax, cs
 shl ax, 4
-mov [gdt.CodeBaseLow], ax
-mov [gdt.DataBaseLow], ax
+mov [gdt32.CodeBaseLow], ax
+mov [gdt32.DataBaseLow], ax
 
 ; set base mid from code selector
 mov ax, cs
 shr ax, 12
-mov [gdt.CodeBaseMid], al
-mov [gdt.DataBaseMid], al
+mov [gdt32.CodeBaseMid], al
+mov [gdt32.DataBaseMid], al
 
 cli
-lgdt [ds:gdtr]
+lgdt [ds:gdtr32]
 mov eax, cr0
 or al, 1 ; TODO: add constant?
 mov cr0, eax
 
-mov ax, DataSegment
+mov ax, DataSegment32
 mov ds, ax
 mov es, ax
 mov fs, ax
 mov gs, ax
 mov ss, ax
-jmp CodeSegment:protected_mode
+jmp CodeSegment32:protected_mode
 
 align 8
-gdt:
+gdt32:
     ; null descriptor
     dq 0
     ; kernel code segment
@@ -64,8 +65,8 @@ gdt:
     db GDT_ACCESS_PRESENT | GDT_ACCESS_NOT_SYSTEM_SEGMENT | GDT_ACCESS_READ_WRITE | GDT_ACCESS_ACCESSED
     db GDT_FLAG_GRANULARITY_4K | GDT_FLAG_SEGMENT_32BIT | 0x0f
     .DataBaseHigh db 0x00
-gdtr:
-    dw gdtr - gdt - 1
-    dd gdt + 0x9f000
+gdtr32:
+    dw gdtr32 - gdt32 - 1
+    dd gdt32 + 0x9f000
 
 protected_mode:

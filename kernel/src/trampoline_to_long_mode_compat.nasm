@@ -1,4 +1,8 @@
 [BITS 32]
+
+mov eax, 0x132000 ; TODO: this should not be hard coded
+mov cr3, eax
+
 mov eax, cr4                 ; Set the A-register to control register 4.
 or eax, 1 << 5               ; Set the PAE-bit, which is the 6th bit (bit 5).
 mov cr4, eax                 ; Set control register 4 to the A-register.
@@ -11,5 +15,3 @@ wrmsr                        ; Write to the model-specific register.
 mov eax, cr0                 ; Set the A-register to control register 0.
 or eax, 1 << 31              ; Set the PG-bit, which is the 32nd bit (bit 31).
 mov cr0, eax                 ; Set control register 0 to the A-register.
-
-long_mode_compat:
