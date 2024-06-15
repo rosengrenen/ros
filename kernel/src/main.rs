@@ -99,16 +99,10 @@ pub static mut LAPIC: msr::LApic = msr::LApic { base: 0 };
 
 #[no_mangle]
 pub extern "C" fn _start2() -> ! {
-    // sprintln!("Cpu is starting...");
+    sprintln!("Cpu is starting...");
     loop {
         unsafe {
-            core::arch::asm!(
-                "
-            mov al, 115;
-            mov dx, 0x03f8;
-            out dx, al;
-        "
-            );
+            core::arch::asm!("hlt");
         }
     }
 }
@@ -272,6 +266,22 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
             "stack addr {:#x?}",
             FRAME_OFFSET_MAPPER.frame_to_page(stack)
         );
+
+        const SEGMENT_BASE: usize = 0x800;
+        const STACK_ROOT: usize = 0x808;
+        const KERNEL_START: usize = 0x810;
+        const PML4_ADDR: usize = 0x818;
+        slice[SEGMENT_BASE..SEGMENT_BASE + 8].copy_from_slice(&trampoline_frame.to_le_bytes());
+        slice[STACK_ROOT..STACK_ROOT + 8].copy_from_slice(
+            &FRAME_OFFSET_MAPPER
+                .frame_to_page(stack.add(0x1000))
+                .as_u64()
+                .to_le_bytes(),
+        );
+        slice[KERNEL_START..KERNEL_START + 8].copy_from_slice(&(_start2 as u64).to_le_bytes());
+        slice[PML4_ADDR..PML4_ADDR + 8].copy_from_slice(&Cr3::read().pba_pml4.to_le_bytes());
+        sprintln!("{:x?}", &slice[0x800..0x820]);
+
         LAPIC.write_icr_low(0x000C4600 | (trampoline_frame as u32 / 4096));
     }
 
