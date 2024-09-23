@@ -99,7 +99,7 @@ pub static mut LAPIC: msr::LApic = msr::LApic { base: 0 };
 
 #[no_mangle]
 pub extern "C" fn _start2() -> ! {
-    sprintln!("Cpu is starting...");
+    sprintln!("Cpu {} is starting...", cpuid());
     loop {
         unsafe {
             core::arch::asm!("hlt");
@@ -107,9 +107,19 @@ pub extern "C" fn _start2() -> ! {
     }
 }
 
+fn cpuid() -> u32 {
+    unsafe {
+        core::arch::asm!("mov eax, 0xb");
+        core::arch::asm!("cpuid");
+        let cpuid: u32;
+        core::arch::asm!("mov {0:e}, edx", out(reg) cpuid);
+        cpuid
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
-    sprintln!("Kernel is starting...");
+    sprintln!("Kernel is starting on {}...", cpuid());
 
     sprintln!("Address of _start2 is {:x}", _start2 as u64);
 
@@ -280,12 +290,11 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         );
         slice[KERNEL_START..KERNEL_START + 8].copy_from_slice(&(_start2 as u64).to_le_bytes());
         slice[PML4_ADDR..PML4_ADDR + 8].copy_from_slice(&Cr3::read().pba_pml4.to_le_bytes());
-        sprintln!("{:x?}", &slice[0x800..0x820]);
 
-        LAPIC.write_icr_low(0x000C4600 | (trampoline_frame as u32 / 4096));
+        // LAPIC.write_icr_low(0x000C4600 | (trampoline_frame as u32 / 4096));
     }
 
-    loop {}
+    // loop {}
     let rsdp_addr = FRAME_OFFSET_MAPPER
         .frame_to_page(PhysAddr::new(info.rsdp as u64))
         .as_u64();
@@ -298,9 +307,9 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
             .frame_to_page(PhysAddr::new(table_ptr as u64))
             .as_ptr::<DefinitionHeader>();
         let header = unsafe { table_ptr.read() };
-        let sig = unsafe { core::str::from_utf8_unchecked(&header.signature) };
-        sprintln!("{:?}", sig);
-        if sig == "FACP" {
+        let signature = unsafe { core::str::from_utf8_unchecked(&header.signature) };
+        sprintln!("{:?}", signature);
+        if signature == "FACP" {
             let ptr = table_ptr as *const Fadt;
             let fadt = unsafe { ptr.read_unaligned() };
             let dsdt_addr = FRAME_OFFSET_MAPPER
@@ -310,7 +319,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
             print_dsdt(dsdt_addr, &kalloc);
         }
 
-        if sig == "APIC" {
+        if signature == "APIC" {
             let mut offset: usize = 44;
             while offset < header.length as usize {
                 let ptr = unsafe { table_ptr.cast::<u8>().add(offset) };
