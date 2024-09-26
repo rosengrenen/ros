@@ -77,6 +77,23 @@ unsafe impl<'f, F: FrameAllocator> Allocator for KernelAllocator<'f, F> {
     }
 
     unsafe fn deallocate(&self, ptr: core::ptr::NonNull<u8>, layout: Layout) {
-        // TODO: free memory
+        let size = layout.size();
+        if size <= 32 {
+            unsafe { self.slab_32.lock().deallocate(ptr, layout) }
+        } else if size <= 64 {
+            unsafe { self.slab_64.lock().deallocate(ptr, layout) }
+        } else if size <= 128 {
+            unsafe { self.slab_128.lock().deallocate(ptr, layout) }
+        } else if size <= 256 {
+            unsafe { self.slab_256.lock().deallocate(ptr, layout) }
+        } else if size <= 512 {
+            unsafe { self.slab_512.lock().deallocate(ptr, layout) }
+        } else if size <= 1024 {
+            unsafe { self.slab_1k.lock().deallocate(ptr, layout) }
+        } else if size <= 2048 {
+            unsafe { self.slab_2k.lock().deallocate(ptr, layout) }
+        } else {
+            panic!("kernel allocator does not yet support 2k> allocations");
+        }
     }
 }

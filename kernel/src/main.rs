@@ -99,7 +99,7 @@ pub static mut LAPIC: msr::LApic = msr::LApic { base: 0 };
 
 #[no_mangle]
 pub extern "C" fn _start2() -> ! {
-    sprintln!("Cpu {} is starting...", cpuid());
+    sprintln!("Kernel is starting on CPU{}...", cpuid());
     loop {
         unsafe {
             core::arch::asm!("hlt");
@@ -119,7 +119,7 @@ fn cpuid() -> u32 {
 
 #[no_mangle]
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
-    sprintln!("Kernel is starting on {}...", cpuid());
+    sprintln!("Kernel is booting on CPU{}...", cpuid());
 
     sprintln!("Address of _start2 is {:x}", _start2 as u64);
 
@@ -222,7 +222,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     unsafe {
         // This line enables the lapic (i think), so not specific to timers
         LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
-        let timer_enabled = false;
+        let timer_enabled = true;
         if timer_enabled {
             LAPIC.write_divide_configuration(0b1010);
             LAPIC.write_timer_lvt((1 << 17) | 0x20);
@@ -255,6 +255,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     }
 
     unsafe {
+        // Vafan är det här?
         LAPIC.write_icr_low(0x000C4500);
         if trampoline_frame >= 0x100000 {
             panic!(
