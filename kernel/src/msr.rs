@@ -97,8 +97,24 @@ impl LApic {
         self.read(Self::CURRENT_COUNT)
     }
 
-    pub fn write_icr_low(&self, value: u32) {
-        self.write(Self::ICR_LOW, value)
+    pub fn write_icr_low(
+        &self,
+        destination_shorthand: DestinationShorthand,
+        trigger_mode: TriggerMode,
+        level: Level,
+        destination_mode: DestinationMode,
+        delivery_mode: DeliveryMode,
+        vector: u8,
+    ) {
+        self.write(
+            Self::ICR_LOW,
+            destination_shorthand as u32
+                | trigger_mode as u32
+                | level as u32
+                | destination_mode as u32
+                | delivery_mode as u32
+                | vector as u32,
+        )
     }
 
     pub fn write_icr_high(&self, value: u32) {
@@ -112,4 +128,40 @@ impl LApic {
     fn write(&self, offset: u64, value: u32) {
         unsafe { ((self.base + offset) as *mut u32).write(value) }
     }
+}
+
+#[repr(u32)]
+pub enum DestinationShorthand {
+    None = 0b00 << 18,
+    OnlySelf = 0b01 << 18,
+    AllInludingSelf = 0b10 << 18,
+    AllExludingSelf = 0b11 << 18,
+}
+
+#[repr(u32)]
+pub enum TriggerMode {
+    Edge = 0 << 15,
+    Level = 1 << 15,
+}
+
+#[repr(u32)]
+pub enum Level {
+    Deassert = 0 << 14,
+    Assert = 1 << 14,
+}
+
+#[repr(u32)]
+pub enum DestinationMode {
+    Physical = 0 << 11,
+    Logical = 1 << 11,
+}
+
+#[repr(u32)]
+pub enum DeliveryMode {
+    Fixed = 0b000 << 8,
+    LowestPriority = 0b001 << 8,
+    Smi = 0b010 << 8,
+    Nmi = 0b100 << 8,
+    Init = 0b101 << 8,
+    StartUp = 0b110 << 8,
 }

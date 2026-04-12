@@ -1,7 +1,3 @@
-use core::fmt::Write;
-
-use serial::SerialPort;
-use serial::COM1_BASE;
 use x86_64::control::Cr2;
 use x86_64::idt::IdtEntry;
 
@@ -39,50 +35,36 @@ struct InterruptStackFrame {
 }
 
 extern "x86-interrupt" fn interrupt_div0(frame: InterruptStackFrame) {
-    let mut serial = SerialPort::new(COM1_BASE);
-    writeln!(serial, "Div 0, frame: {:#x?}", frame).unwrap();
+    sprintln!("Div 0, frame: {:#x?}", frame);
     loop {}
 }
 
 extern "x86-interrupt" fn interrupt_breakpoint(frame: InterruptStackFrame) {
-    let mut serial = SerialPort::new(COM1_BASE);
-    writeln!(serial, "Breakpoint, frame: {:#x?}", frame).unwrap();
+    sprintln!("Breakpoint, frame: {:#x?}", frame);
 }
 
 extern "x86-interrupt" fn interrupt_dbl(frame: InterruptStackFrame, code: u64) {
-    let mut serial = SerialPort::new(COM1_BASE);
-    writeln!(
-        serial,
-        "Double fault, frame: {:#x?}. code: {:#x}",
-        frame, code
-    )
-    .unwrap();
+    sprintln!("Double fault, frame: {:#x?}. code: {:#x}", frame, code);
 }
 
 extern "x86-interrupt" fn interrupt_page_fault(frame: InterruptStackFrame, code: u64) {
-    let mut serial = SerialPort::new(COM1_BASE);
-    writeln!(
-        serial,
+    sprintln!(
         "Page fault, frame: {:#x?}, code: {:#x}, trying to access: {:#x?}",
         frame,
         code,
         Cr2::read()
-    )
-    .unwrap();
+    );
     loop {}
 }
 
 static mut COUNT: usize = 0;
 
 extern "x86-interrupt" fn interrupt_timer(frame: InterruptStackFrame) {
-    let mut serial = SerialPort::new(COM1_BASE);
-    writeln!(
-        serial,
+    sprintln!(
         "{:?} Timer interrupt, frame: {:#x?}",
         unsafe { COUNT },
         frame,
-    )
-    .unwrap();
+    );
     unsafe {
         COUNT += 1;
         LAPIC.write_eoi();

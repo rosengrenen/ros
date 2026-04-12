@@ -10,6 +10,9 @@ pub struct Mutex<T> {
     locked: AtomicBool,
 }
 
+unsafe impl<T: Send> Send for Mutex<T> {}
+unsafe impl<T: Send> Sync for Mutex<T> {}
+
 impl<T: fmt::Debug> fmt::Debug for Mutex<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.locked.load(Ordering::Relaxed) {
@@ -23,7 +26,7 @@ impl<T: fmt::Debug> fmt::Debug for Mutex<T> {
 }
 
 impl<T> Mutex<T> {
-    pub fn new(value: T) -> Self {
+    pub const fn new(value: T) -> Self {
         Self {
             value: UnsafeCell::new(value),
             locked: AtomicBool::new(false),

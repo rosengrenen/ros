@@ -9,7 +9,7 @@ pub struct SerialPort {
 }
 
 impl SerialPort {
-    pub fn new(base: u16) -> Self {
+    pub const fn new(base: u16) -> Self {
         Self { base }
     }
 

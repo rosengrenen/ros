@@ -16,6 +16,8 @@ mod spinlock;
 
 use core::alloc::Allocator;
 use core::panic::PanicInfo;
+use core::sync::atomic::AtomicBool;
+use core::sync::atomic::Ordering;
 
 use acpi::tables::DefinitionHeader;
 use acpi::tables::Fadt;
@@ -41,12 +43,16 @@ use x86_64::paging::PageTable;
 use x86_64::paging::PageTableFrameMapper;
 use x86_64::paging::PageTableFrameOffsetMapper;
 
+static PORT: spinlock::Mutex<SerialPort> = spinlock::Mutex::new(SerialPort::new(COM1_BASE));
+
+static CORE_READY: AtomicBool = AtomicBool::new(false);
+
 #[macro_export]
 macro_rules! sprintln {
     ($($arg:tt)*) => {{
-        use serial::{SerialPort, COM1_BASE};
         use core::fmt::Write;
-        let mut serial = SerialPort::new(COM1_BASE);
+        let mut serial = crate::PORT.lock();
+        write!(serial, "[{}] ", crate::cpuid()).unwrap();
         writeln!(serial, $($arg)*).unwrap();
     }}
 }
@@ -97,13 +103,60 @@ pub struct DescriptorTablePointer {
 
 pub static mut LAPIC: msr::LApic = msr::LApic { base: 0 };
 
+static mut FRAME_ALLOCATOR: Option<Buddy> = None;
+
 #[no_mangle]
 pub extern "C" fn _start2() -> ! {
     sprintln!("Kernel is starting on CPU{}...", cpuid());
-    loop {
-        unsafe {
-            core::arch::asm!("hlt");
+
+    let buddy_allocator = if let Some(frame_allocator) = unsafe { &FRAME_ALLOCATOR } {
+        frame_allocator
+    } else {
+        panic!();
+    };
+    let gdt = {
+        let frame = buddy_allocator.allocate_frame().unwrap();
+        let mut page = FRAME_OFFSET_MAPPER.frame_to_page(frame);
+        page.as_slice_mut::<u64>(4096 / core::mem::size_of::<u64>())
+    };
+
+    let idt = {
+        let frame = buddy_allocator.allocate_frame().unwrap();
+        let mut page = FRAME_OFFSET_MAPPER.frame_to_page(frame);
+        page.as_slice_mut::<IdtEntry>(4096 / core::mem::size_of::<IdtEntry>())
+    };
+
+    sprintln!("Setting up GDT...");
+    init_gdt(gdt);
+
+    sprintln!("Setting up IDT...");
+    interrupt::init(idt);
+
+    unsafe {
+        sprintln!("Testing breakpoint interrupt...");
+        core::arch::asm!("int3");
+    }
+
+    sprintln!("Setting up Local APIC for timer interrupts...");
+    unsafe {
+        let timer_enabled = true;
+        if timer_enabled {
+            LAPIC.write_divide_configuration(0b1010);
+            LAPIC.write_timer_lvt((1 << 17) | 0x20);
+            LAPIC.write_initial_count(0x1000_000);
         }
+
+        // This line enables the lapic (i think), so not specific to timers
+        LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
+    }
+
+    sprintln!("Setting up Local APIC for timer interrupts DONE");
+
+    CORE_READY.store(true, Ordering::Relaxed);
+
+    sprintln!("Entering halt loop...");
+    loop {
+        unsafe { core::arch::asm!("hlt") };
     }
 }
 
@@ -117,10 +170,23 @@ fn cpuid() -> u32 {
     }
 }
 
+fn core_count() -> u32 {
+    unsafe {
+        core::arch::asm!("mov eax, 0xb");
+        core::arch::asm!("mov ecx, 0x1");
+        core::arch::asm!("cpuid");
+        let cpuid: u32;
+        core::arch::asm!("mov {0:e}, ebx", out(reg) cpuid);
+        cpuid & 0xFFFF
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn _start(info: &'static BootInfo) -> ! {
-    sprintln!("Kernel is booting on CPU{}...", cpuid());
+    sprintln!("Kernel is booting...");
+    sprintln!("Core count {}", core_count());
 
+    sprintln!("Address of _start2");
     sprintln!("Address of _start2 is {:x}", _start2 as u64);
 
     sprintln!("{:#x?}", info);
@@ -155,7 +221,16 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     )
     .unwrap();
     buddy_allocator.add_regions(memory_regions).unwrap();
-    let buddy_allocator = Buddy(spinlock::Mutex::new(buddy_allocator));
+    unsafe {
+        FRAME_ALLOCATOR = Some(Buddy(spinlock::Mutex::new(buddy_allocator)));
+    }
+    let buddy_allocator = unsafe {
+        if let Some(frame_allocator) = &FRAME_ALLOCATOR {
+            frame_allocator
+        } else {
+            panic!()
+        }
+    };
     let trampoline_frame = buddy_allocator.allocate_frame().unwrap().as_u64();
 
     let kalloc = KernelAllocator::new(&buddy_allocator);
@@ -212,6 +287,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
     unsafe {
         LAPIC = {
             let lapic = msr::LApic::current();
+            sprintln!("lapic {:x}", lapic.base);
             let phys_addr = PhysAddr::new(lapic.base);
             let virt_addr = FRAME_OFFSET_MAPPER.frame_to_page(phys_addr);
             msr::LApic {
@@ -220,13 +296,15 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         }
     };
     unsafe {
-        // This line enables the lapic (i think), so not specific to timers
-        LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
         let timer_enabled = true;
         if timer_enabled {
             LAPIC.write_divide_configuration(0b1010);
             LAPIC.write_timer_lvt((1 << 17) | 0x20);
+            LAPIC.write_initial_count(0x1000_000);
         }
+
+        // This line enables the lapic (i think), so not specific to timers
+        LAPIC.write_spurious_interrupt_vector((1 << 8) | 0x99);
     }
 
     {
@@ -256,7 +334,6 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
 
     unsafe {
         // Vafan är det här?
-        LAPIC.write_icr_low(0x000C4500);
         if trampoline_frame >= 0x100000 {
             panic!(
                 "trampoline must be loaded in a frame below 1MB {:x?}",
@@ -292,7 +369,30 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
         slice[KERNEL_START..KERNEL_START + 8].copy_from_slice(&(_start2 as u64).to_le_bytes());
         slice[PML4_ADDR..PML4_ADDR + 8].copy_from_slice(&Cr3::read().pba_pml4.to_le_bytes());
 
-        // LAPIC.write_icr_low(0x000C4600 | (trampoline_frame as u32 / 4096));
+        let cores = core_count();
+        for i in 1..cores {
+            sprintln!("Setting up core {}", i);
+            CORE_READY.store(false, Ordering::Relaxed);
+            LAPIC.write_icr_high(i << 24);
+            LAPIC.write_icr_low(
+                msr::DestinationShorthand::None,
+                msr::TriggerMode::Edge,
+                msr::Level::Assert,
+                msr::DestinationMode::Physical,
+                msr::DeliveryMode::Init,
+                0,
+            );
+            sprintln!("starting low");
+            LAPIC.write_icr_low(
+                msr::DestinationShorthand::None,
+                msr::TriggerMode::Edge,
+                msr::Level::Assert,
+                msr::DestinationMode::Physical,
+                msr::DeliveryMode::StartUp,
+                (trampoline_frame as u32 / 4096) as u8,
+            );
+            while !CORE_READY.load(Ordering::Relaxed) {}
+        }
     }
 
     // loop {}
@@ -317,7 +417,7 @@ pub extern "C" fn _start(info: &'static BootInfo) -> ! {
                 .frame_to_page(PhysAddr::new(fadt.dsdt as u64))
                 .as_u64();
             sprintln!("Reading dsdt...");
-            print_dsdt(dsdt_addr, &kalloc);
+            // print_dsdt(dsdt_addr, &kalloc);
         }
 
         if signature == "APIC" {
